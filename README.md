@@ -335,5 +335,17 @@ grep -rho "docs/[A-Za-z-]*\.md" src next.config.mjs supabase | sort -u
 
 ## Licence
 
-Not yet decided. There is no `LICENSE` file in the repository, so no licence is
-granted by default.
+[MIT](LICENSE). Use it, change it and ship it, including commercially, provided
+the copyright notice travels with it. It comes with no warranty.
+
+**What the licence does not cover.** The demo dataset under
+`src/lib/data/demo/` points at photographs and avatars hosted on
+`images.unsplash.com` by photo id. Those are other people's photographs. The
+repository does not redistribute them and the grant above does not extend to
+them: they are referenced so the interface can be reviewed, which is not
+permission to run a public site on them. Their titles, captions, credits and
+appreciation counts are invented, and the demo notice in the running app says
+so. Before deploying anything public, replace the dataset with photographs you
+hold the rights to and drop `images.unsplash.com` from `remotePatterns` in
+`next.config.mjs`. [docs/LIMITATIONS.md](docs/LIMITATIONS.md) sets this out in
+full under "Demo content and seeded data".

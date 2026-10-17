@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "FRAME \u2014 a street photography community. Discover places. Capture moments.",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
