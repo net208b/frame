@@ -151,8 +151,16 @@ jobs:
               where n.nspname = 'public'
                 and c.relname = 'locations'
                 and a.attname = 'geog';")
-          echo "locations.geog is: $type"
-          if [ "$type" != "geography(Point,4326)" ]; then
+          # format_type() qualifies the type with its schema whenever that schema
+          # is not on the session's search_path, so the same correct column reads
+          # back as `geography(Point,4326)` against Supabase — whose roles carry
+          # `extensions` on the path — and as `extensions.geography(Point,4326)`
+          # against a plain image, which does not. Comparing the formatted string
+          # literally therefore depends on the server's role configuration rather
+          # than on the column, so the qualifier is stripped before comparing.
+          bare="${type##*.}"
+          echo "locations.geog is: $type (bare: $bare)"
+          if [ "$bare" != "geography(Point,4326)" ]; then
             echo "::error::locations.geog is '$type', not geography(Point,4326) — the PostGIS shim was applied, so geography semantics were not covered." >&2
             exit 1
           fi
