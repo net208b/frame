@@ -1,0 +1,86 @@
+# FRAME — Supabase local development configuration.
+#
+# Used by `supabase start`, `supabase db reset` and `supabase db push`. Nothing
+# in this file affects a hosted project: the dashboard settings there are
+# authoritative, and the two must be kept in step by hand.
+
+project_id = "frame"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+# PostGIS and citext live in `extensions` (see migration 0001), so PostgREST has
+# to be able to resolve names there as well.
+extra_search_path = ["public", "extensions"]
+# Deliberately well above any PAGE_SIZE in src/lib/config.ts. /map asks for
+# every approved location in one request, and a silent cap would show a partial
+# map with no indication that anything was missing. A hosted project's default
+# is 1000, so mapPins() must either page or the limit must be raised there too.
+max_rows = 2000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Match this to the hosted project's Postgres version before running
+# `supabase db push`, or the diff and the shadow database will disagree.
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[studio]
+enabled = true
+port = 54323
+
+# Catches outbound mail locally, so email confirmation can be tested without
+# sending anything to a real address.
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "25MiB"
+
+# The bucket the upload wizard writes to. Public, because every derivative is
+# served straight to a browser from a public photograph page, and because
+# signing every grid image would put a round trip in front of each card.
+# Originals are not served: see IMAGE_VARIANTS in src/lib/images/variants.ts.
+#
+# The MIME list mirrors UPLOAD_POLICY.acceptedMimeTypes. It is a second line of
+# defence only — the real check reads the file's magic bytes with sharp, because
+# a declared content type is whatever the client decided to claim.
+[storage.buckets.photographs]
+public = true
+file_size_limit = "25MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/avif"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/auth/callback",
+  "http://localhost:3000/auth/confirm",
+  "http://127.0.0.1:3000/auth/callback",
+]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+enable_signup = true
+# No anonymous sessions. Every write in this app is attributable to an account:
+# appreciation is one per member, a report has a reporter, an upload has an
+# owner who can answer a copyright claim.
+enable_anonymous_sign_ins = false
+
+# 10 characters, matching the password rule in @/lib/validation/auth. The two
+# have to agree, or the auth service rejects a password the form accepted.
+minimum_password_length = 10
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+
+[analytics]
+enabled = false

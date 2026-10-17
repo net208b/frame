@@ -1,0 +1,404 @@
+/**
+ * Domain types shared by the demo dataset, the Supabase repository and the UI.
+ *
+ * The UI only ever depends on these shapes, which is what makes it possible to
+ * swap the demo dataset for live queries, or Supabase Storage for R2, without
+ * touching a component.
+ */
+
+/* ------------------------------------------------------------------------ */
+/* Taxonomy                                                                  */
+/* ------------------------------------------------------------------------ */
+
+export const PHOTO_CATEGORIES = [
+  'street',
+  'architecture',
+  'night',
+  'urban-landscape',
+  'documentary',
+  'portrait',
+] as const;
+
+export type PhotoCategory = (typeof PHOTO_CATEGORIES)[number];
+
+export const CATEGORY_LABELS: Record<PhotoCategory, string> = {
+  street: 'Street',
+  architecture: 'Architecture',
+  night: 'Night',
+  'urban-landscape': 'Urban landscape',
+  documentary: 'Documentary',
+  portrait: 'Street portrait',
+};
+
+export type PublicationStatus = 'draft' | 'processing' | 'published' | 'under_review' | 'removed';
+
+export type SubmissionStatus = 'pending' | 'approved' | 'rejected' | 'changes_requested';
+
+/* ------------------------------------------------------------------------ */
+/* Images                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/** The derivative sizes generated for every upload. See lib/images/variants.ts. */
+export type ImageVariantName = 'thumb' | 'grid' | 'display' | 'full';
+
+export interface PhotoImage {
+  /** Small square-ish derivative for dense lists and avatars in cards. */
+  thumbUrl: string;
+  /** Gallery derivative. This is what a Discover page request downloads. */
+  gridUrl: string;
+  /** Largest derivative served to a viewer. Never the untouched original. */
+  displayUrl: string;
+  /** Intrinsic pixel size of the display derivative, for layout without jank. */
+  width: number;
+  height: number;
+  /** Tiny inline placeholder, when one has been generated. */
+  blurDataUrl?: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* People                                                                    */
+/* ------------------------------------------------------------------------ */
+
+export type ProfileRole = 'member' | 'moderator' | 'admin';
+
+export interface PhotographerSummary {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  /** Free-text, member-supplied. Never derived from an IP address. */
+  basedIn: string | null;
+}
+
+export interface PhotographerProfile extends PhotographerSummary {
+  biography: string | null;
+  website: string | null;
+  /** Gear the member chose to show. Absent when they have not filled it in. */
+  usualGear: string[];
+  photographCount: number;
+  appreciationsReceived: number;
+  locationsContributed: number;
+  /** Month precision only — the exact signup day is not public. */
+  memberSince: string;
+  role: ProfileRole;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Places                                                                    */
+/* ------------------------------------------------------------------------ */
+
+export interface LocationSummary {
+  id: string;
+  slug: string;
+  name: string;
+  city: string;
+  country: string;
+  /** ISO 3166-1 alpha-2. */
+  countryCode: string;
+  photographCount: number;
+}
+
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+  /**
+   * Decimal places actually published. Reduced for privacy-sensitive places,
+   * so a consumer can never mistake a blurred point for a precise one.
+   */
+  precisionDecimals: number;
+  /** True when the exact position is withheld on purpose. */
+  isApproximate: boolean;
+}
+
+export interface LocationDetail extends LocationSummary {
+  description: string | null;
+  /** Null when the place is sensitive and no coordinate may be published. */
+  coordinates: Coordinates | null;
+  /** Categories this place is actually good for, from approved photographs. */
+  categories: PhotoCategory[];
+  /** Community-written, moderator-approved shooting advice. */
+  shootingNotes: string[];
+  /**
+   * Access and photography restrictions. Only shown when a moderator has
+   * recorded a source, because a wrong restriction note is worse than none.
+   */
+  restrictions: LocationRestriction[];
+  bestTimeOfDay: string | null;
+  submittedBy: PhotographerSummary | null;
+  approvedAt: string | null;
+}
+
+export interface LocationRestriction {
+  kind: 'permit' | 'private-property' | 'no-tripod' | 'hours' | 'fee' | 'other';
+  note: string;
+  /** Where the claim comes from. Required — see docs/LIMITATIONS.md. */
+  source: string;
+  recordedAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Photographs                                                               */
+/* ------------------------------------------------------------------------ */
+
+export interface PhotographCard {
+  id: string;
+  slug: string;
+  title: string;
+  /** Required for every image. Authored by the uploader, not generated. */
+  altText: string;
+  category: PhotoCategory;
+  image: PhotoImage;
+  appreciationCount: number;
+  /** Whether the viewer has already appreciated it. Null when signed out. */
+  viewerHasAppreciated: boolean | null;
+  photographer: PhotographerSummary;
+  location: LocationSummary | null;
+  publishedAt: string;
+  editorsPick: boolean;
+}
+
+export interface CaptureSettings {
+  cameraBrand: string | null;
+  cameraModel: string | null;
+  lensBrand: string | null;
+  lensModel: string | null;
+  /** Millimetres, as written on the lens. */
+  focalLengthMm: number | null;
+  /** f-number, e.g. 1.8. */
+  aperture: number | null;
+  /** Human-readable, e.g. "1/250" or "4s". */
+  shutterSpeed: string | null;
+  iso: number | null;
+}
+
+export interface EditingDetails {
+  software: string | null;
+  notes: string | null;
+}
+
+export interface PhotographDetail extends PhotographCard {
+  description: string | null;
+  capture: CaptureSettings;
+  editing: EditingDetails;
+  /** Only present when EXIF held a date *and* the owner chose to publish it. */
+  capturedAt: string | null;
+  status: PublicationStatus;
+  /** Set by the uploader at step 6 of the wizard. Required to publish. */
+  rightsConfirmedAt: string | null;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Collections                                                               */
+/* ------------------------------------------------------------------------ */
+
+export type CollectionVisibility = 'public' | 'private';
+
+export interface Collection {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  visibility: CollectionVisibility;
+  owner: PhotographerSummary;
+  itemCount: number;
+  coverImageUrl: string | null;
+  updatedAt: string;
+}
+
+export interface CollectionItem {
+  id: string;
+  note: string | null;
+  addedAt: string;
+  photograph: PhotographCard | null;
+  location: LocationSummary | null;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Reports and moderation                                                    */
+/* ------------------------------------------------------------------------ */
+
+export type ReportSubjectType = 'photograph' | 'location' | 'profile' | 'collection';
+
+export const REPORT_REASONS = [
+  'copyright',
+  'not-my-photograph',
+  'wrong-location',
+  'privacy',
+  'inappropriate',
+  'spam',
+  'duplicate',
+  'other',
+] as const;
+
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
+  copyright: 'Copyright infringement',
+  'not-my-photograph': 'This photograph is not the uploader’s work',
+  'wrong-location': 'The location is wrong or misleading',
+  privacy: 'Privacy concern about a person or a private place',
+  inappropriate: 'Inappropriate or unsafe content',
+  spam: 'Spam or misleading upload',
+  duplicate: 'Duplicate of an existing entry',
+  other: 'Something else',
+};
+
+export type ReportStatus = 'open' | 'reviewing' | 'actioned' | 'dismissed';
+
+export interface Report {
+  id: string;
+  subjectType: ReportSubjectType;
+  subjectId: string;
+  subjectLabel: string;
+  reason: ReportReason;
+  details: string | null;
+  status: ReportStatus;
+  createdAt: string;
+  /** Null for a report filed by a signed-out visitor. */
+  reportedBy: PhotographerSummary | null;
+}
+
+export type ModerationDecision =
+  | 'approve'
+  | 'reject'
+  | 'request_changes'
+  | 'remove_content'
+  | 'suspend_account'
+  | 'dismiss';
+
+export interface ModerationAction {
+  id: string;
+  decision: ModerationDecision;
+  subjectType: ReportSubjectType | 'location_submission';
+  subjectId: string;
+  /** Required for every negative decision, and shown to the member. */
+  reason: string | null;
+  moderator: PhotographerSummary;
+  createdAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Queues                                                                    */
+/* ------------------------------------------------------------------------ */
+
+export interface LocationSubmission {
+  id: string;
+  proposedName: string;
+  city: string;
+  country: string;
+  countryCode: string;
+  latitude: number;
+  longitude: number;
+  note: string | null;
+  status: SubmissionStatus;
+  submittedBy: PhotographerSummary;
+  createdAt: string;
+  /** Automated checks. Signals for a human, never an automatic decision. */
+  signals: SubmissionSignal[];
+  rejectionReason: string | null;
+}
+
+export interface SubmissionSignal {
+  kind:
+    | 'possible-duplicate'
+    | 'coordinate-country-mismatch'
+    | 'coordinate-out-of-range'
+    | 'low-precision'
+    | 'rate-limited'
+    | 'sensitive-area';
+  severity: 'info' | 'warn' | 'high';
+  message: string;
+  /** For a duplicate signal: the location it may duplicate. */
+  relatedId?: string;
+  relatedLabel?: string;
+  distanceMetres?: number;
+}
+
+export interface SuspiciousUpload {
+  id: string;
+  photographId: string;
+  title: string;
+  thumbUrl: string;
+  uploader: PhotographerSummary;
+  createdAt: string;
+  signals: UploadSignal[];
+}
+
+export interface UploadSignal {
+  kind:
+    | 'perceptual-hash-match'
+    | 'exif-missing'
+    | 'exif-conflict'
+    | 'burst-upload'
+    | 'embedded-credit-mismatch'
+    | 'low-resolution';
+  severity: 'info' | 'warn' | 'high';
+  message: string;
+  relatedLabel?: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Query options                                                             */
+/* ------------------------------------------------------------------------ */
+
+export const SORT_OPTIONS = ['recent', 'appreciated', 'trending', 'editors'] as const;
+export type SortOption = (typeof SORT_OPTIONS)[number];
+
+export const SORT_LABELS: Record<SortOption, string> = {
+  recent: 'Recently added',
+  appreciated: 'Most appreciated',
+  trending: 'Trending',
+  editors: 'Editor’s picks',
+};
+
+/** How each ordering is computed, shown in the UI so ranking is not a mystery. */
+export const SORT_EXPLANATIONS: Record<SortOption, string> = {
+  recent: 'Newest published photographs first.',
+  appreciated: 'Highest lifetime appreciation count first.',
+  trending:
+    'Appreciations earned recently count for more than older ones, so new work can surface.',
+  editors: 'Chosen by FRAME editors. Always labelled, never paid for.',
+};
+
+export interface DiscoverQuery {
+  category?: PhotoCategory | null;
+  /** Free text matched against location name, city and country. */
+  place?: string | null;
+  cameraBrand?: string | null;
+  cameraModel?: string | null;
+  lensBrand?: string | null;
+  sort: SortOption;
+  page: number;
+  pageSize: number;
+}
+
+export interface Paginated<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  /** Null when an exact count would be too expensive to compute. */
+  totalCount: number | null;
+  hasMore: boolean;
+}
+
+/** Aggregate counts. Only ever rendered when they come from real data. */
+export interface PlatformStats {
+  photographs: number;
+  locations: number;
+  countries: number;
+  photographers: number;
+  /** True when these numbers describe the bundled demo dataset. */
+  isDemoData: boolean;
+}
+
+export interface GearOption {
+  id: string;
+  label: string;
+  photographCount: number;
+}
+
+export interface GearFacets {
+  cameraBrands: GearOption[];
+  cameraModels: GearOption[];
+  lensBrands: GearOption[];
+}

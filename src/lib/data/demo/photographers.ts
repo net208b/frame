@@ -1,0 +1,128 @@
+import type { PhotographerProfile } from '@/types/domain';
+
+/**
+ * Demo photographers.
+ *
+ * Every record here is fictional. The dataset exists so the full interface can
+ * be reviewed, and type-checked, before any external service is connected.
+ * Anything rendered from this file is accompanied by a visible demo notice —
+ * see `components/system/DemoNotice.tsx`.
+ *
+ * Counts are kept consistent with `photographs.ts` by the assertion at the
+ * bottom of that module, so the profile pages never claim a number the
+ * portfolio cannot show.
+ */
+
+const avatar = (photoId: string) =>
+  `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=192&q=80`;
+
+export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
+  {
+    id: '7a1c1e6e-0000-4000-8000-000000000001',
+    username: 'kenjiwatanabe',
+    displayName: 'Kenji Watanabe',
+    avatarUrl: avatar('photo-1500648767791-00dcc994a43e'),
+    basedIn: 'Tokyo, Japan',
+    biography:
+      'I walk the same handful of streets behind Shinjuku most nights. The light changes, the people change, and the picture is never the same twice. Available light, mostly 35mm.',
+    website: null,
+    usualGear: ['Fujifilm X-Pro3', 'Fujinon XF 35mm f/1.4 R', 'Ricoh GR IIIx'],
+    photographCount: 3,
+    appreciationsReceived: 1184,
+    locationsContributed: 3,
+    memberSince: '2024-03-01',
+    role: 'member',
+  },
+  {
+    id: '7a1c1e6e-0000-4000-8000-000000000002',
+    username: 'annakeller',
+    displayName: 'Anna Keller',
+    avatarUrl: avatar('photo-1534528741775-53994a69daeb'),
+    basedIn: 'Amsterdam, Netherlands',
+    biography:
+      'Architecture first, people second — though the people usually make the frame. I am interested in how a city tells you where to walk.',
+    website: 'https://example.com/annakeller',
+    usualGear: ['Sony α7 IV', 'Sony FE 24mm f/1.4 GM', 'Sony FE 55mm f/1.8 ZA'],
+    photographCount: 4,
+    appreciationsReceived: 742,
+    locationsContributed: 3,
+    memberSince: '2024-07-01',
+    role: 'member',
+  },
+  {
+    id: '7a1c1e6e-0000-4000-8000-000000000003',
+    username: 'marcosilva',
+    displayName: 'Marco Silva',
+    avatarUrl: avatar('photo-1506794778202-cad84cf45f1d'),
+    basedIn: 'Rome, Italy',
+    biography:
+      'Long evenings, hard geometry, and a notebook of corners to come back to when the light is right. I travel for work and photograph on the way.',
+    website: null,
+    usualGear: ['Nikon Z f', 'Nikkor Z 40mm f/2', 'Nikkor Z 70-180mm f/2.8'],
+    photographCount: 4,
+    appreciationsReceived: 668,
+    locationsContributed: 3,
+    memberSince: '2025-01-01',
+    role: 'member',
+  },
+  {
+    id: '7a1c1e6e-0000-4000-8000-000000000004',
+    username: 'mayachen',
+    displayName: 'Maya Chen',
+    avatarUrl: avatar('photo-1544005313-94ddf0286df2'),
+    basedIn: 'New York, United States',
+    biography:
+      'Documentary habits applied to a daily commute. I photograph the same few blocks until something happens, which is most days.',
+    website: 'https://example.com/mayachen',
+    usualGear: ['Leica Q3', 'Canon EOS R6 Mark II', 'Canon RF 35mm f/1.8 Macro IS STM'],
+    photographCount: 5,
+    appreciationsReceived: 913,
+    locationsContributed: 5,
+    memberSince: '2024-11-01',
+    role: 'member',
+  },
+  {
+    id: '7a1c1e6e-0000-4000-8000-000000000005',
+    username: 'pimframes',
+    displayName: 'Pim Thanaphon',
+    avatarUrl: null,
+    basedIn: 'Bangkok, Thailand',
+    biography:
+      'Neon is a light source like any other — you just have to respect its colour. Based in Bangkok, photographing wherever the job sends me.',
+    website: null,
+    usualGear: ['Sony α7C', 'Sigma 35mm f/1.4 DG DN Art'],
+    photographCount: 2,
+    appreciationsReceived: 587,
+    locationsContributed: 1,
+    memberSince: '2025-04-01',
+    role: 'member',
+  },
+  {
+    id: '7a1c1e6e-0000-4000-8000-000000000006',
+    username: 'elliotreyes',
+    displayName: 'Elliot Reyes',
+    avatarUrl: null,
+    basedIn: 'London, United Kingdom',
+    biography:
+      'Hard geometry and the people who use it as a shortcut. I also help review new locations on FRAME.',
+    website: null,
+    usualGear: ['Panasonic Lumix S5 II', 'Lumix S 20-60mm f/3.5-5.6'],
+    photographCount: 2,
+    appreciationsReceived: 304,
+    locationsContributed: 1,
+    memberSince: '2024-05-01',
+    role: 'moderator',
+  },
+];
+
+/** The moderator account used by the demo moderation dashboard. */
+export const DEMO_MODERATOR = DEMO_PHOTOGRAPHERS[5]!;
+
+export function demoPhotographerById(id: string): PhotographerProfile | undefined {
+  return DEMO_PHOTOGRAPHERS.find((person) => person.id === id);
+}
+
+export function demoPhotographerByUsername(username: string): PhotographerProfile | undefined {
+  const needle = username.toLowerCase();
+  return DEMO_PHOTOGRAPHERS.find((person) => person.username.toLowerCase() === needle);
+}

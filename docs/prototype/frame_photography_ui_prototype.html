@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FRAME — Street Photography, Everywhere</title>
+<style>
+:root{--ink:#171815;--muted:#777970;--line:#e8e8e2;--paper:#f8f8f5;--white:#fff;--accent:#d9ff56;--radius:18px}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:-.025em}
+a{color:inherit;text-decoration:none}button,input{font:inherit}button{cursor:pointer}
+.nav{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 5.2%;border-bottom:1px solid var(--line);background:rgba(248,248,245,.9);position:sticky;top:0;z-index:10;backdrop-filter:blur(14px)}
+.brand{font-weight:900;font-size:25px;letter-spacing:-.09em;display:flex;align-items:center;gap:9px}.brand-mark{width:24px;height:24px;border:6px solid var(--ink);border-radius:50%;display:inline-block;position:relative}.brand-mark:after{content:"";position:absolute;width:6px;height:6px;background:var(--accent);right:-5px;bottom:-3px;border-radius:50%;border:2px solid var(--ink)}
+.nav-links{display:flex;gap:32px;color:#55574f;font-size:13px;font-weight:650}.nav-links a.active{color:var(--ink)}.nav-right{display:flex;gap:11px;align-items:center}.btn{border:0;border-radius:100px;padding:12px 18px;font-weight:750;font-size:12px;transition:.2s}.btn-dark{background:var(--ink);color:white}.btn-dark:hover{transform:translateY(-2px);background:#333}.btn-light{background:white;border:1px solid var(--line)}.btn-accent{background:var(--accent);color:var(--ink)}.avatar{width:34px;height:34px;border-radius:50%;object-fit:cover;background:#ddd}
+main{max-width:1440px;margin:auto;padding:0 5.2%}
+.hero{padding:65px 0 34px;display:grid;grid-template-columns:1.1fr .9fr;gap:36px;align-items:end}.eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:#74766c;display:flex;align-items:center;gap:9px}.eyebrow:before{content:"";height:1px;width:22px;background:#999}
+h1{font-size:clamp(48px,6.6vw,92px);line-height:.91;letter-spacing:-.085em;margin:22px 0 22px;font-weight:780;max-width:760px}h1 em{font-family:Georgia,serif;font-weight:400;letter-spacing:-.09em}.hero-copy{font-size:15px;line-height:1.7;color:var(--muted);max-width:390px;margin:0 0 25px}.hero-actions{display:flex;gap:10px;align-items:center}.hero-stat{display:flex;gap:27px;margin-top:33px}.stat strong{display:block;font-size:21px;letter-spacing:-.06em}.stat span{display:block;font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.02em}
+.hero-image{height:390px;position:relative;border-radius:var(--radius);overflow:hidden;background:#d4d0c6}.hero-image img{width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.82)}.image-caption{position:absolute;left:18px;right:18px;bottom:18px;color:#fff;display:flex;justify-content:space-between;align-items:end;text-shadow:0 1px 8px #0008}.image-caption small{display:block;font-size:10px;opacity:.85;letter-spacing:.08em;text-transform:uppercase}.image-caption strong{font-size:15px;display:block;margin-top:4px}.photo-index{background:#ffffffd9;color:#171815;padding:9px 12px;border-radius:100px;font-size:10px;font-weight:800;text-shadow:none}
+.section-head{display:flex;justify-content:space-between;align-items:end;margin:50px 0 20px}.section-head h2{font-size:27px;letter-spacing:-.065em;margin:8px 0 0}.section-head p{font-size:12px;color:var(--muted);margin:0 0 3px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}.chip{border:1px solid var(--line);background:transparent;padding:9px 14px;border-radius:100px;font-size:11px;font-weight:650;color:#62645b}.chip.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+.gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:17px}.card{min-width:0}.photo{height:310px;border-radius:14px;overflow:hidden;position:relative;background:#ddd}.photo.tall{height:365px}.photo img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s}.card:hover .photo img{transform:scale(1.045)}.heart{position:absolute;right:11px;top:11px;border:0;background:#ffffffd9;width:34px;height:34px;border-radius:50%;font-size:17px;display:grid;place-items:center}.heart.liked{background:var(--accent)}.tag{position:absolute;left:11px;bottom:11px;background:#ffffffdf;border-radius:100px;padding:7px 10px;font-size:9px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.photo-meta{display:flex;justify-content:space-between;gap:10px;margin-top:12px;align-items:start}.photo-meta h3{font-size:14px;margin:0 0 5px;letter-spacing:-.035em}.location{font-size:11px;color:var(--muted)}.likes{font-size:11px;color:#64665d;white-space:nowrap;padding-top:2px}.creator{display:flex;align-items:center;gap:8px;margin-top:12px}.creator img{width:24px;height:24px;object-fit:cover;border-radius:50%}.creator span{font-size:10px;color:#777970}.creator b{font-weight:700;color:#45473f}
+.explore-banner{margin:74px 0 48px;background:#1c1e19;color:#fff;border-radius:22px;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;min-height:300px}.banner-copy{padding:40px;display:flex;flex-direction:column;align-items:start;justify-content:center}.banner-copy .eyebrow{color:#b8b9ae}.banner-copy h2{font-size:clamp(32px,4vw,49px);line-height:.98;letter-spacing:-.075em;margin:18px 0 13px}.banner-copy p{font-size:12px;color:#b8b9ae;line-height:1.7;max-width:310px}.banner-map{position:relative;overflow:hidden;min-height:300px;background:#292c25}.map-img{width:100%;height:100%;object-fit:cover;opacity:.75;filter:grayscale(.5)}.map-label{position:absolute;top:22px;left:22px;background:#f8f8f2;color:#20211c;padding:11px 13px;border-radius:10px;font-size:10px;font-weight:800;box-shadow:0 6px 20px #0002}.pin{position:absolute;width:13px;height:13px;border:3px solid white;background:var(--accent);border-radius:50%;box-shadow:0 0 0 5px #ffffff35}.pin.p1{top:37%;left:43%}.pin.p2{top:61%;left:68%}.pin.p3{top:26%;left:72%}.pin.p4{top:69%;left:30%}.map-count{position:absolute;bottom:20px;right:20px;background:var(--accent);color:#1c1e19;border-radius:100px;padding:11px 15px;font-size:10px;font-weight:850}
+.footer{margin-top:55px;padding:28px 0 35px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:20px;color:#777970;font-size:10px}.footer .brand{color:var(--ink);font-size:20px}
+.toast{position:fixed;bottom:22px;left:50%;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:var(--ink);color:white;padding:13px 18px;border-radius:100px;font-size:12px;z-index:30;transition:.25s}.toast.show{opacity:1;transform:translate(-50%,0)}
+.modal-backdrop{display:none;position:fixed;inset:0;background:#1119;z-index:20;align-items:center;justify-content:center;padding:20px}.modal-backdrop.open{display:flex}.modal{width:min(500px,100%);background:var(--paper);border-radius:20px;padding:28px;box-shadow:0 20px 80px #0003}.modal-top{display:flex;justify-content:space-between;align-items:center}.modal h2{font-size:27px;letter-spacing:-.06em;margin:18px 0 8px}.modal p{font-size:12px;color:var(--muted);line-height:1.6}.close{border:0;background:white;border-radius:50%;width:34px;height:34px;font-size:20px}.form-field{display:block;margin:14px 0}.form-field span{display:block;font-size:11px;font-weight:750;margin-bottom:7px}.form-field input,.form-field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px;background:white;outline:none}.form-field input:focus,.form-field select:focus{border-color:#777}.modal .btn{width:100%;margin-top:8px}
+@media(max-width:950px){.nav{padding:0 4%}.nav-links{gap:15px}.hero{grid-template-columns:1fr .8fr;padding-top:45px}.hero-image{height:330px}.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}.photo,.photo.tall{height:340px}.explore-banner{margin-top:50px}}
+@media(max-width:650px){.nav{height:64px}.nav-links{display:none}.brand{font-size:23px}.nav-right .btn-light{display:none}main{padding:0 5%}.hero{display:flex;flex-direction:column;align-items:stretch;gap:26px;padding-top:38px}.hero h1{font-size:59px}.hero-image{height:300px}.hero-copy{font-size:14px}.hero-stat{margin-top:25px}.section-head{margin-top:39px;align-items:start;gap:15px}.section-head h2{font-size:24px}.section-head p{max-width:130px;text-align:right;line-height:1.5}.gallery{gap:19px 11px}.photo,.photo.tall{height:230px;border-radius:11px}.photo-meta{display:block}.photo-meta h3{font-size:12px}.likes{display:block;margin-top:7px}.creator{margin-top:9px}.creator span{font-size:9px}.explore-banner{grid-template-columns:1fr}.banner-copy{padding:28px}.banner-map{min-height:230px}.footer{flex-direction:column}.nav-right .btn-dark{padding:10px 13px}}
+</style>
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="#" aria-label="FRAME home"><span class="brand-mark"></span>FRAME</a>
+  <nav class="nav-links" aria-label="Main navigation">
+    <a class="active" href="#discover">Discover</a><a href="#map">Map</a><a href="#community">Community</a>
+  </nav>
+  <div class="nav-right"><button class="btn btn-light" data-modal="login">Log in</button><button class="btn btn-dark" data-modal="join">Join FRAME ↗</button></div>
+</header>
+<main>
+  <section class="hero">
+    <div>
+      <div class="eyebrow">A world of photography, in one place</div>
+      <h1>Find your<br>next <em>frame.</em></h1>
+      <p class="hero-copy">Discover remarkable street photographs, explore the places behind them, and learn how each moment was captured.</p>
+      <div class="hero-actions"><a class="btn btn-dark" href="#discover">Explore photographs ↗</a><button class="btn btn-light" data-modal="join">Share your work</button></div>
+      <div class="hero-stat"><div class="stat"><strong>12.8k</strong><span>PHOTOGRAPHS</span></div><div class="stat"><strong>840+</strong><span>LOCATIONS</span></div><div class="stat"><strong>64</strong><span>COUNTRIES</span></div></div>
+    </div>
+    <div class="hero-image">
+      <img src="https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=1400&q=85" alt="A quiet city street at night">
+      <div class="image-caption"><div><small>Featured frame · Tokyo, Japan</small><strong>After the last train</strong></div><span class="photo-index">01 / 08</span></div>
+    </div>
+  </section>
+
+  <section id="discover">
+    <div class="section-head"><div><div class="eyebrow">Selected by the community</div><h2>Frames worth finding.</h2></div><p>Real places. Personal perspectives.</p></div>
+    <div class="filters" role="group" aria-label="Filter photographs">
+      <button class="chip active" data-filter="all">All frames</button><button class="chip" data-filter="street">Street</button><button class="chip" data-filter="architecture">Architecture</button><button class="chip" data-filter="night">Night</button><button class="chip" data-filter="travel">Travel</button>
+    </div>
+    <div class="gallery" id="gallery">
+      <article class="card" data-category="street">
+        <div class="photo tall"><img loading="lazy" src="https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=85" alt="City at dusk"><button class="heart" aria-label="Appreciate photo">♡</button><span class="tag">Street</span></div>
+        <div class="photo-meta"><div><h3>Between the lights</h3><div class="location">Shinjuku, Tokyo, Japan ↗</div></div><span class="likes">♡ <b>248</b></span></div>
+        <div class="creator"><img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=80&q=80" alt=""><span>by <b>Kenji Watanabe</b></span></div>
+      </article>
+      <article class="card" data-category="architecture">
+        <div class="photo"><img loading="lazy" src="https://images.unsplash.com/photo-1511818966892-d7d671e672a2?auto=format&fit=crop&w=900&q=85" alt="Modern architectural lines"><button class="heart" aria-label="Appreciate photo">♡</button><span class="tag">Architecture</span></div>
+        <div class="photo-meta"><div><h3>Geometry in silence</h3><div class="location">Copenhagen, Denmark ↗</div></div><span class="likes">♡ <b>196</b></span></div>
+        <div class="creator"><img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80" alt=""><span>by <b>Anna Keller</b></span></div>
+      </article>
+      <article class="card" data-category="night">
+        <div class="photo tall"><img loading="lazy" src="https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=85&sat=-20" alt="Neon city after dark"><button class="heart" aria-label="Appreciate photo">♡</button><span class="tag">Night</span></div>
+        <div class="photo-meta"><div><h3>Last light, first rain</h3><div class="location">Dotonbori, Osaka, Japan ↗</div></div><span class="likes">♡ <b>174</b></span></div>
+        <div class="creator"><img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=80&q=80" alt=""><span>by <b>Marco Silva</b></span></div>
+      </article>
+      <article class="card" data-category="travel">
+        <div class="photo"><img loading="lazy" src="https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=900&q=85" alt="Urban street view"><button class="heart" aria-label="Appreciate photo">♡</button><span class="tag">Travel</span></div>
+        <div class="photo-meta"><div><h3>The city keeps moving</h3><div class="location">New York, USA ↗</div></div><span class="likes">♡ <b>152</b></span></div>
+        <div class="creator"><img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=80&q=80" alt=""><span>by <b>Maya Chen</b></span></div>
+      </article>
+    </div>
+  </section>
+
+  <section class="explore-banner" id="map">
+    <div class="banner-copy"><div class="eyebrow">Explore by place</div><h2>The world is<br>your viewfinder.</h2><p>Find a new angle in a familiar city. Browse real photographs pinned to the places where they were made.</p><a class="btn btn-accent" href="#discover">Explore the map ↗</a></div>
+    <div class="banner-map">
+      <img class="map-img" src="https://images.unsplash.com/photo-1524666041070-9fc2b4f5e7ab?auto=format&fit=crop&w=1200&q=80" alt="City map texture">
+      <span class="map-label">TOKYO · 248 FRAMES</span><i class="pin p1"></i><i class="pin p2"></i><i class="pin p3"></i><i class="pin p4"></i><span class="map-count">Explore 840+ locations ↗</span>
+    </div>
+  </section>
+
+  <section id="community">
+    <div class="section-head"><div><div class="eyebrow">Made by photographers</div><h2>Your perspective belongs here.</h2></div><button class="btn btn-dark" data-modal="join">Create your profile ↗</button></div>
+    <p style="font-size:13px;color:var(--muted);line-height:1.8;max-width:610px;margin:0 0 30px">Share the photograph, pin the place, and tell the story behind the settings. Every frame can help someone discover a new place to see the world.</p>
+  </section>
+  <footer class="footer"><a class="brand" href="#"><span class="brand-mark"></span>FRAME</a><span>Discover places. Capture moments.</span><span>Concept UI · Demo content for design exploration</span></footer>
+</main>
+<div class="toast" id="toast">Saved to your appreciated frames</div>
+<div class="modal-backdrop" id="modal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-top"><div class="brand"><span class="brand-mark"></span>FRAME</div><button class="close" id="close-modal" aria-label="Close dialog">×</button></div>
+    <h2 id="modal-title">Join a world of frames.</h2><p>This is a visual prototype. Account creation is not connected yet, but this is how the sign-up flow could begin.</p>
+    <label class="form-field"><span>Email address</span><input type="email" placeholder="you@example.com"></label>
+    <label class="form-field"><span>Choose a username</span><input type="text" placeholder="yourphotographername"></label>
+    <button class="btn btn-dark" id="demo-submit">Continue ↗</button>
+  </div>
+</div>
+<script>
+const toast=document.getElementById('toast');let toastTimer;
+function showToast(message){toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2200)}
+document.querySelectorAll('.heart').forEach(btn=>btn.addEventListener('click',()=>{btn.classList.toggle('liked');btn.textContent=btn.classList.contains('liked')?'♥':'♡';const count=btn.closest('.card').querySelector('.likes b');count.textContent=Number(count.textContent)+(btn.classList.contains('liked')?1:-1);showToast(btn.classList.contains('liked')?'Added to your appreciated frames':'Appreciation removed')}));
+document.querySelectorAll('[data-filter]').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('[data-filter]').forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.querySelectorAll('.card').forEach(card=>{card.style.display=(btn.dataset.filter==='all'||card.dataset.category===btn.dataset.filter)?'':'none'})}));
+const modal=document.getElementById('modal');document.querySelectorAll('[data-modal]').forEach(btn=>btn.addEventListener('click',()=>{document.getElementById('modal-title').textContent=btn.dataset.modal==='login'?'Welcome back to FRAME.':'Join a world of frames.';modal.classList.add('open')}));document.getElementById('close-modal').addEventListener('click',()=>modal.classList.remove('open'));modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('open')});document.getElementById('demo-submit').addEventListener('click',()=>{modal.classList.remove('open');showToast('Demo only — connect authentication to enable sign-up')});
+</script>
+</body>
+</html>

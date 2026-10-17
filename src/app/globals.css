@@ -1,0 +1,280 @@
+@import 'tailwindcss';
+
+/* =========================================================================
+   FRAME — design tokens
+   Modern minimalist editorial. Off-white paper, charcoal ink, one lime accent.
+   Hairline borders instead of heavy shadows. Restrained motion.
+   The token values originate in docs/prototype/frame_photography_ui_prototype.html
+   and are the single source of truth for the whole app.
+   ========================================================================= */
+
+@theme {
+  /* --- Surfaces ---------------------------------------------------------- */
+  --color-paper: #f8f8f5; /* page background, warm off-white */
+  --color-surface: #ffffff; /* cards, inputs, popovers */
+  --color-surface-sunken: #f1f1ec; /* skeletons, inset wells */
+  --color-ink-surface: #1c1e19; /* inverted editorial blocks */
+  --color-ink-surface-soft: #292c25;
+
+  /* --- Text -------------------------------------------------------------- */
+  --color-ink: #171815; /* primary text */
+  --color-ink-soft: #45473f; /* strong secondary */
+  --color-muted: #777970; /* secondary text */
+  --color-muted-soft: #93958c; /* tertiary / meta */
+  --color-on-ink: #f8f8f2; /* text on dark surfaces */
+  --color-on-ink-muted: #b8b9ae;
+
+  /* --- Lines ------------------------------------------------------------- */
+  --color-line: #e8e8e2; /* hairline border */
+  --color-line-strong: #d6d6cd; /* hairline on hover / dividers */
+  --color-line-inverse: #3a3d35;
+
+  /* --- Accent (used sparingly: appreciate, highlights, map pins) --------- */
+  --color-accent: #d9ff56; /* lime */
+  --color-accent-strong: #c2e63d;
+  --color-accent-ink: #171815; /* text on accent */
+
+  /* --- Status ------------------------------------------------------------ */
+  --color-success: #2f7d4f;
+  --color-success-bg: #eaf5ee;
+  --color-warning: #8a5a12;
+  --color-warning-bg: #fbf2e2;
+  --color-danger: #a62a24;
+  --color-danger-bg: #fbeceb;
+  --color-info: #2a5d8a;
+  --color-info-bg: #eaf1f8;
+
+  /* --- Typography -------------------------------------------------------- */
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  --font-serif: var(--font-instrument-serif), Georgia, 'Times New Roman', serif;
+
+  --text-eyebrow: 0.625rem; /* 10px — uppercase label */
+  --text-eyebrow--line-height: 1.2;
+  --text-eyebrow--letter-spacing: 0.16em;
+  --text-eyebrow--font-weight: 800;
+
+  --text-meta: 0.6875rem; /* 11px */
+  --text-meta--line-height: 1.45;
+
+  --text-caption: 0.75rem; /* 12px */
+  --text-caption--line-height: 1.6;
+
+  --text-body: 0.875rem; /* 14px */
+  --text-body--line-height: 1.7;
+
+  --text-lead: 0.9375rem; /* 15px */
+  --text-lead--line-height: 1.7;
+
+  --text-title: 1.3125rem; /* 21px */
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.045em;
+
+  --text-section: 1.6875rem; /* 27px */
+  --text-section--line-height: 1.12;
+  --text-section--letter-spacing: -0.065em;
+
+  --text-display: 3rem; /* 48px, scales up via clamp utility */
+  --text-display--line-height: 0.91;
+  --text-display--letter-spacing: -0.085em;
+
+  /* --- Radii ------------------------------------------------------------- */
+  --radius-field: 10px;
+  --radius-card: 14px;
+  --radius-media: 18px;
+  --radius-panel: 22px;
+  --radius-pill: 999px;
+
+  /* --- Elevation (overlays only — never on cards) ----------------------- */
+  --shadow-popover: 0 8px 30px rgb(23 24 21 / 0.1);
+  --shadow-modal: 0 20px 80px rgb(23 24 21 / 0.22);
+
+  /* --- Motion ------------------------------------------------------------ */
+  --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-fade-in: fade-in 0.2s var(--ease-out-soft) both;
+  --animate-rise-in: rise-in 0.24s var(--ease-out-soft) both;
+
+  /* --- Layout ------------------------------------------------------------ */
+  --container-site: 1440px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -140% 0;
+  }
+  100% {
+    background-position: 240% 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================================
+   Base layer
+   ========================================================================= */
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    letter-spacing: -0.025em;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Visible, consistent focus for every keyboard user. Never remove this. */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* On dark editorial blocks the ink outline would disappear. */
+  .on-ink :focus-visible {
+    outline-color: var(--color-accent);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Respect the reduced-motion preference everywhere. */
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}
+
+/* =========================================================================
+   Component-free utilities used across the editorial layout
+   ========================================================================= */
+
+@utility site-container {
+  width: 100%;
+  max-width: var(--container-site);
+  margin-inline: auto;
+  padding-inline: 5.2%;
+
+  @media (width <= 650px) {
+    padding-inline: 5%;
+  }
+}
+
+/* Fluid editorial display type, matching the prototype's clamp. */
+@utility text-display-fluid {
+  font-size: clamp(2.75rem, 6.6vw, 5.75rem);
+  line-height: 0.91;
+  letter-spacing: -0.085em;
+  font-weight: 780;
+}
+
+@utility text-section-fluid {
+  font-size: clamp(1.5rem, 3.2vw, 2.1rem);
+  line-height: 1.08;
+  letter-spacing: -0.07em;
+}
+
+/* Skeleton shimmer — used by every loading state so they look like one system. */
+@utility skeleton {
+  background-color: var(--color-surface-sunken);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgb(255 255 255 / 0.65) 50%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  background-repeat: no-repeat;
+  animation: var(--animate-shimmer);
+}
+
+/* Screen-reader-only text that still becomes visible on focus. */
+@utility sr-only-focusable {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+
+  &:focus {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+
+/* Masonry gallery: CSS columns keep native aspect ratios without JS layout. */
+@utility masonry-columns {
+  column-gap: 1.0625rem;
+  columns: 4;
+
+  @media (width <= 1100px) {
+    columns: 3;
+  }
+
+  @media (width <= 820px) {
+    columns: 2;
+  }
+
+  @media (width <= 420px) {
+    columns: 1;
+  }
+
+  & > * {
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+  }
+}

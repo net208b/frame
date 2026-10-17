@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="FRAME">
+  <title>FRAME</title>
+  <!-- The brand mark from docs/prototype: a heavy charcoal lens ring with a
+       single lime indicator resting on its lower-right edge. Kept to two
+       shapes so it still reads at 16px in a browser tab. -->
+  <circle cx="14" cy="14" r="8.5" fill="none" stroke="#171815" stroke-width="6" />
+  <circle cx="25" cy="25" r="4.4" fill="#d9ff56" stroke="#171815" stroke-width="2.2" />
+</svg>

@@ -1,0 +1,275 @@
+import { PAGE_SIZE } from '@/lib/config';
+import {
+  CATEGORY_LABELS,
+  PHOTO_CATEGORIES,
+  SORT_OPTIONS,
+  type DiscoverQuery,
+  type PhotoCategory,
+  type SortOption,
+} from '@/types/domain';
+
+/**
+ * The only translation between the Discover URL and a {@link DiscoverQuery}.
+ *
+ * Every filter on Discover lives in the query string, which is what makes a
+ * filtered gallery shareable and the back button meaningful. That only holds if
+ * one module owns both directions: the page, the chips, the sort tabs, the gear
+ * selects and the removable pills all read and write the URL through here, so a
+ * link built in one component always parses back to the same query in another.
+ *
+ * Both functions are pure, and parsing never throws — a hand-edited or stale
+ * URL falls back to the default view rather than failing the request.
+ */
+
+/** Query-string keys. Deliberately the field names of DiscoverQuery. */
+const KEYS = {
+  category: 'category',
+  place: 'place',
+  cameraBrand: 'cameraBrand',
+  cameraModel: 'cameraModel',
+  lensBrand: 'lensBrand',
+  sort: 'sort',
+  page: 'page',
+} as const;
+
+export const DEFAULT_DISCOVER_SORT: SortOption = 'recent';
+
+/**
+ * Paging is bounded because the offset is a database cost: a hand-written
+ * `?page=900000` would otherwise ask the feed to skip twenty million rows.
+ */
+export const MAX_DISCOVER_PAGE = 500;
+
+const MAX_PLACE_LENGTH = 80;
+const MAX_GEAR_LENGTH = 80;
+
+export type DiscoverSearchParams = Record<string, string | string[] | undefined>;
+
+export type DiscoverFilterKey =
+  | 'category'
+  | 'place'
+  | 'cameraBrand'
+  | 'cameraModel'
+  | 'lensBrand';
+
+/** The gear filters, as one list, so "how many are active" is defined once. */
+export const GEAR_FILTER_KEYS = ['cameraBrand', 'cameraModel', 'lensBrand'] as const;
+
+export interface ActiveDiscoverFilter {
+  key: DiscoverFilterKey;
+  /** What the filter is, for the quiet prefix on a pill. */
+  kind: string;
+  /** The filter as a reader would say it. */
+  value: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* URL -> query                                                              */
+/* ------------------------------------------------------------------------ */
+
+function firstValue(value: string | string[] | undefined): string | null {
+  if (Array.isArray(value)) return value[0] ?? null;
+  return value ?? null;
+}
+
+/** Collapse whitespace and bound the length; an empty filter is no filter. */
+function readText(value: string | string[] | undefined, maxLength: number): string | null {
+  const raw = firstValue(value);
+  if (raw === null) return null;
+  const cleaned = raw.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+  return cleaned.length > 0 ? cleaned : null;
+}
+
+function readCategory(value: string | string[] | undefined): PhotoCategory | null {
+  const raw = firstValue(value)?.trim().toLowerCase();
+  if (!raw) return null;
+  return PHOTO_CATEGORIES.find((category) => category === raw) ?? null;
+}
+
+function readSort(value: string | string[] | undefined): SortOption {
+  const raw = firstValue(value)?.trim().toLowerCase();
+  if (!raw) return DEFAULT_DISCOVER_SORT;
+  return SORT_OPTIONS.find((option) => option === raw) ?? DEFAULT_DISCOVER_SORT;
+}
+
+function readPage(value: string | string[] | undefined): number {
+  const raw = firstValue(value);
+  if (!raw) return 1;
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.min(parsed, MAX_DISCOVER_PAGE);
+}
+
+/**
+ * Read a Discover view out of `searchParams`.
+ *
+ * An unknown category or sort is dropped rather than rejected, because the most
+ * common source of a bad value is an old link somebody shared, and showing them
+ * the default gallery is more use than an error page.
+ */
+export function parseDiscoverSearchParams(searchParams: DiscoverSearchParams): DiscoverQuery {
+  return {
+    category: readCategory(searchParams[KEYS.category]),
+    // `q` is accepted as well, so the header search box can hand its term
+    // straight to Discover without the viewer losing what they typed.
+    place: readText(searchParams[KEYS.place] ?? searchParams['q'], MAX_PLACE_LENGTH),
+    cameraBrand: readText(searchParams[KEYS.cameraBrand], MAX_GEAR_LENGTH),
+    cameraModel: readText(searchParams[KEYS.cameraModel], MAX_GEAR_LENGTH),
+    lensBrand: readText(searchParams[KEYS.lensBrand], MAX_GEAR_LENGTH),
+    sort: readSort(searchParams[KEYS.sort]),
+    page: readPage(searchParams[KEYS.page]),
+    pageSize: PAGE_SIZE.gallery,
+  };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Query -> URL                                                              */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Build a Discover URL.
+ *
+ * Defaults are omitted, so the unfiltered gallery is `/discover` rather than a
+ * string of empty parameters, and two routes to the same view produce the same
+ * link. `overrides` wins over `query`; pass `null` to drop a filter. Changing a
+ * filter should also reset paging, which callers do by passing `page: 1` —
+ * explicit, because "which page am I on" is occasionally the thing being kept.
+ */
+export function buildDiscoverHref(
+  query: Partial<DiscoverQuery>,
+  overrides: Partial<DiscoverQuery> = {},
+): string {
+  const merged: Partial<DiscoverQuery> = { ...query, ...overrides };
+  const params = new URLSearchParams();
+
+  // Values are re-validated on the way out: a caller holding a stale category
+  // should produce a clean URL rather than one that parses back to nothing.
+  const category = merged.category
+    ? (PHOTO_CATEGORIES.find((option) => option === merged.category) ?? null)
+    : null;
+  if (category) params.set(KEYS.category, category);
+
+  const place = merged.place?.replace(/\s+/g, ' ').trim();
+  if (place) params.set(KEYS.place, place.slice(0, MAX_PLACE_LENGTH));
+
+  for (const key of GEAR_FILTER_KEYS) {
+    const value = merged[key]?.trim();
+    if (value) params.set(KEYS[key], value.slice(0, MAX_GEAR_LENGTH));
+  }
+
+  const sort = merged.sort ? SORT_OPTIONS.find((option) => option === merged.sort) : undefined;
+  if (sort && sort !== DEFAULT_DISCOVER_SORT) params.set(KEYS.sort, sort);
+
+  const page = merged.page ?? 1;
+  if (Number.isFinite(page) && page > 1) {
+    params.set(KEYS.page, String(Math.min(Math.floor(page), MAX_DISCOVER_PAGE)));
+  }
+
+  // URLSearchParams writes a space as `+`, which only decodes back to a space
+  // under form-encoding rules. `%20` means a space everywhere, so a shared link
+  // cannot turn "San Francisco" into "San+Francisco".
+  const search = params.toString().replace(/\+/g, '%20');
+  return search ? `/discover?${search}` : '/discover';
+}
+
+/** The same view with one filter removed, back at the first page. */
+export function buildDiscoverHrefWithout(
+  query: Partial<DiscoverQuery>,
+  key: DiscoverFilterKey,
+): string {
+  const cleared: Partial<DiscoverQuery> = { page: 1 };
+
+  // Written out rather than computed, so the key stays typed.
+  switch (key) {
+    case 'category':
+      cleared.category = null;
+      break;
+    case 'place':
+      cleared.place = null;
+      break;
+    case 'cameraBrand':
+      // A model only means anything alongside its brand.
+      cleared.cameraBrand = null;
+      cleared.cameraModel = null;
+      break;
+    case 'cameraModel':
+      cleared.cameraModel = null;
+      break;
+    case 'lensBrand':
+      cleared.lensBrand = null;
+      break;
+  }
+
+  return buildDiscoverHref(query, cleared);
+}
+
+/** Every filter dropped, keeping the ordering the viewer chose. */
+export function buildClearedDiscoverHref(query: Partial<DiscoverQuery>): string {
+  return buildDiscoverHref({ sort: query.sort ?? DEFAULT_DISCOVER_SORT, page: 1 });
+}
+
+/* ------------------------------------------------------------------------ */
+/* Describing a view                                                         */
+/* ------------------------------------------------------------------------ */
+
+const FILTER_KINDS: Record<DiscoverFilterKey, string> = {
+  category: 'Category',
+  place: 'Place',
+  cameraBrand: 'Camera',
+  cameraModel: 'Model',
+  lensBrand: 'Lens',
+};
+
+/** The active filters in reading order, for the removable pills and the title. */
+export function activeDiscoverFilters(query: DiscoverQuery): ActiveDiscoverFilter[] {
+  const filters: ActiveDiscoverFilter[] = [];
+
+  if (query.category) {
+    filters.push({
+      key: 'category',
+      kind: FILTER_KINDS.category,
+      value: CATEGORY_LABELS[query.category],
+    });
+  }
+  if (query.place) {
+    filters.push({ key: 'place', kind: FILTER_KINDS.place, value: query.place });
+  }
+  for (const key of GEAR_FILTER_KEYS) {
+    const value = query[key];
+    if (value) filters.push({ key, kind: FILTER_KINDS[key], value });
+  }
+
+  return filters;
+}
+
+export function activeDiscoverFilterCount(query: DiscoverQuery): number {
+  return activeDiscoverFilters(query).length;
+}
+
+export function activeGearFilterCount(query: DiscoverQuery): number {
+  return GEAR_FILTER_KEYS.filter((key) => Boolean(query[key])).length;
+}
+
+/**
+ * True when this is not the plain gallery.
+ *
+ * Used for `noIndex`: a filter, a non-default ordering and a deep page all
+ * generate near-identical pages, and an index full of those permutations helps
+ * nobody find a photograph.
+ */
+export function isFilteredDiscoverView(query: DiscoverQuery): boolean {
+  return (
+    activeDiscoverFilterCount(query) > 0 ||
+    query.sort !== DEFAULT_DISCOVER_SORT ||
+    query.page > 1
+  );
+}
+
+/**
+ * A stable identity for a view, used as the Suspense key so changing a filter
+ * replaces the gallery with a skeleton instead of leaving the old results on
+ * screen while the new ones load.
+ */
+export function discoverViewKey(query: DiscoverQuery): string {
+  return buildDiscoverHref(query);
+}
