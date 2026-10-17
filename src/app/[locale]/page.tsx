@@ -9,7 +9,6 @@ import { Hero, type HeroCover } from '@/components/home/Hero';
 import { MapTeaser } from '@/components/home/MapTeaser';
 import { PlatformStatsRow } from '@/components/home/PlatformStatsRow';
 import { TrendingLocations } from '@/components/home/TrendingLocations';
-import type { Locale } from '@/i18n/locales';
 import { getViewer } from '@/lib/auth';
 import { SITE } from '@/lib/config';
 import {

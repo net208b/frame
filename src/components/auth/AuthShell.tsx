@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { Link } from '@/i18n/navigation';

@@ -8,7 +8,6 @@ import { TextField } from '@/components/ui/Field';
 import { Pagination } from '@/components/ui/Pagination';
 import { Eyebrow, SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
-import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { getLocations, getMapPins } from '@/lib/data/repository';
 import { buildMetadata } from '@/lib/seo';

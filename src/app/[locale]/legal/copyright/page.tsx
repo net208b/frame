@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
-import type { Locale } from '@/i18n/locales';
 
 import { REPORT_REASON_LABELS } from '@/types/domain';
 

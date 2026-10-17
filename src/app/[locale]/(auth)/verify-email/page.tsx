@@ -5,7 +5,6 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { AuthCta, AuthShell, firstParam } from '@/components/auth/AuthShell';
 import { ResendVerificationForm } from '@/components/auth/ResendVerificationForm';
 import { Notice } from '@/components/ui/states';
-import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { buildMetadata } from '@/lib/seo';
 

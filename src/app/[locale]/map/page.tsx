@@ -8,7 +8,6 @@ import { precisionParts } from '@/components/map/precision';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
-import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
 import { getMapPins } from '@/lib/data/repository';

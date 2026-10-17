@@ -2,7 +2,7 @@ import { setRequestLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
-import { type Locale, withLocalePrefix } from '@/i18n/locales';
+import { withLocalePrefix } from '@/i18n/locales';
 import { requireViewer } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
 

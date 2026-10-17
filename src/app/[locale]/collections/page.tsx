@@ -4,7 +4,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CollectionCard } from '@/components/collections/CollectionCard';
 import { CollectionFormDialog } from '@/components/collections/CollectionFormDialog';
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow, SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';

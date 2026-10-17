@@ -3,7 +3,6 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
-import type { Locale } from '@/i18n/locales';
 import { requireModerator } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
 import { buildMetadata } from '@/lib/seo';

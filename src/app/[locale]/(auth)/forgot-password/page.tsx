@@ -5,7 +5,6 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { AuthShell, firstParam } from '@/components/auth/AuthShell';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 import { Notice } from '@/components/ui/states';
-import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { buildMetadata } from '@/lib/seo';
 

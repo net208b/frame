@@ -1,7 +1,7 @@
 import { ArrowUpRight } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { SectionHead } from '@/components/ui/SectionHead';
 import type { Locale } from '@/i18n/locales';

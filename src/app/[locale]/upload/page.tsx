@@ -3,12 +3,12 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import type { ReactNode } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { Notice } from '@/components/ui/states';
 import { fileSizeParts } from '@/components/upload/limits';
 import { UploadWizard } from '@/components/upload/UploadWizard';
-import { type Locale, withLocalePrefix } from '@/i18n/locales';
+import { withLocalePrefix } from '@/i18n/locales';
 import { getViewer, requireViewer } from '@/lib/auth';
 import { capabilities, isDemoMode, UPLOAD_POLICY } from '@/lib/config';
 import { buildMetadata } from '@/lib/seo';

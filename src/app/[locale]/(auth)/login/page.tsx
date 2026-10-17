@@ -5,7 +5,7 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { AlreadySignedIn, AuthShell, firstParam } from '@/components/auth/AuthShell';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { Notice } from '@/components/ui/states';
-import { type Locale, withLocalePrefix } from '@/i18n/locales';
+import { withLocalePrefix } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { getViewer } from '@/lib/auth';
 import { safeNextPath } from '@/lib/safe-redirect';

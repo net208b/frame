@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { NavLink } from '@/components/layout/NavLink';
-import type { Locale } from '@/i18n/locales';
 
 import { LEGAL_DOCUMENTS } from './policy';
 

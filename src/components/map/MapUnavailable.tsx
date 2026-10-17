@@ -1,7 +1,7 @@
 import { ArrowUpRight, MapPinOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { ErrorState } from '@/components/ui/states';
 import { Link } from '@/i18n/navigation';

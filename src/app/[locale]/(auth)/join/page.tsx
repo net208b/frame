@@ -4,7 +4,6 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { AlreadySignedIn, AuthShell } from '@/components/auth/AuthShell';
 import { JoinForm } from '@/components/auth/JoinForm';
-import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { getViewer } from '@/lib/auth';
 import { buildMetadata } from '@/lib/seo';

@@ -1,7 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 
 import { MasonryGallery } from '@/components/photo/MasonryGallery';
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';

@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { PhotographerCard } from '@/components/photographer/PhotographerCard';
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow, SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';

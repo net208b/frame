@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { BrandMark, BrandWordmark } from '@/components/layout/Brand';
 import { Eyebrow } from '@/components/ui/SectionHead';
-import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 
 /**

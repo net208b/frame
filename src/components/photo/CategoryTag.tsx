@@ -1,4 +1,6 @@
-import { getTranslations } from 'next-intl/server';
+'use client';
+
+import { useTranslations } from 'next-intl';
 
 import { taxonomyLabels } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
@@ -22,6 +24,15 @@ import type { PhotoCategory } from '@/types/domain';
  * `uppercase` is inert on Thai, which has no letter case, and the Thai
  * typography block in `globals.css` has already taken the eyebrow's positive
  * tracking back to normal — so the pill needs no per-language styling here.
+ *
+ * A CLIENT component, and not by preference. `MapPinPreview` carries the
+ * `use client` directive and renders `LocationCard`, which renders this tag, so
+ * an async Server Component here throws "`getTranslations` is not supported in
+ * Client Components" the moment a map pin is opened. That path is unreachable
+ * while no map style URL is configured, which is why it had not shown up — it
+ * would have appeared on the first click after a provider was added. The tag is
+ * one span and the `taxonomy` namespace already reaches the browser for the
+ * Discover filters, so the cost of being a client component is nil.
  */
 type Tone = 'overlay' | 'surface' | 'outline';
 
@@ -31,7 +42,7 @@ const TONES: Record<Tone, string> = {
   outline: 'border border-line text-muted',
 };
 
-export async function CategoryTag({
+export function CategoryTag({
   category,
   tone = 'surface',
   className,
@@ -40,7 +51,7 @@ export async function CategoryTag({
   tone?: Tone;
   className?: string;
 }) {
-  const taxonomy = taxonomyLabels(await getTranslations('taxonomy'));
+  const taxonomy = taxonomyLabels(useTranslations('taxonomy'));
 
   return (
     <span
