@@ -84,9 +84,11 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          # Created empty, which is what run.sh requires — it refuses to touch a
-          # database that already has tables in `public`.
-          POSTGRES_DB: frame_test
+          # The image installs PostGIS into whatever this names, so it is left
+          # as the default and never used. The step below creates the real test
+          # database from template1 instead, so the migrations install PostGIS
+          # themselves — see the comment there.
+          POSTGRES_DB: postgres
         ports:
           - 5432:5432
         options: >-
@@ -106,19 +108,42 @@ jobs:
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y postgresql-client
 
+      # The postgis image pre-installs the extension into its POSTGRES_DB, and
+      # into the `public` schema. A real Supabase project has it in
+      # `extensions`, which is where migration 0001 puts it — but `create
+      # extension if not exists` is a no-op when it is already present, so
+      # inheriting the image's database would silently test the wrong schema
+      # layout and leave the production one uncovered. Creating the database
+      # from template1 leaves the binaries available and the extension absent,
+      # so 0001 installs it exactly as it would on a real project.
+      - name: Create an empty database
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'create database frame_ci'
+
       - name: Apply the migrations and assert the guarantees
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frame_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frame_ci
         run: ./supabase/tests/run.sh
 
       # If the suite passed, the run must have used real PostGIS rather than the
       # shim. Without this a silently shim-free expectation could regress to a
       # shimmed run and still report success.
-      - name: Confirm PostGIS was not shimmed
+      - name: Confirm PostGIS was real, and in the schema the migrations chose
         env:
           PGPASSWORD: postgres
         run: |
-          type=$(psql -h localhost -U postgres -d frame_test -tAc \
+          schema=$(psql -h localhost -U postgres -d frame_ci -tAc \
+            "select n.nspname from pg_extension e
+               join pg_namespace n on n.oid = e.extnamespace
+              where e.extname = 'postgis';")
+          echo "postgis is installed in schema: $schema"
+          if [ "$schema" != "extensions" ]; then
+            echo "::error::postgis landed in '$schema', not 'extensions' — migration 0001 did not install it, so this run did not cover the schema layout a real project uses." >&2
+            exit 1
+          fi
+
+          type=$(psql -h localhost -U postgres -d frame_ci -tAc \
             "select format_type(a.atttypid, a.atttypmod)
                from pg_attribute a
                join pg_class c on c.oid = a.attrelid

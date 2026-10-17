@@ -63,11 +63,25 @@ fi
 # ------------------------------------------------------------ pick a database
 if [ -n "${DATABASE_URL:-}" ]; then
   psql_args=("$DATABASE_URL")
-  existing="$("$PSQL" "${psql_args[@]}" -tAc \
-    "select count(*) from information_schema.tables where table_schema='public'")"
+  # Counts application tables only. An extension brings its own catalogue with
+  # it — PostGIS alone adds spatial_ref_sys plus two views to `public` — and
+  # counting those made this refuse the very PostGIS database CI provisions.
+  # `relkind in ('r','p')` drops the views; the pg_depend check drops anything
+  # an extension owns.
+  existing="$("$PSQL" "${psql_args[@]}" -tAc "
+    select count(*)
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relkind in ('r', 'p')
+       and c.oid not in (
+         select objid from pg_depend
+          where classid = 'pg_class'::regclass
+            and deptype = 'e'
+       )")"
   if [ "$existing" != "0" ]; then
-    echo "Refusing to run: the target database already has $existing tables in public." >&2
-    echo "Point DATABASE_URL at an empty database." >&2
+    echo "Refusing to run: the target database already has $existing application" >&2
+    echo "table(s) in public. Point DATABASE_URL at an empty database." >&2
     exit 1
   fi
   echo "target: the database in DATABASE_URL"
