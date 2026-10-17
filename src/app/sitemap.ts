@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { DEFAULT_LOCALE, LOCALES, withLocalePrefix } from '@/i18n/locales';
 import { siteUrl } from '@/lib/config';
 import {
   getLocationSlugs,
@@ -8,7 +9,7 @@ import {
   getPublicCollectionSlugs,
 } from '@/lib/data/repository';
 
-import { LEGAL_DOCUMENTS, LEGAL_LAST_REVIEWED } from './legal/policy';
+import { LEGAL_DOCUMENTS, LEGAL_LAST_REVIEWED } from './[locale]/legal/policy';
 
 /**
  * The sitemap.
@@ -33,7 +34,62 @@ import { LEGAL_DOCUMENTS, LEGAL_LAST_REVIEWED } from './legal/policy';
  * lists do not, so photographs, places, profiles and collections are published
  * without one rather than with today's date — a fabricated timestamp tells a
  * crawler that everything changed at once, which is worse than saying nothing.
+ *
+ * Every page is listed once per language, and each listing carries the
+ * `hreflang` alternates for both. The whole set is what tells a crawler that
+ * `/en/photographs/x` and `/th/photographs/x` are one photograph in two
+ * languages; listing only one of them, or listing both without the alternates,
+ * would publish them as rival duplicates. The sitemap itself stays at
+ * `/sitemap.xml`, outside the `[locale]` segment, because there is one sitemap
+ * for the site rather than one per language.
+ *
+ * Two languages double the number of URLs in this file, which doubles the cost
+ * of getting the filtering wrong — so the filtering is not repeated here. Every
+ * entry is still derived from exactly the four repository functions above and
+ * the two static lists below, and `expand` only ever adds a prefix to a path
+ * that one of them produced. It cannot turn a private URL into a public one,
+ * and it cannot invent a path. Anything new belongs in one of those sources,
+ * filtered there.
  */
+
+/** A page, written the way the app writes it: without a locale. */
+interface LocaleFreeEntry {
+  path: string;
+  lastModified?: string | Date;
+  changeFrequency?: MetadataRoute.Sitemap[number]['changeFrequency'];
+  priority?: number;
+}
+
+/**
+ * The `hreflang` set for one page: both languages plus `x-default`.
+ *
+ * This mirrors `alternateLanguages` in `lib/seo.ts`, which builds the same set
+ * for the `<link rel="alternate">` tags on the page itself, and it mirrors it
+ * on purpose: Google treats a sitemap's alternates and a page's own as two
+ * statements about the same thing, and a page whose two statements disagree is
+ * a page whose alternates it may discard entirely. `x-default` points at
+ * English, which is the routing decision — a visitor with no language
+ * preference lands on `/en`.
+ */
+function alternateLanguages(base: string, path: string): Record<string, string> {
+  const languages: Record<string, string> = {};
+  for (const locale of LOCALES) languages[locale] = `${base}${withLocalePrefix(path, locale)}`;
+  languages['x-default'] = `${base}${withLocalePrefix(path, DEFAULT_LOCALE)}`;
+  return languages;
+}
+
+function expand(base: string, entries: readonly LocaleFreeEntry[]): MetadataRoute.Sitemap {
+  return entries.flatMap(({ path, ...rest }) => {
+    const languages = alternateLanguages(base, path);
+
+    return LOCALES.map((locale) => ({
+      ...rest,
+      url: `${base}${withLocalePrefix(path, locale)}`,
+      alternates: { languages },
+    }));
+  });
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
 
@@ -44,17 +100,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     getPublicCollectionSlugs(),
   ]);
 
-  const landing: MetadataRoute.Sitemap = [
-    { url: `${base}/`, changeFrequency: 'daily', priority: 1 },
-    { url: `${base}/discover`, changeFrequency: 'daily', priority: 0.9 },
-    { url: `${base}/map`, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${base}/locations`, changeFrequency: 'weekly', priority: 0.8 },
-    { url: `${base}/collections`, changeFrequency: 'weekly', priority: 0.6 },
-    { url: `${base}/community`, changeFrequency: 'monthly', priority: 0.5 },
+  const landing: LocaleFreeEntry[] = [
+    { path: '/', changeFrequency: 'daily', priority: 1 },
+    { path: '/discover', changeFrequency: 'daily', priority: 0.9 },
+    { path: '/map', changeFrequency: 'weekly', priority: 0.8 },
+    { path: '/locations', changeFrequency: 'weekly', priority: 0.8 },
+    { path: '/collections', changeFrequency: 'weekly', priority: 0.6 },
+    { path: '/community', changeFrequency: 'monthly', priority: 0.5 },
   ];
 
-  const legal: MetadataRoute.Sitemap = LEGAL_DOCUMENTS.map((policy) => ({
-    url: `${base}/legal/${policy.slug}`,
+  const legal: LocaleFreeEntry[] = LEGAL_DOCUMENTS.map((policy) => ({
+    path: `/legal/${policy.slug}`,
     lastModified: LEGAL_LAST_REVIEWED,
     changeFrequency: 'yearly',
     priority: 0.2,
@@ -63,36 +119,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // A published photograph is the thing people link to, and it changes rarely
   // once it is out: its own page is the highest-value URL on the site, and the
   // least volatile.
-  const photographEntries: MetadataRoute.Sitemap = photographs.map((slug) => ({
-    url: `${base}/photographs/${slug}`,
+  const photographEntries: LocaleFreeEntry[] = photographs.map((slug) => ({
+    path: `/photographs/${slug}`,
     changeFrequency: 'monthly',
     priority: 0.7,
   }));
 
-  const locationEntries: MetadataRoute.Sitemap = locations.map((slug) => ({
-    url: `${base}/locations/${slug}`,
+  const locationEntries: LocaleFreeEntry[] = locations.map((slug) => ({
+    path: `/locations/${slug}`,
     changeFrequency: 'weekly',
     priority: 0.7,
   }));
 
-  const photographerEntries: MetadataRoute.Sitemap = photographers.map((username) => ({
-    url: `${base}/photographers/${username}`,
+  const photographerEntries: LocaleFreeEntry[] = photographers.map((username) => ({
+    path: `/photographers/${username}`,
     changeFrequency: 'weekly',
     priority: 0.5,
   }));
 
-  const collectionEntries: MetadataRoute.Sitemap = collections.map((slug) => ({
-    url: `${base}/collections/${slug}`,
+  const collectionEntries: LocaleFreeEntry[] = collections.map((slug) => ({
+    path: `/collections/${slug}`,
     changeFrequency: 'weekly',
     priority: 0.4,
   }));
 
-  return [
+  return expand(base, [
     ...landing,
     ...photographEntries,
     ...locationEntries,
     ...photographerEntries,
     ...collectionEntries,
     ...legal,
-  ];
+  ]);
 }

@@ -1,9 +1,10 @@
 'use client';
 
 import { Search, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useId, useState, useTransition, type FormEvent } from 'react';
 
+import { useRouter } from '@/i18n/navigation';
 import { buildDiscoverHref, DEFAULT_DISCOVER_SORT, GEAR_FILTER_KEYS } from '@/lib/discover-query';
 import { cn } from '@/lib/utils';
 import type { DiscoverQuery } from '@/types/domain';
@@ -20,6 +21,10 @@ import type { DiscoverQuery } from '@/types/domain';
  * There is deliberately no search-as-you-type: a request per keystroke would
  * fill the back button with half-typed words, and the gallery it is filtering
  * is a slow, image-heavy read.
+ *
+ * The field name stays `place` in both languages. It is the shared vocabulary
+ * between a link and the server, and a Thai reader's filtered gallery has to
+ * open for an English reader who is sent the URL.
  */
 export function PlaceSearchField({
   query,
@@ -29,6 +34,9 @@ export function PlaceSearchField({
   className?: string;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations('discover');
+  const tCommon = useTranslations('common');
   const [value, setValue] = useState(query.place ?? '');
   const [pending, startTransition] = useTransition();
   const inputId = useId();
@@ -66,7 +74,9 @@ export function PlaceSearchField({
   return (
     <form
       role="search"
-      action="/discover"
+      // A real address for the no-JavaScript submit, so it carries the locale
+      // itself rather than relying on a redirect into English.
+      action={`/${locale}/discover`}
       method="get"
       onSubmit={handleSubmit}
       className={cn('min-w-0', className)}
@@ -82,7 +92,7 @@ export function PlaceSearchField({
       )}
 
       <label htmlFor={inputId} className="sr-only">
-        Search photographs by place
+        {t('place.label')}
       </label>
 
       <div
@@ -101,7 +111,7 @@ export function PlaceSearchField({
           name="place"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="City, country or place"
+          placeholder={t('place.placeholder')}
           autoComplete="off"
           enterKeyHint="search"
           className="h-9 w-full min-w-0 bg-transparent text-caption text-ink placeholder:text-muted-soft"
@@ -114,7 +124,7 @@ export function PlaceSearchField({
             className="shrink-0 rounded-pill p-1.5 text-muted-soft transition-colors duration-150 hover:text-ink"
           >
             <X aria-hidden className="size-3.5" />
-            <span className="sr-only">Clear the place search</span>
+            <span className="sr-only">{t('place.clear')}</span>
           </button>
         ) : null}
 
@@ -122,12 +132,12 @@ export function PlaceSearchField({
           type="submit"
           className="shrink-0 rounded-pill bg-ink px-3 py-1.5 text-meta font-bold text-on-ink transition-colors duration-150 hover:bg-ink-surface-soft"
         >
-          Search
+          {tCommon('search')}
         </button>
       </div>
 
       <p role="status" className="sr-only">
-        {pending ? 'Updating the gallery' : ''}
+        {pending ? t('status.updating') : ''}
       </p>
     </form>
   );

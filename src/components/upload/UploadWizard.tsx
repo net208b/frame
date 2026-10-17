@@ -1,9 +1,14 @@
 'use client';
 
 import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/Button';
-import { STEP_IDS, STEP_META, useUploadDraft } from '@/components/upload/use-upload-draft';
+import {
+  STEP_COUNT,
+  stepNumber,
+  useUploadDraft,
+} from '@/components/upload/use-upload-draft';
 
 import { StepChooseFile } from './StepChooseFile';
 import { StepDescribe } from './StepDescribe';
@@ -29,8 +34,9 @@ import { WizardProgress } from './WizardProgress';
  * would be a form full of the member's words with no photograph in it.
  */
 export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean }) {
+  const t = useTranslations('upload');
+  const common = useTranslations('common');
   const draft = useUploadDraft();
-  const meta = STEP_META[draft.step];
   const messages = Object.entries(draft.errors);
   const onSubmitStep = draft.step === 'submit';
 
@@ -48,7 +54,15 @@ export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean
       />
 
       <p aria-live="polite" className="mt-5 text-meta text-muted">
-        {`Step ${meta.number} of ${STEP_IDS.length} — ${meta.title}. ${meta.summary}`}
+        {/* One sentence, one message: the step's name and its summary go in as
+            values rather than being concatenated, so a translator can put them
+            where the sentence needs them. */}
+        {t('progress.announce', {
+          number: stepNumber(draft.step),
+          total: STEP_COUNT,
+          title: t(`steps.${draft.step}.title`),
+          summary: t(`steps.${draft.step}.summary`),
+        })}
       </p>
 
       <div className="mt-7 animate-fade-in" key={draft.step}>
@@ -71,9 +85,7 @@ export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean
               className="mt-8 rounded-card bg-danger-bg px-4 py-3 text-caption leading-relaxed"
             >
               <p className="font-bold text-danger">
-                {messages.length === 1
-                  ? 'One thing needs attention before this step is finished'
-                  : `${messages.length} things need attention before this step is finished`}
+                {t('nav.errorsHeading', { count: messages.length })}
               </p>
               <ul className="mt-1.5 space-y-1 text-ink-soft">
                 {messages.map(([field, message]) => (
@@ -90,7 +102,7 @@ export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean
               disabled={draft.stepIndex === 0}
               iconLeft={<ArrowLeft className="size-3.5" aria-hidden />}
             >
-              Back
+              {common('back')}
             </Button>
 
             <Button
@@ -98,13 +110,13 @@ export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean
               onClick={draft.next}
               iconRight={<ArrowRight className="size-3.5" aria-hidden />}
             >
-              {draft.step === 'review' ? 'Confirm and continue' : 'Continue'}
+              {draft.step === 'review' ? t('nav.confirmAndContinue') : t('nav.continue')}
             </Button>
 
             <p className="text-meta text-muted">
               {draft.step === 'review'
-                ? 'The next step uploads the file.'
-                : 'Nothing is uploaded until the last step.'}
+                ? t('nav.nextUploadsFile')
+                : t('nav.nothingUploadedYet')}
             </p>
           </div>
         </>

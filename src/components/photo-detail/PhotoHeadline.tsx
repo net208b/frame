@@ -1,5 +1,8 @@
+import { getLocale, getTranslations } from 'next-intl/server';
+
 import { AppreciateButton } from '@/components/photo/AppreciateButton';
 import { CategoryTag } from '@/components/photo/CategoryTag';
+import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
 import { cn, formatDate } from '@/lib/utils';
 import type { PhotographDetail } from '@/types/domain';
 
@@ -9,15 +12,23 @@ import type { PhotographDetail } from '@/types/domain';
  *
  * The h1 is the title and nothing else, so the page announces the frame rather
  * than the site.
+ *
+ * The publication line is one message with a `<date>` tag rather than the word
+ * "Published" followed by a `<time>` element: Thai writes "เผยแพร่เมื่อ" with
+ * no space before the date, and where the date sits in the sentence is the
+ * translator's call, not the component's.
  */
-export function PhotoHeadline({
+export async function PhotoHeadline({
   photo,
   className,
 }: {
   photo: PhotographDetail;
   className?: string;
 }) {
-  const published = formatDate(photo.publishedAt);
+  const [t, locale] = await Promise.all([getTranslations('photo'), getLocale()]);
+  const intlLocale = INTL_LOCALES[isLocale(locale) ? locale : DEFAULT_LOCALE];
+
+  const published = formatDate(photo.publishedAt, intlLocale);
   // The domain type uses null for "signed out", which is what keeps the
   // appreciate control from pretending to be a toggle for a visitor.
   const signedIn = photo.viewerHasAppreciated !== null;
@@ -28,7 +39,7 @@ export function PhotoHeadline({
         <CategoryTag category={photo.category} tone="surface" />
         {photo.editorsPick ? (
           <span className="inline-flex items-center rounded-pill bg-ink px-2.5 py-1.5 text-eyebrow text-on-ink uppercase">
-            Editor’s pick
+            {t('headline.editorsPick')}
           </span>
         ) : null}
       </div>
@@ -52,10 +63,14 @@ export function PhotoHeadline({
 
         {published ? (
           <p className="text-meta text-muted">
-            Published{' '}
-            <time dateTime={photo.publishedAt} className="text-ink-soft">
-              {published}
-            </time>
+            {t.rich('headline.published', {
+              date: (chunks) => (
+                <time dateTime={photo.publishedAt} className="text-ink-soft">
+                  {chunks}
+                </time>
+              ),
+              published,
+            })}
           </p>
         ) : null}
       </div>

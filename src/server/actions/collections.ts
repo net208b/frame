@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import {
@@ -14,6 +13,7 @@ import { getViewer, getViewerSuspension, type Viewer } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
 import { getCollections } from '@/lib/data/repository';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
 import {
@@ -664,10 +664,10 @@ async function existingItemId(
  * server-rendered on either page depends on who has saved it.
  */
 function revalidateCollection(username: string, ...slugs: string[]): void {
-  revalidatePath('/collections');
-  revalidatePath(`/photographers/${username}`);
+  revalidateLocalisedPath('/collections');
+  revalidateLocalisedPath(`/photographers/${username}`);
   for (const slug of new Set(slugs)) {
-    if (slug.length > 0) revalidatePath(`/collections/${slug}`);
+    if (slug.length > 0) revalidateLocalisedPath(`/collections/${slug}`);
   }
 }
 

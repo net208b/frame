@@ -1,14 +1,9 @@
-import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { Avatar } from '@/components/photographer/Avatar';
+import { Link } from '@/i18n/navigation';
 import { cn, formatCount, formatMonthYear, truncate } from '@/lib/utils';
 import type { PhotographerProfile } from '@/types/domain';
-
-const ROLE_LABELS: Record<PhotographerProfile['role'], string | null> = {
-  member: null,
-  moderator: 'Moderator',
-  admin: 'Admin',
-};
 
 /** Shown only for a moderator or an admin, because it changes what they can do. */
 const ROLE_PILL =
@@ -23,15 +18,30 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function PhotographerCard({
+export async function PhotographerCard({
   photographer,
   className,
 }: {
   photographer: PhotographerProfile;
   className?: string;
 }) {
-  const role = ROLE_LABELS[photographer.role];
-  const memberSince = formatMonthYear(photographer.memberSince);
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: 'profile' });
+  const common = await getTranslations({ locale, namespace: 'common' });
+
+  /*
+   * The card has less room than the profile masthead, so it uses the short
+   * forms of the role names. In Thai the short form is the one people say
+   * ("ผู้ดูแล", "แอดมิน"); the written-out English pair would not fit here.
+   */
+  const role =
+    photographer.role === 'moderator'
+      ? t('roleShort.moderator')
+      : photographer.role === 'admin'
+        ? t('roleShort.admin')
+        : null;
+
+  const memberSince = formatMonthYear(photographer.memberSince, locale);
 
   return (
     <article
@@ -45,7 +55,13 @@ export function PhotographerCard({
         <Avatar src={photographer.avatarUrl} name={photographer.displayName} size={48} decorative />
 
         <div className="min-w-0">
-          <h3 className="text-body font-bold tracking-[-0.035em]">
+          {/*
+            `tracking-tight` rather than a literal -0.035em: the Thai block in
+            globals.css neutralises the tracking tokens, and an arbitrary value
+            would have survived it and collided the vowel marks of a Thai
+            display name.
+          */}
+          <h3 className="text-body font-bold tracking-tight">
             <Link
               href={`/photographers/${photographer.username}`}
               className="before:absolute before:inset-0 before:content-['']"
@@ -70,13 +86,22 @@ export function PhotographerCard({
       ) : null}
 
       <dl className="mt-5 flex flex-wrap gap-x-6 gap-y-3">
-        <Stat label="Photographs" value={formatCount(photographer.photographCount)} />
-        <Stat label="Appreciations" value={formatCount(photographer.appreciationsReceived)} />
-        <Stat label="Locations" value={formatCount(photographer.locationsContributed)} />
+        <Stat
+          label={common('photographs')}
+          value={formatCount(photographer.photographCount, locale)}
+        />
+        <Stat
+          label={t('stats.appreciations')}
+          value={formatCount(photographer.appreciationsReceived, locale)}
+        />
+        <Stat
+          label={t('stats.locations')}
+          value={formatCount(photographer.locationsContributed, locale)}
+        />
       </dl>
 
       {memberSince ? (
-        <p className="mt-4 text-meta text-muted-soft">Member since {memberSince}</p>
+        <p className="mt-4 text-meta text-muted-soft">{t('memberSince', { month: memberSince })}</p>
       ) : null}
     </article>
   );

@@ -1,6 +1,8 @@
+import { getLocale } from 'next-intl/server';
 import { notFound, redirect } from 'next/navigation';
 import { cache } from 'react';
 
+import { DEFAULT_LOCALE, isLocale, withLocalePrefix } from '@/i18n/locales';
 import { isDemoMode } from '@/lib/config';
 import { createClient } from '@/lib/supabase/server';
 import type { ProfileRole } from '@/types/domain';
@@ -133,14 +135,21 @@ export async function getViewerSuspension(): Promise<ViewerSuspension | null> {
  *
  * `nextPath` is the path to return to afterwards. It is omitted rather than
  * guessed when the caller does not supply one, because a wrong return path is
- * worse than landing on the home page.
+ * worse than landing on the home page. Callers pass a path that already carries
+ * its locale, so the member comes back to the page in the language they left.
+ *
+ * The sign-in page itself is reached in the reader's language too. Without the
+ * prefix the redirect would land on `/login`, which the middleware sends on to
+ * `/en/login` — so a Thai member would be asked to sign in in English on the
+ * way back to a Thai page.
  */
 export async function requireViewer(nextPath?: string): Promise<Viewer> {
   const viewer = await getViewer();
   if (viewer) return viewer;
 
   const destination = nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : '/login';
-  redirect(destination);
+  const locale = await getLocale();
+  redirect(withLocalePrefix(destination, isLocale(locale) ? locale : DEFAULT_LOCALE));
 }
 
 /**

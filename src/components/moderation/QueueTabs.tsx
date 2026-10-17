@@ -1,6 +1,8 @@
 import { CopyCheck, Flag, MapPinned, ScanSearch, ScrollText } from 'lucide-react';
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
+import type { Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { PAGE_SIZE } from '@/lib/config';
 import { cn } from '@/lib/utils';
 
@@ -24,14 +26,6 @@ export const MODERATION_QUEUES = [
 
 export type QueueKey = (typeof MODERATION_QUEUES)[number];
 
-export const QUEUE_LABELS: Record<QueueKey, string> = {
-  submissions: 'Pending places',
-  reports: 'Reported content',
-  uploads: 'Uploads to review',
-  duplicates: 'Possible duplicates',
-  actions: 'Recent decisions',
-};
-
 /** Keyed by the union so a sixth queue cannot be added without an icon. */
 const QUEUE_ICONS: Record<QueueKey, typeof MapPinned> = {
   submissions: MapPinned,
@@ -39,15 +33,6 @@ const QUEUE_ICONS: Record<QueueKey, typeof MapPinned> = {
   uploads: ScanSearch,
   duplicates: CopyCheck,
   actions: ScrollText,
-};
-
-/** What the number on each tab counts, so it is never an unexplained digit. */
-const QUEUE_COUNT_NOUNS: Record<QueueKey, string> = {
-  submissions: 'awaiting a decision',
-  reports: 'still open',
-  uploads: 'awaiting a decision',
-  duplicates: 'pairs to look at',
-  actions: 'recorded recently',
 };
 
 export const DEFAULT_QUEUE: QueueKey = 'submissions';
@@ -69,28 +54,41 @@ export function queueHref(queue: QueueKey): string {
  * honest thing is to say that the list is the front of a queue rather than the
  * whole of one.
  */
-export function QueueCapNote({ shown, className }: { shown: number; className?: string }) {
+export async function QueueCapNote({
+  locale,
+  shown,
+  className,
+}: {
+  locale: Locale;
+  shown: number;
+  className?: string;
+}) {
   if (shown < PAGE_SIZE.moderation) return null;
+
+  const t = await getTranslations({ locale, namespace: 'moderation' });
 
   return (
     <p className={cn('mb-5 text-meta leading-relaxed text-muted', className)}>
-      This is the first {PAGE_SIZE.moderation} items only, and there may be more behind them.
-      Decide these and reload: the queues are not paged yet.
+      {t('queues.capNote', { limit: PAGE_SIZE.moderation })}
     </p>
   );
 }
 
-export function QueueTabs({
+export async function QueueTabs({
+  locale,
   active,
   counts,
   className,
 }: {
+  locale: Locale;
   active: QueueKey;
   counts: Record<QueueKey, number>;
   className?: string;
 }) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+
   return (
-    <nav aria-label="Moderation queues" className={cn('border-b border-line', className)}>
+    <nav aria-label={t('queues.navLabel')} className={cn('border-b border-line', className)}>
       {/* The strip scrolls on a narrow screen; the decision controls inside each
           row never do. */}
       <ul className="-mb-px flex gap-1 overflow-x-auto">
@@ -117,17 +115,26 @@ export function QueueTabs({
                 )}
               >
                 <Icon className="size-3.5 shrink-0" aria-hidden />
-                {QUEUE_LABELS[queue]}
+                {t(`queues.${queue}.label`)}
                 <span
                   className={cn(
                     'rounded-pill px-1.5 py-0.5 text-meta font-bold tabular-nums',
                     isActive ? 'bg-ink text-on-ink' : 'bg-surface-sunken text-muted',
                   )}
                 >
-                  {capped ? <span className="sr-only">at least </span> : null}
-                  {count}
-                  {capped ? '+' : ''}
-                  <span className="sr-only"> {QUEUE_COUNT_NOUNS[queue]}</span>
+                  {/* The digits are the glance; the whole sentence is what is
+                      read out, because "25" on its own counts nothing and
+                      "at least 25 reports still open" cannot be assembled from
+                      fragments in a language with no spaces between words. */}
+                  <span aria-hidden>
+                    {count}
+                    {capped ? '+' : ''}
+                  </span>
+                  <span className="sr-only">
+                    {capped
+                      ? t(`queues.${queue}.countCapped`, { count })
+                      : t(`queues.${queue}.count`, { count })}
+                  </span>
                 </span>
               </Link>
             </li>

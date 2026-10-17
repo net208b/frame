@@ -1,12 +1,27 @@
-import { CATEGORY_LABELS, type PhotoCategory } from '@/types/domain';
+import { getTranslations } from 'next-intl/server';
 
+import { taxonomyLabels } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
+import type { PhotoCategory } from '@/types/domain';
 
 /**
  * The small uppercase category pill.
  *
  * `overlay` sits on top of a photograph, so it carries its own translucent
  * paper behind the text rather than relying on the image being light enough.
+ *
+ * The name comes from the shared `taxonomy` namespace through
+ * `taxonomyLabels`, not from `CATEGORY_LABELS` in `types/domain.ts`. That
+ * constant is still the English name a category is stored and published under —
+ * the repository reads it, the structured data in `lib/seo.ts` emits it — and
+ * the messages are keyed by the same literal union, so there is one list of
+ * categories and no second place to add one. Going through the shared helper is
+ * what keeps this tag and the Discover chip that filtered to it reading the
+ * same words.
+ *
+ * `uppercase` is inert on Thai, which has no letter case, and the Thai
+ * typography block in `globals.css` has already taken the eyebrow's positive
+ * tracking back to normal — so the pill needs no per-language styling here.
  */
 type Tone = 'overlay' | 'surface' | 'outline';
 
@@ -16,7 +31,7 @@ const TONES: Record<Tone, string> = {
   outline: 'border border-line text-muted',
 };
 
-export function CategoryTag({
+export async function CategoryTag({
   category,
   tone = 'surface',
   className,
@@ -25,6 +40,8 @@ export function CategoryTag({
   tone?: Tone;
   className?: string;
 }) {
+  const taxonomy = taxonomyLabels(await getTranslations('taxonomy'));
+
   return (
     <span
       className={cn(
@@ -33,7 +50,7 @@ export function CategoryTag({
         className,
       )}
     >
-      {CATEGORY_LABELS[category]}
+      {taxonomy.category(category)}
     </span>
   );
 }

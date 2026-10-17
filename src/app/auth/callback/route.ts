@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { localeFromRequest, withLocalePrefix } from '@/i18n/locales';
 import { isDemoMode } from '@/lib/config';
 import { safeNextPath, sameOriginUrl } from '@/lib/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
@@ -14,14 +15,23 @@ import { createClient } from '@/lib/supabase/server';
  * browser from the one that asked for it cannot succeed — that is a property
  * of the flow, not a bug, and it is reported as a readable failure rather than
  * a blank page.
+ *
+ * This route has no `[locale]` segment — it is an endpoint, not a page — but
+ * every destination below is a page, so the language the member was reading is
+ * recovered from the request and carried into the redirect. Without that, a
+ * Thai member would finish signing in on an English page.
  */
 
 export async function GET(request: NextRequest): Promise<Response> {
   const params = request.nextUrl.searchParams;
-  const next = safeNextPath(params.get('next'));
+  const locale = localeFromRequest(request);
+  const next = safeNextPath(params.get('next'), withLocalePrefix('/', locale));
 
   if (isDemoMode()) {
-    return NextResponse.redirect(sameOriginUrl(request, '/login?error=not_configured'), 303);
+    return NextResponse.redirect(
+      sameOriginUrl(request, withLocalePrefix('/login?error=not_configured', locale)),
+      303,
+    );
   }
 
   const code = params.get('code');
@@ -32,7 +42,10 @@ export async function GET(request: NextRequest): Promise<Response> {
     if (providerError) {
       console.error(`FRAME auth: a sign-in link was refused — ${providerError}`);
     }
-    return NextResponse.redirect(sameOriginUrl(request, '/login?error=link_expired'), 303);
+    return NextResponse.redirect(
+      sameOriginUrl(request, withLocalePrefix('/login?error=link_expired', locale)),
+      303,
+    );
   }
 
   const supabase = await createClient();
@@ -40,10 +53,14 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   if (error) {
     console.error(`FRAME auth: a code exchange failed — ${error.message}`);
-    return NextResponse.redirect(sameOriginUrl(request, '/login?error=link_expired'), 303);
+    return NextResponse.redirect(
+      sameOriginUrl(request, withLocalePrefix('/login?error=link_expired', locale)),
+      303,
+    );
   }
 
-  // The header is rendered in the root layout, so every page is now stale.
+  // The header is rendered in the locale layout, so every page in every
+  // language is now stale.
   revalidatePath('/', 'layout');
 
   return NextResponse.redirect(sameOriginUrl(request, next), 303);

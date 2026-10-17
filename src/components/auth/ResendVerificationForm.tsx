@@ -1,9 +1,10 @@
 'use client';
 
 import { MailCheck } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 
-import { fieldError, FormStatus, FormSuccess } from '@/components/auth/AuthStatus';
+import { FormStatus, FormSuccess, useFieldErrors } from '@/components/auth/AuthStatus';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
 import { resendVerification } from '@/server/actions/auth';
@@ -16,7 +17,8 @@ import { resendVerification } from '@/server/actions/auth';
  * refused by the identity service in the same way, and answering them
  * differently would turn this form into a way to find out who has an account.
  * So the sentence says what is true of every case rather than guessing which
- * one this was.
+ * one this was — in Thai as well: `resendSent` opens with ถ้า ("if"), which
+ * keeps the condition in front of the claim exactly as the English does.
  */
 
 /** Derived from the action, so the form and the server cannot drift apart. */
@@ -27,13 +29,15 @@ export function ResendVerificationForm() {
     resendVerification,
     null,
   );
+  const t = useTranslations('auth');
+  const errorFor = useFieldErrors(state);
 
   return (
     <form action={formAction} className="space-y-5">
       <FormStatus state={state}>
         {state?.ok ? (
           <FormSuccess
-            title="Request sent"
+            title={t('verify.successTitle')}
             icon={<MailCheck className="size-4 shrink-0" aria-hidden />}
           >
             <p>{state.message}</p>
@@ -42,19 +46,19 @@ export function ResendVerificationForm() {
       </FormStatus>
 
       <TextField
-        label="Email address"
+        label={t('fields.email')}
         name="email"
         type="email"
         autoComplete="email"
         autoCapitalize="none"
         spellCheck={false}
         required
-        hint="The address you joined with. Only two links are sent per address every ten minutes, so check your spam folder before asking again."
-        error={fieldError(state, 'email')}
+        hint={t('verify.emailHint')}
+        error={errorFor('email')}
       />
 
       <Button type="submit" size="lg" loading={pending} className="w-full">
-        {pending ? 'Sending the link' : 'Send another link'}
+        {pending ? t('verify.submitPending') : t('verify.submit')}
       </Button>
     </form>
   );

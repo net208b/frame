@@ -1,3 +1,4 @@
+import { getFormatter, getTranslations } from 'next-intl/server';
 import type { ReactElement } from 'react';
 
 import { Notice } from '@/components/ui/states';
@@ -12,50 +13,61 @@ import { cn } from '@/lib/utils';
  * viewer reaches an action this deployment cannot perform. Neither is an alarm:
  * an unconfigured deployment is a normal state for this project, and the right
  * response is a plain sentence, not a red banner.
+ *
+ * Both say the same thing in both languages, because an honest message that
+ * only half the readers can read is not an honest message. Each is a single
+ * ICU sentence with its variables inside it — Thai puts no space between a
+ * variable and the word after it, which is a thing only the message file can
+ * know and a thing string concatenation in this file would get wrong.
  */
 
 type Capability = 'database' | 'auth' | 'uploads' | 'maps';
 
-export function DemoNotice({
+const CODE_CLASS = 'font-mono text-[0.95em] font-semibold';
+
+export async function DemoNotice({
   className,
   context,
 }: {
   className?: string;
   context?: string;
-}): ReactElement | null {
+}): Promise<ReactElement | null> {
   if (!isDemoMode()) return null;
+
+  const t = await getTranslations('common');
 
   return (
     <aside
-      aria-label="Demo content"
+      aria-label={t('demoMode.eyebrow')}
       className={cn('border-b border-line bg-surface-sunken', className)}
     >
       <div className="site-container flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5">
-        <span className="text-eyebrow text-muted uppercase">Demo content</span>
+        <span className="text-eyebrow text-muted uppercase">{t('demoMode.eyebrow')}</span>
         <p className="text-caption text-ink-soft">
-          No database is configured, so {context ?? 'this page'} is showing the bundled sample
-          dataset. Every count, photograph and photographer here describes that sample rather
-          than a real community.
+          {t('demoMode.body', { context: context ?? t('demoMode.thisPage') })}
         </p>
       </div>
     </aside>
   );
 }
 
-const CAPABILITY_COPY: Record<
-  Capability,
-  { subject: string; variables: string[]; extraDoc?: string }
-> = {
+/**
+ * What each capability needs, and which variables turn it on.
+ *
+ * The variable names and the documentation paths are not translated: they are
+ * identifiers, and a reader who has to set `NEXT_PUBLIC_SUPABASE_URL` needs to
+ * see exactly that string. The one translated part is the subject — what the
+ * capability actually needs in prose — which is read from the message
+ * catalogue by the key below.
+ */
+const CAPABILITY_COPY: Record<Capability, { variables: string[]; extraDoc?: string }> = {
   database: {
-    subject: 'a database',
     variables: ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'],
   },
   auth: {
-    subject: 'accounts and sign-in',
     variables: ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY'],
   },
   uploads: {
-    subject: 'image storage',
     variables: [
       'NEXT_PUBLIC_SUPABASE_URL',
       'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
@@ -63,46 +75,65 @@ const CAPABILITY_COPY: Record<
     ],
   },
   maps: {
-    subject: 'a map style from a provider whose terms allow this traffic',
     variables: ['NEXT_PUBLIC_MAP_STYLE_URL'],
     extraDoc: 'docs/EXTERNAL-SERVICES.md',
   },
 };
 
-export function CapabilityNotice({
+export async function CapabilityNotice({
   capability,
   action,
   className,
 }: {
   capability: Capability;
+  /**
+   * What the viewer was trying to do, as a phrase that starts the sentence —
+   * "Publishing a photograph", "The map". It comes from the calling page,
+   * which is the only thing that knows, and which is responsible for passing
+   * it in the active language.
+   */
   action: string;
   className?: string;
-}): ReactElement | null {
+}): Promise<ReactElement | null> {
   if (capabilities()[capability]) return null;
 
+  const [t, format] = await Promise.all([getTranslations('common'), getFormatter()]);
   const copy = CAPABILITY_COPY[capability];
 
+  // Through Intl, so the separators are the ones the active language uses:
+  // "A, B and C" in English, the Thai equivalent in Thai. Joining with a
+  // hard-coded " and " was the previous behaviour and is wrong in Thai.
+  const variables = format.list(copy.variables);
+  const docs = format.list(
+    copy.extraDoc ? ['docs/ENVIRONMENT.md', copy.extraDoc] : ['docs/ENVIRONMENT.md'],
+  );
+
   return (
-    <Notice tone="warning" title={`${action} is unavailable in this deployment`} className={className}>
+    <Notice
+      tone="warning"
+      title={t('capabilityMissing.title', { action })}
+      className={className}
+    >
       <p>
-        {action} needs {copy.subject}, which this deployment has not been given. Set{' '}
-        {copy.variables.map((variable, index) => (
-          <span key={variable}>
-            {index > 0 && (index === copy.variables.length - 1 ? ' and ' : ', ')}
-            <code className="font-mono text-[0.95em] font-semibold">{variable}</code>
-          </span>
-        ))}{' '}
-        to turn it on.
+        {t('capabilityMissing.body', {
+          action,
+          subject: t(`capabilityMissing.subjects.${capability}`),
+        })}{' '}
+        {/* The variable names are set in the monospace face because they are
+            strings to be typed exactly. The whole list sits inside one tag
+            rather than one tag per name, because an ICU value can only be
+            text — a tag is the only way to get an element into a translated
+            sentence, and the list is built before it gets there. */}
+        {t.rich('capabilityMissing.setVariables', {
+          variables,
+          code: (chunks) => <code className={CODE_CLASS}>{chunks}</code>,
+        })}
       </p>
       <p className="mt-1">
-        See <code className="font-mono text-[0.95em] font-semibold">docs/ENVIRONMENT.md</code>
-        {copy.extraDoc ? (
-          <>
-            {' and '}
-            <code className="font-mono text-[0.95em] font-semibold">{copy.extraDoc}</code>
-          </>
-        ) : null}{' '}
-        for the full list.
+        {t.rich('capabilityMissing.seeDocs', {
+          docs,
+          code: (chunks) => <code className={CODE_CLASS}>{chunks}</code>,
+        })}
       </p>
     </Notice>
   );

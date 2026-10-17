@@ -1,12 +1,14 @@
+import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import Link from 'next/link';
 
 import { DecisionForm, type DecisionOption } from '@/components/moderation/DecisionForm';
-import { SignalBadge, UPLOAD_SIGNAL_LABELS } from '@/components/moderation/SignalBadge';
-import { Avatar } from '@/components/photographer/Avatar';
 import { QueueCapNote } from '@/components/moderation/QueueTabs';
+import { SignalBadge, UPLOAD_SIGNAL_MESSAGE_KEYS } from '@/components/moderation/SignalBadge';
+import { Avatar } from '@/components/photographer/Avatar';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
+import { INTL_LOCALES, type Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { formatDate, formatRelative } from '@/lib/utils';
 import type { SuspiciousUpload } from '@/types/domain';
 
@@ -19,55 +21,70 @@ import type { SuspiciousUpload } from '@/types/domain';
  * photographs of the same shopfront taken a year apart. So the caveat is
  * printed next to that signal rather than left in a policy document, and the
  * decision that holds an upload is as easy to reach as the one that removes it.
+ *
+ * That caveat is two sentences and both are translated in full. It is the one
+ * piece of copy on this screen that stops a signal being read as a finding, so
+ * a Thai moderator gets it at the same size and in the same place as an English
+ * one; it is never shortened to fit.
  */
 
-const OPTIONS: readonly DecisionOption[] = [
-  {
-    value: 'approve',
-    label: 'Keep and publish',
-    effect: 'Clears the review and publishes the photograph.',
-    reasonRequired: false,
-    reasonAudience: 'internal',
-  },
-  {
-    value: 'request_changes',
-    label: 'Hold under review',
-    effect:
-      'Leaves it unpublished. A photograph has no separate “changes requested” state and no column for a moderator’s note, so the hold is durable but your reason stays in the moderation trail.',
-    reasonRequired: true,
-    reasonAudience: 'internal',
-  },
-  {
-    value: 'remove_content',
-    label: 'Remove the upload',
-    effect:
-      'Takes it out of FRAME. The reason is stored on the photograph, so the member reads it.',
-    reasonRequired: true,
-    reasonAudience: 'member',
-    destructive: true,
-  },
-];
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
 
-export function SuspiciousUploadQueue({ uploads }: { uploads: readonly SuspiciousUpload[] }) {
+function optionsFor(t: Translator): readonly DecisionOption[] {
+  return [
+    {
+      value: 'approve',
+      label: t('uploads.options.approve.label'),
+      effect: t('uploads.options.approve.effect'),
+      reasonRequired: false,
+      reasonAudience: 'internal',
+    },
+    {
+      value: 'request_changes',
+      label: t('uploads.options.hold.label'),
+      effect: t('uploads.options.hold.effect'),
+      reasonRequired: true,
+      reasonAudience: 'internal',
+    },
+    {
+      value: 'remove_content',
+      label: t('uploads.options.remove.label'),
+      effect: t('uploads.options.remove.effect'),
+      reasonRequired: true,
+      reasonAudience: 'member',
+      destructive: true,
+    },
+  ];
+}
+
+export async function SuspiciousUploadQueue({
+  locale,
+  uploads,
+}: {
+  locale: Locale;
+  uploads: readonly SuspiciousUpload[];
+}) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+
   return (
     <section aria-labelledby="queue-uploads">
       <SectionHead
-        eyebrow="Queue"
-        title={<span id="queue-uploads">Uploads to review</span>}
-        description="Held before publication. Every signal below is a reason to look, not a finding."
+        eyebrow={t('uploads.eyebrow')}
+        title={<span id="queue-uploads">{t('uploads.title')}</span>}
+        description={t('uploads.description')}
       />
 
-      <QueueCapNote shown={uploads.length} />
+      <QueueCapNote locale={locale} shown={uploads.length} />
 
       {uploads.length === 0 ? (
         <EmptyState
-          title="Nothing is held for review"
-          description="No upload is waiting on a decision. Flagged uploads arrive here oldest first."
+          title={t('uploads.emptyTitle')}
+          description={t('uploads.emptyDescription')}
         />
       ) : (
         <ul className="border-t border-line">
           {uploads.map((upload) => (
-            <UploadRow key={upload.id} upload={upload} />
+            <UploadRow key={upload.id} locale={locale} upload={upload} />
           ))}
         </ul>
       )}
@@ -75,8 +92,11 @@ export function SuspiciousUploadQueue({ uploads }: { uploads: readonly Suspiciou
   );
 }
 
-function UploadRow({ upload }: { upload: SuspiciousUpload }) {
-  const uploadedOn = formatDate(upload.createdAt);
+async function UploadRow({ locale, upload }: { locale: Locale; upload: SuspiciousUpload }) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+  const intlLocale = INTL_LOCALES[locale];
+
+  const uploadedOn = formatDate(upload.createdAt, intlLocale);
   const hasHashMatch = upload.signals.some((signal) => signal.kind === 'perceptual-hash-match');
 
   return (
@@ -87,7 +107,7 @@ function UploadRow({ upload }: { upload: SuspiciousUpload }) {
             src={upload.thumbUrl}
             // SuspiciousUpload carries no alt text, so this names what the
             // image is rather than claiming to describe what is in it.
-            alt={`Upload held for review: ${upload.title}`}
+            alt={t('uploads.thumbAlt', { title: upload.title })}
             width={160}
             height={160}
             sizes="160px"
@@ -98,11 +118,15 @@ function UploadRow({ upload }: { upload: SuspiciousUpload }) {
             <h3 className="text-title font-bold">{upload.title}</h3>
 
             <p className="mt-1 text-meta text-muted">
-              Uploaded{' '}
-              <time dateTime={upload.createdAt} title={uploadedOn ?? undefined}>
-                {formatRelative(upload.createdAt)}
-              </time>
-              {' · not published, so it has no public page yet'}
+              {t.rich('uploads.uploadedAt', {
+                when: formatRelative(upload.createdAt, new Date(), intlLocale),
+                time: (chunks) => (
+                  <time dateTime={upload.createdAt} title={uploadedOn ?? undefined}>
+                    {chunks}
+                  </time>
+                ),
+              })}
+              {` · ${t('uploads.notPublishedYet')}`}
             </p>
 
             <p className="mt-3 flex flex-wrap items-center gap-2 text-caption text-muted">
@@ -113,13 +137,17 @@ function UploadRow({ upload }: { upload: SuspiciousUpload }) {
                 decorative
               />
               <span>
-                Uploaded by{' '}
-                <Link
-                  href={`/photographers/${upload.uploader.username}`}
-                  className="font-semibold text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink"
-                >
-                  {upload.uploader.displayName}
-                </Link>
+                {t.rich('uploads.uploadedBy', {
+                  name: upload.uploader.displayName,
+                  link: (chunks) => (
+                    <Link
+                      href={`/photographers/${upload.uploader.username}`}
+                      className="font-semibold text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </span>
             </p>
 
@@ -130,8 +158,9 @@ function UploadRow({ upload }: { upload: SuspiciousUpload }) {
                     // Derived in the repository rather than stored, so there is
                     // no id; the kind plus its position is the stable key.
                     key={`${signal.kind}-${index}`}
+                    locale={locale}
                     severity={signal.severity}
-                    label={UPLOAD_SIGNAL_LABELS[signal.kind]}
+                    label={t(UPLOAD_SIGNAL_MESSAGE_KEYS[signal.kind])}
                     message={signal.message}
                   >
                     {signal.relatedLabel ? (
@@ -141,21 +170,13 @@ function UploadRow({ upload }: { upload: SuspiciousUpload }) {
                 ))}
               </ul>
             ) : (
-              <p className="mt-4 text-meta text-muted">
-                No automated check flagged this upload. It is here because its status is still
-                under review.
-              </p>
+              <p className="mt-4 text-meta text-muted">{t('uploads.noSignals')}</p>
             )}
 
             {hasHashMatch ? (
               <p className="mt-3 rounded-card bg-warning-bg px-3.5 py-2.5 text-meta leading-relaxed text-warning">
-                <span className="font-bold">A similarity match is a signal for review, not
-                evidence of infringement.</span>{' '}
-                <span className="text-ink-soft">
-                  Two photographers can stand in the same place on different days and produce
-                  near-identical frames. Compare the files and ask the uploader before deciding
-                  anything from this signal alone.
-                </span>
+                <span className="font-bold">{t('uploads.hashCaveatHeadline')}</span>{' '}
+                <span className="text-ink-soft">{t('uploads.hashCaveatBody')}</span>
               </p>
             ) : null}
           </div>
@@ -164,8 +185,11 @@ function UploadRow({ upload }: { upload: SuspiciousUpload }) {
         <div className="min-w-0 lg:border-l lg:border-line lg:pl-7">
           <DecisionForm
             target={{ kind: 'upload', photographId: upload.photographId }}
-            subjectLabel={`“${upload.title}” by ${upload.uploader.displayName}`}
-            options={OPTIONS}
+            subjectLabel={t('uploads.subject', {
+              title: upload.title,
+              name: upload.uploader.displayName,
+            })}
+            options={optionsFor(t)}
           />
         </div>
       </div>

@@ -1,18 +1,19 @@
 'use client';
 
 import { Info, MapPin, Search, TriangleAlert } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { TextAreaField, TextField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
 import { LOCATION_POLICY } from '@/lib/config';
-import { evaluateLocationSubmission, isValidLatitude, isValidLongitude, precisionLabel } from '@/lib/geo';
-import { describeExifGpsPolicy } from '@/lib/images/exif';
+import { evaluateLocationSubmission, isValidLatitude, isValidLongitude } from '@/lib/geo';
 import { cn } from '@/lib/utils';
 import { searchApprovedLocations } from '@/server/actions/locations';
 import type { LocationSummary, SubmissionSignal } from '@/types/domain';
 
+import { useUploadFormat } from './format';
 import type { PlaceMode, UploadDraft } from './use-upload-draft';
 
 /**
@@ -27,61 +28,106 @@ import type { PlaceMode, UploadDraft } from './use-upload-draft';
  * anything, and approval stays a human decision. The position the camera
  * recorded is offered once, as a question, and copied in only if the member
  * says so.
+ *
+ * The question about that position is the same four statements in both
+ * languages — coordinates are in the file, FRAME will not publish them unless
+ * the member chooses, a published point is rounded by policy, and camera
+ * metadata is not evidence of authorship. It is the only reason this step can
+ * ask for a location at all, so none of it is shortened in translation.
  */
 
-const MODE_OPTIONS: Array<{ value: PlaceMode; label: string; description: string }> = [
+const MODE_OPTIONS: Array<{ value: PlaceMode; labelKey: string; descriptionKey: string }> = [
   {
     value: 'none',
-    label: 'No place for now',
-    description:
-      'Publish without a location. You can tell us where it was made later without re-uploading.',
+    labelKey: 'place.modeNoneLabel',
+    descriptionKey: 'place.modeNoneDescription',
   },
   {
     value: 'existing',
-    label: 'An approved FRAME location',
-    description: 'Search the places already on the map and pick the one this frame was made at.',
+    labelKey: 'place.modeExistingLabel',
+    descriptionKey: 'place.modeExistingDescription',
   },
   {
     value: 'propose',
-    label: 'Propose a new place',
-    description:
-      'Somewhere FRAME does not have yet. A moderator reads every proposal before it appears.',
+    labelKey: 'place.modeProposeLabel',
+    descriptionKey: 'place.modeProposeDescription',
   },
 ];
 
-const SIGNAL_SEVERITY: Record<SubmissionSignal['severity'], { label: string; tone: string }> = {
-  info: { label: 'For information', tone: 'text-info' },
-  warn: { label: 'Worth a second look', tone: 'text-warning' },
-  high: { label: 'Needs attention', tone: 'text-danger' },
+const SEVERITY_TONE: Record<SubmissionSignal['severity'], string> = {
+  info: 'text-info',
+  warn: 'text-warning',
+  high: 'text-danger',
 };
 
-function SignalList({ signals }: { signals: SubmissionSignal[] }) {
+const SEVERITY_KEY: Record<SubmissionSignal['severity'], string> = {
+  info: 'place.severityInfo',
+  warn: 'place.severityWarn',
+  high: 'place.severityHigh',
+};
+
+function SignalList({
+  signals,
+  countryCode,
+}: {
+  signals: SubmissionSignal[];
+  /**
+   * The code the member typed. The signal itself does not carry it — only the
+   * English sentence `lib/geo.ts` built does — so the one piece of data the
+   * country checks talk about is passed back in rather than parsed out.
+   */
+  countryCode: string;
+}) {
+  const t = useTranslations('upload');
+
   if (signals.length === 0) {
-    return (
-      <p className="text-meta leading-relaxed text-muted">
-        The coordinate checks found nothing to flag. That is not the same as FRAME knowing this
-        place exists — a moderator still reads the proposal.
-      </p>
-    );
+    return <p className="text-meta leading-relaxed text-muted">{t('place.checksNone')}</p>;
   }
+
+  /**
+   * The signal's own `message` is written in English in `lib/geo.ts`, which
+   * runs on the server as well as here and has no locale to write it in. Each
+   * kind the coordinate checks can actually produce therefore has its own
+   * message in this namespace, keyed off `kind` and, where the same kind means
+   * two different things, off `severity` as well. The fallback is the English
+   * sentence: the two remaining kinds in the union are produced by the
+   * moderation queue, never by `evaluateLocationSubmission`, and an invented
+   * Thai paraphrase of a check this step cannot run would be worse than a
+   * sentence that never renders.
+   */
+  const describe = (signal: SubmissionSignal): string => {
+    switch (signal.kind) {
+      case 'coordinate-out-of-range':
+        return t('place.signalOutOfRange');
+      case 'low-precision':
+        return t('place.signalLowPrecision');
+      case 'coordinate-country-mismatch':
+        return signal.severity === 'info'
+          ? t('place.signalCountryUnknown', { countryCode })
+          : t('place.signalCountryMismatch', { countryCode });
+      case 'possible-duplicate':
+        return t('place.signalPossibleDuplicate', {
+          metres: signal.distanceMetres ?? LOCATION_POLICY.duplicateRadiusMetres,
+        });
+      default:
+        return signal.message;
+    }
+  };
 
   return (
     <ul className="space-y-2.5">
       {signals.map((signal, index) => {
-        const severity = SIGNAL_SEVERITY[signal.severity];
+        const tone = SEVERITY_TONE[signal.severity];
         return (
           <li key={`${signal.kind}-${index}`} className="flex gap-2.5">
             {signal.severity === 'info' ? (
-              <Info className={cn('mt-0.5 size-3.5 shrink-0', severity.tone)} aria-hidden />
+              <Info className={cn('mt-0.5 size-3.5 shrink-0', tone)} aria-hidden />
             ) : (
-              <TriangleAlert
-                className={cn('mt-0.5 size-3.5 shrink-0', severity.tone)}
-                aria-hidden
-              />
+              <TriangleAlert className={cn('mt-0.5 size-3.5 shrink-0', tone)} aria-hidden />
             )}
             <p className="text-meta leading-relaxed text-ink-soft">
-              <span className={cn('font-bold', severity.tone)}>{severity.label}.</span>{' '}
-              {signal.message}
+              <span className={cn('font-bold', tone)}>{t(SEVERITY_KEY[signal.severity])}.</span>{' '}
+              {describe(signal)}
               {signal.relatedLabel ? ` (${signal.relatedLabel})` : ''}
             </p>
           </li>
@@ -100,6 +146,8 @@ function LocationPicker({
   onSelect: (location: LocationSummary | null) => void;
   error?: string;
 }) {
+  const t = useTranslations('upload');
+  const common = useTranslations('common');
   const groupId = useId();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationSummary[]>([]);
@@ -158,26 +206,29 @@ function LocationPicker({
   return (
     <div>
       <TextField
-        label="Search approved places"
+        label={t('place.searchLabel')}
         type="search"
         value={query}
         onChange={(event) => handleQueryChange(event.target.value)}
         error={error}
-        hint="Search by place, city or country. Two characters is enough to start."
-        placeholder="Shinjuku, Copenhagen, Bangkok…"
+        hint={t('place.searchHint')}
+        // Latin script in both languages on purpose: the approved places are
+        // indexed under the names a moderator entered, so a Thai example in
+        // Thai script would suggest a search that cannot match.
+        placeholder={t('place.searchPlaceholder')}
         autoComplete="off"
       />
 
       <p aria-live="polite" className="mt-3 text-meta text-muted">
         {searching
-          ? 'Searching…'
+          ? t('place.searching')
           : query.trim().length < 2
             ? ''
             : searchError
               ? ''
               : results.length === 0
-                ? 'No approved place matches that. If FRAME does not have it yet, propose it instead.'
-                : `${results.length} ${results.length === 1 ? 'place' : 'places'} found.`}
+                ? t('place.searchNoResults')
+                : t('place.searchResultCount', { count: results.length })}
       </p>
 
       {searchError ? (
@@ -188,7 +239,7 @@ function LocationPicker({
 
       {results.length > 0 ? (
         <fieldset className="mt-3">
-          <legend className="sr-only">Choose the place this frame was made at</legend>
+          <legend className="sr-only">{t('place.searchLegend')}</legend>
           <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
             {results.map((location) => {
               const id = `${groupId}-${location.id}`;
@@ -207,9 +258,7 @@ function LocationPicker({
                       <span className="block text-body font-semibold">{location.name}</span>
                       <span className="block text-meta text-muted">
                         {location.city}, {location.country} ·{' '}
-                        {location.photographCount === 1
-                          ? '1 photograph'
-                          : `${location.photographCount} photographs`}
+                        {common('photographCount', { count: location.photographCount })}
                       </span>
                     </label>
                   </div>
@@ -231,7 +280,7 @@ function LocationPicker({
             </span>
           </p>
           <Button variant="ghost" size="sm" onClick={() => onSelect(null)}>
-            Clear this choice
+            {t('place.searchClear')}
           </Button>
         </div>
       ) : null}
@@ -240,6 +289,8 @@ function LocationPicker({
 }
 
 function ProposalForm({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
+  const format = useUploadFormat();
   const { state, errors } = draft;
   const { proposal } = state;
 
@@ -251,53 +302,51 @@ function ProposalForm({ draft }: { draft: UploadDraft }) {
     isValidLatitude(latitude) &&
     isValidLongitude(longitude);
 
+  const countryCode = proposal.countryCode.trim().toUpperCase();
+
   // Run against the coordinate rules only. The duplicate check needs every
   // approved place on the map, which is a server read, so it runs when the
   // proposal is sent and the result is shown to the moderator.
   const signals = hasPoint
-    ? evaluateLocationSubmission({
-        latitude,
-        longitude,
-        countryCode: proposal.countryCode.trim().toUpperCase(),
-      })
+    ? evaluateLocationSubmission({ latitude, longitude, countryCode })
     : [];
 
   return (
     <div>
       <div className="grid gap-6 md:grid-cols-2">
         <TextField
-          label="Place name"
+          label={t('place.nameLabel')}
           required
           value={proposal.proposedName}
           maxLength={120}
           onChange={(event) => draft.updateProposal({ proposedName: event.target.value })}
           error={errors.proposedName}
-          hint="What a photographer would call it, not a postal address."
-          placeholder="Omoide Yokocho"
+          hint={t('place.nameHint')}
+          placeholder={t('place.namePlaceholder')}
           autoComplete="off"
         />
         <TextField
-          label="City"
+          label={t('place.cityLabel')}
           required
           value={proposal.city}
           maxLength={80}
           onChange={(event) => draft.updateProposal({ city: event.target.value })}
           error={errors.city}
-          placeholder="Tokyo"
+          placeholder={t('place.cityPlaceholder')}
           autoComplete="off"
         />
         <TextField
-          label="Country"
+          label={t('place.countryLabel')}
           required
           value={proposal.country}
           maxLength={80}
           onChange={(event) => draft.updateProposal({ country: event.target.value })}
           error={errors.country}
-          placeholder="Japan"
+          placeholder={t('place.countryPlaceholder')}
           autoComplete="off"
         />
         <TextField
-          label="Country code"
+          label={t('place.countryCodeLabel')}
           required
           value={proposal.countryCode}
           maxLength={2}
@@ -305,71 +354,67 @@ function ProposalForm({ draft }: { draft: UploadDraft }) {
             draft.updateProposal({ countryCode: event.target.value.toUpperCase() })
           }
           error={errors.countryCode}
-          hint="Two letters, ISO 3166-1 — JP, DK, TH."
-          placeholder="JP"
+          hint={t('place.countryCodeHint')}
+          placeholder={t('place.countryCodePlaceholder')}
           autoComplete="off"
           className="uppercase"
         />
         <TextField
-          label="Latitude"
+          label={t('place.latitudeLabel')}
           required
           inputMode="decimal"
           value={proposal.latitude}
           onChange={(event) => draft.updateProposal({ latitude: event.target.value })}
           error={errors.latitude}
-          placeholder="35.693990"
+          placeholder={t('place.latitudePlaceholder')}
           autoComplete="off"
         />
         <TextField
-          label="Longitude"
+          label={t('place.longitudeLabel')}
           required
           inputMode="decimal"
           value={proposal.longitude}
           onChange={(event) => draft.updateProposal({ longitude: event.target.value })}
           error={errors.longitude}
-          placeholder="139.700377"
+          placeholder={t('place.longitudePlaceholder')}
           autoComplete="off"
         />
       </div>
 
       <TextAreaField
-        label="Note for the moderator"
+        label={t('place.noteLabel')}
         wrapperClassName="mt-6"
         rows={3}
         maxLength={600}
         value={proposal.note}
         onChange={(event) => draft.updateProposal({ note: event.target.value })}
         error={errors.note}
-        hint="Optional. Access, opening hours, whether photography is restricted — anything a moderator should know before this goes on a public map."
+        hint={t('place.noteHint')}
       />
 
-      <section aria-labelledby="proposal-checks" className="mt-7 rounded-card border border-line bg-surface p-4">
+      <section
+        aria-labelledby="proposal-checks"
+        className="mt-7 rounded-card border border-line bg-surface p-4"
+      >
         <h4 id="proposal-checks" className="text-eyebrow text-muted uppercase">
-          Automatic checks
+          {t('place.checksHeading')}
         </h4>
         <div className="mt-3" aria-live="polite">
           {hasPoint ? (
-            <SignalList signals={signals} />
+            <SignalList signals={signals} countryCode={countryCode} />
           ) : (
-            <p className="text-meta leading-relaxed text-muted">
-              Enter a latitude, a longitude and a country code and the coordinate checks run here
-              as you type.
-            </p>
+            <p className="text-meta leading-relaxed text-muted">{t('place.checksIdle')}</p>
           )}
         </div>
       </section>
 
-      <Notice tone="info" title="What happens to a proposed place" className="mt-5">
-        <p>
-          Your proposal is queued for a moderator and does not appear on the map until one approves
-          it. Your photograph does not wait for that: it publishes now, with the place marked
-          pending, and is credited to the location once it is approved.
-        </p>
+      <Notice tone="info" title={t('place.proposalNoticeTitle')} className="mt-5">
+        <p>{t('place.proposalNoticeBody')}</p>
         <p className="mt-2">
-          A published point is rounded to {precisionLabel(LOCATION_POLICY.publicCoordinateDecimals)}{' '}
-          rather than shown exactly, and further still for anywhere a moderator marks as sensitive.
-          Two proposals within {LOCATION_POLICY.duplicateRadiusMetres} m of each other are flagged
-          as possible duplicates for a person to compare.
+          {t('place.proposalNoticePrecision', {
+            precision: format.precision(LOCATION_POLICY.publicCoordinateDecimals),
+            radius: LOCATION_POLICY.duplicateRadiusMetres,
+          })}
         </p>
       </Notice>
     </div>
@@ -377,32 +422,28 @@ function ProposalForm({ draft }: { draft: UploadDraft }) {
 }
 
 function ExifGpsQuestion({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
+  const format = useUploadFormat();
   const gps = draft.state.exif?.gps ?? null;
   if (!gps) return null;
+
+  const used = draft.state.gpsChoice === 'used';
 
   if (draft.state.gpsChoice !== 'unanswered') {
     return (
       <Notice
-        tone={draft.state.gpsChoice === 'used' ? 'info' : 'success'}
-        title={
-          draft.state.gpsChoice === 'used'
-            ? 'Using the position from the file'
-            : 'The position in the file stays out of this'
-        }
+        tone={used ? 'info' : 'success'}
+        title={used ? t('exifGps.usedTitle') : t('exifGps.declinedTitle')}
         className="mt-6"
       >
-        <p>
-          {draft.state.gpsChoice === 'used'
-            ? 'The coordinates below were copied from the file because you chose to use them. Edit them freely — they are a starting point, not a fact.'
-            : 'Nothing from the file’s position has been copied anywhere, and none of it will be stored.'}
-        </p>
+        <p>{used ? t('exifGps.usedBody') : t('exifGps.declinedBody')}</p>
         <Button
           variant="ghost"
           size="sm"
           className="mt-2"
           onClick={() => draft.answerGps('unanswered')}
         >
-          Change this answer
+          {t('exifGps.change')}
         </Button>
       </Notice>
     );
@@ -414,20 +455,23 @@ function ExifGpsQuestion({ draft }: { draft: UploadDraft }) {
       className="mt-6 rounded-panel border border-line bg-surface p-5"
     >
       <h3 id="exif-gps-question" className="text-title font-semibold tracking-tight">
-        This file records where it was taken
+        {t('exifGps.title')}
       </h3>
       <p className="mt-2 max-w-prose text-caption leading-relaxed text-muted">
-        {describeExifGpsPolicy()}
+        {t('exifGps.policy')}
       </p>
       <p className="mt-3 text-caption font-semibold">
-        The file says {gps.latitude.toFixed(5)}, {gps.longitude.toFixed(5)}.
+        {t('exifGps.coordinates', {
+          latitude: format.coordinate(gps.latitude, 5),
+          longitude: format.coordinate(gps.longitude, 5),
+        })}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Button variant="secondary" onClick={() => draft.answerGps('used')}>
-          Use it to start a proposal
+          {t('exifGps.use')}
         </Button>
         <Button variant="ghost" onClick={() => draft.answerGps('declined')}>
-          Leave the position out
+          {t('exifGps.decline')}
         </Button>
       </div>
     </section>
@@ -435,22 +479,19 @@ function ExifGpsQuestion({ draft }: { draft: UploadDraft }) {
 }
 
 export function StepPlace({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
   const modeGroupId = useId();
   const { state, errors } = draft;
 
   return (
     <div>
-      <h2 className="text-section font-bold">Where was it made?</h2>
-      <p className="mt-2 max-w-prose text-body text-muted">
-        A place is what turns a photograph into something another photographer can go and see for
-        themselves. It is also somewhere real, so FRAME publishes a rounded point and only after a
-        person has looked at it.
-      </p>
+      <h2 className="text-section font-bold">{t('place.heading')}</h2>
+      <p className="mt-2 max-w-prose text-body text-muted">{t('place.lead')}</p>
 
       <ExifGpsQuestion draft={draft} />
 
       <fieldset className="mt-7">
-        <legend className="text-meta font-bold text-ink">How would you like to answer?</legend>
+        <legend className="text-meta font-bold text-ink">{t('place.modeLegend')}</legend>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           {MODE_OPTIONS.map((option) => {
             const id = `${modeGroupId}-${option.value}`;
@@ -472,11 +513,13 @@ export function StepPlace({ draft }: { draft: UploadDraft }) {
                   onChange={() => draft.update({ placeMode: option.value })}
                 />
                 <label htmlFor={id} className="min-w-0 cursor-pointer">
-                  <span className={cn('block text-caption', active ? 'font-bold' : 'font-semibold')}>
-                    {option.label}
+                  <span
+                    className={cn('block text-caption', active ? 'font-bold' : 'font-semibold')}
+                  >
+                    {t(option.labelKey)}
                   </span>
                   <span className="mt-1 block text-meta leading-relaxed text-muted">
-                    {option.description}
+                    {t(option.descriptionKey)}
                   </span>
                 </label>
               </div>
@@ -504,8 +547,7 @@ export function StepPlace({ draft }: { draft: UploadDraft }) {
       {state.placeMode === 'none' ? (
         <p className="mt-7 max-w-prose rounded-card border border-line bg-surface px-4 py-3 text-caption leading-relaxed text-muted">
           <Search className="mr-2 inline size-3.5 align-[-2px]" aria-hidden />
-          Publishing without a place is a perfectly good answer. Street photographs of somebody’s
-          street are often better off without a pin on them.
+          {t('place.noneChosen')}
         </p>
       ) : null}
     </div>

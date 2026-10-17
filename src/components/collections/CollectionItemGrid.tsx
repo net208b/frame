@@ -1,10 +1,12 @@
-import Link from 'next/link';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { RemoveFromCollectionButton } from '@/components/collections/SaveToCollection';
 import { LocationCard } from '@/components/location/LocationCard';
 import { PhotoCard } from '@/components/photo/PhotoCard';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/states';
+import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { cn, formatDate } from '@/lib/utils';
 import type { CollectionItem } from '@/types/domain';
 
@@ -21,7 +23,10 @@ import type { CollectionItem } from '@/types/domain';
  *
  * The kind is named in words rather than implied by the card's shape, which is
  * also what keeps it legible when a place has no preview image and its card is
- * mostly text.
+ * mostly text. Both nouns come from `common`, so the rail says the same word
+ * here as the rest of the application does.
+ *
+ * The note is the collector's own writing and is never translated.
  */
 
 /** Frames above the fold on the widest column count. */
@@ -29,23 +34,16 @@ const PRIORITY_PHOTOGRAPHS = 4;
 
 interface Subject {
   kind: 'photograph' | 'location';
-  /** The uppercase rail label. "Place" reads better than "Location" in situ. */
-  label: string;
   id: string;
   name: string;
 }
 
 function subjectOf(item: CollectionItem): Subject | null {
   if (item.photograph) {
-    return {
-      kind: 'photograph',
-      label: 'Photograph',
-      id: item.photograph.id,
-      name: item.photograph.title,
-    };
+    return { kind: 'photograph', id: item.photograph.id, name: item.photograph.title };
   }
   if (item.location) {
-    return { kind: 'location', label: 'Place', id: item.location.id, name: item.location.name };
+    return { kind: 'location', id: item.location.id, name: item.location.name };
   }
   return null;
 }
@@ -62,21 +60,29 @@ export function CollectionItemGrid({
   isOwner: boolean;
   className?: string;
 }) {
+  const locale = useLocale();
+  const t = useTranslations('collections');
+  const tCommon = useTranslations('common');
+
+  const intl = INTL_LOCALES[isLocale(locale) ? locale : DEFAULT_LOCALE];
+
   if (items.length === 0) {
+    // Two different empty states, because the owner can do something about it
+    // and a visitor cannot.
     return isOwner ? (
       <EmptyState
-        title="Nothing saved here yet"
-        description="Open a photograph or a place and use Save to collection. Entries appear here newest first."
+        title={t('items.emptyOwnerTitle')}
+        description={t('items.emptyOwnerDescription')}
         action={
           <Button asChild>
-            <Link href="/discover">Browse photographs</Link>
+            <Link href="/discover">{t('items.emptyOwnerAction')}</Link>
           </Button>
         }
       />
     ) : (
       <EmptyState
-        title="This collection is empty"
-        description="Its owner has not added a photograph or a place to it yet."
+        title={t('items.emptyVisitorTitle')}
+        description={t('items.emptyVisitorDescription')}
       />
     );
   }
@@ -98,7 +104,7 @@ export function CollectionItemGrid({
         const subject = subjectOf(item);
         if (!subject) return null;
 
-        const added = formatDate(item.addedAt);
+        const added = formatDate(item.addedAt, intl);
 
         return (
           <li key={item.id}>
@@ -109,14 +115,19 @@ export function CollectionItemGrid({
             {item.location ? <LocationCard location={item.location} /> : null}
 
             <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-eyebrow uppercase">
-              <span className="text-muted">{subject.label}</span>
+              <span className="text-muted">
+                {subject.kind === 'photograph' ? tCommon('photograph') : tCommon('place')}
+              </span>
               {added ? (
                 <>
                   <span aria-hidden className="text-muted-soft">
                     ·
                   </span>
                   <span className="text-muted-soft normal-case">
-                    Saved <time dateTime={item.addedAt}>{added}</time>
+                    {t.rich('items.saved', {
+                      date: added,
+                      time: (chunks) => <time dateTime={item.addedAt}>{chunks}</time>,
+                    })}
                   </span>
                 </>
               ) : null}
@@ -127,7 +138,7 @@ export function CollectionItemGrid({
                 own note about why they kept it. */}
             {item.note ? (
               <div className="mt-2 border-l border-line-strong pl-3">
-                <p className="text-eyebrow uppercase text-muted-soft">Note</p>
+                <p className="text-eyebrow uppercase text-muted-soft">{t('items.noteLabel')}</p>
                 <p className="mt-1 text-caption leading-relaxed text-ink-soft">{item.note}</p>
               </div>
             ) : null}

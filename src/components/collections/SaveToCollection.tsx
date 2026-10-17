@@ -1,13 +1,21 @@
 'use client';
 
 import { Bookmark, Lock, Plus, X } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
+import { usePathname } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 
 import { useToast } from '@/components/system/Toast';
 import { Button } from '@/components/ui/Button';
 import { Dialog, DialogContent } from '@/components/ui/Dialog';
 import { CheckboxField, TextField } from '@/components/ui/Field';
+import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
+// The router is the locale-aware one, so pushing `/collections` keeps the
+// reader in their language. `usePathname` is deliberately Next's own: its value
+// is handed to `/login?next=…`, and that destination has to carry the locale
+// prefix, because the server action that redirects to it afterwards has no
+// other way of knowing which language the member was reading.
+import { useRouter } from '@/i18n/navigation';
 import type { ActionCode } from '@/lib/action-result';
 import { isDemoMode } from '@/lib/config';
 import { cn, formatCount } from '@/lib/utils';
@@ -32,6 +40,19 @@ import {
  *   a sentence saying so. A button that cannot work does not get rendered.
  * - A tick is optimistic but never final: the server's refusal puts the box
  *   back and says what happened.
+ *
+ * Every sentence that mentions the thing being saved is one message per kind,
+ * selected with ICU rather than assembled from a noun phrase. English could
+ * drop "this photograph" into the middle of a sentence; Thai cannot, because
+ * the word order is different and there is no space to splice at. So the whole
+ * sentence exists twice in each language, once for a photograph and once for a
+ * place, and `{kind}` picks.
+ *
+ * The confirmations are written here from what the action returned —
+ * `alreadyPresent`, `removed` — so the reader is told in their own language
+ * exactly what the server reported. A refusal (`result.error`) is a reason only
+ * the server knows and is shown as it arrives; those sentences are still
+ * English.
  */
 
 export type SaveSubjectKind = 'photograph' | 'location';
@@ -40,10 +61,6 @@ type LoadState = 'idle' | 'loading' | 'ready' | 'error';
 
 function subjectIds(kind: SaveSubjectKind, id: string): Record<string, string> {
   return kind === 'photograph' ? { photographId: id } : { locationId: id };
-}
-
-function subjectNoun(kind: SaveSubjectKind): string {
-  return kind === 'photograph' ? 'this photograph' : 'this place';
 }
 
 export function SaveToCollection({
@@ -63,6 +80,9 @@ export function SaveToCollection({
   const router = useRouter();
   const pathname = usePathname();
   const toast = useToast();
+  const locale = useLocale();
+  const t = useTranslations('collections');
+  const tCommon = useTranslations('common');
 
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<LoadState>('idle');
@@ -75,6 +95,7 @@ export function SaveToCollection({
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
+  const intl = INTL_LOCALES[isLocale(locale) ? locale : DEFAULT_LOCALE];
   const loginHref = `/login?next=${encodeURIComponent(pathname)}`;
   const ids = subjectIds(subjectKind, subjectId);
 
@@ -88,9 +109,11 @@ export function SaveToCollection({
           className,
         )}
       >
-        Saving to a collection needs a database, and none is configured in this build. See{' '}
-        <code className="font-mono text-[0.95em] font-semibold">docs/ENVIRONMENT.md</code> for the
-        environment variables that turn it on.
+        {t.rich('save.demoNotice', {
+          code: (chunks) => (
+            <code className="font-mono text-[0.95em] font-semibold">{chunks}</code>
+          ),
+        })}
       </p>
     );
   }
@@ -123,7 +146,7 @@ export function SaveToCollection({
       return 'ready';
     } catch {
       setState('error');
-      setLoadError('Your collections could not be loaded. Check your connection and try again.');
+      setLoadError(t('save.loadFailed'));
       return 'error';
     }
   }
@@ -175,7 +198,11 @@ export function SaveToCollection({
     }
 
     setBusyId(target.id);
-    setStatus(next ? `Saving to ${target.title}.` : `Removing from ${target.title}.`);
+    setStatus(
+      next
+        ? t('save.savingTo', { title: target.title })
+        : t('save.removingFrom', { title: target.title }),
+    );
     patch({
       contains: next,
       itemCount: Math.max(0, before.itemCount + (next ? 1 : -1)),
@@ -195,7 +222,9 @@ export function SaveToCollection({
           return;
         }
         changed = !result.data.alreadyPresent;
-        confirmation = result.message ?? `Saved to ${target.title}.`;
+        confirmation = result.data.alreadyPresent
+          ? t('save.alreadySavedIn', { title: target.title })
+          : t('save.savedTo', { title: target.title });
       } else {
         const result = await removeFromCollection({ collectionId: target.id, ...ids });
         if (!result.ok) {
@@ -203,7 +232,9 @@ export function SaveToCollection({
           return;
         }
         changed = result.data.removed;
-        confirmation = result.message ?? `Removed from ${target.title}.`;
+        confirmation = result.data.removed
+          ? t('save.removedFrom', { title: target.title })
+          : t('save.nothingRemoved', { title: target.title });
       }
 
       // An add that hit the unique constraint, and a remove that matched no
@@ -217,11 +248,8 @@ export function SaveToCollection({
       toast.show(confirmation, changed ? 'success' : 'default');
     } catch {
       patch(before);
-      setStatus('That change could not be saved.');
-      toast.show(
-        'That change could not be saved. Check your connection and try again.',
-        'danger',
-      );
+      setStatus(t('save.changeFailedShort'));
+      toast.show(t('save.changeFailed'), 'danger');
     } finally {
       setBusyId(null);
     }
@@ -265,18 +293,16 @@ export function SaveToCollection({
       if (!added.ok) {
         // The collection exists; only the entry failed. Both halves get said.
         setCreateError(
-          `“${title}” was created, but ${subjectNoun(subjectKind)} was not saved into it: ${added.error}`,
+          t('save.createdNotSaved', { kind: subjectKind, title, reason: added.error }),
         );
         return;
       }
 
-      const confirmation = `“${title}” is ready, and ${subjectNoun(subjectKind)} is saved to it.`;
+      const confirmation = t('save.createdAndSaved', { kind: subjectKind, title });
       setStatus(confirmation);
       toast.show(confirmation, 'success');
     } catch {
-      setCreateError(
-        'That collection could not be created. Check your connection and try again.',
-      );
+      setCreateError(t('save.createFailed'));
     } finally {
       setCreating(false);
     }
@@ -290,18 +316,18 @@ export function SaveToCollection({
         loading={state === 'loading' && !open}
         onClick={() => void openDialog()}
         iconLeft={<Bookmark aria-hidden className="size-3.5" />}
-        aria-label={`Save ${subjectLabel} to a collection`}
+        aria-label={t('save.triggerAriaLabel', { label: subjectLabel })}
       >
-        Save
+        {tCommon('save')}
       </Button>
 
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          title="Save to a collection"
-          description={`Choose where “${subjectLabel}” belongs. Collections you keep private stay private.`}
+          title={t('save.dialogTitle')}
+          description={t('save.dialogDescription', { label: subjectLabel })}
         >
           <p aria-live="polite" className="sr-only">
-            {state === 'loading' ? 'Loading your collections.' : status}
+            {state === 'loading' ? t('save.loading') : status}
           </p>
 
           {state === 'loading' ? (
@@ -315,18 +341,17 @@ export function SaveToCollection({
           {state === 'error' ? (
             <div role="alert" className="rounded-card bg-danger-bg px-4 py-3">
               <p className="text-caption leading-relaxed text-danger">
-                {loadError ?? 'Your collections could not be loaded.'}
+                {loadError ?? t('save.loadFailedShort')}
               </p>
               <Button variant="secondary" size="sm" className="mt-3" onClick={() => void load()}>
-                Try again
+                {tCommon('retry')}
               </Button>
             </div>
           ) : null}
 
           {state === 'ready' && targets.length === 0 ? (
             <p className="text-caption leading-relaxed text-muted">
-              You have no collections yet. Name one below and {subjectNoun(subjectKind)} goes
-              straight into it.
+              {t('save.noneYet', { kind: subjectKind })}
             </p>
           ) : null}
 
@@ -340,19 +365,22 @@ export function SaveToCollection({
                     disabled={busyId !== null}
                     label={
                       <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        {/* The member's own title, as they wrote it. */}
                         <span className="font-semibold">{target.title}</span>
                         {target.visibility === 'private' ? (
                           <span className="inline-flex items-center gap-1 text-meta text-muted">
                             <Lock aria-hidden className="size-2.5" />
-                            Private
+                            {t('visibility.private')}
                           </span>
                         ) : null}
                       </span>
                     }
                     description={
                       <span className="tabular-nums">
-                        {formatCount(target.itemCount)}{' '}
-                        {target.itemCount === 1 ? 'entry' : 'entries'}
+                        {t('card.entryCount', {
+                          count: target.itemCount,
+                          formatted: formatCount(target.itemCount, intl),
+                        })}
                       </span>
                     }
                   />
@@ -365,13 +393,13 @@ export function SaveToCollection({
             <form onSubmit={onCreate} className="mt-6 border-t border-line pt-5">
               <TextField
                 name="title"
-                label="New collection"
+                label={t('save.newLabel')}
                 value={newTitle}
                 onChange={(event) => setNewTitle(event.target.value)}
                 maxLength={80}
-                placeholder="Places to shoot at dawn"
+                placeholder={t('save.newPlaceholder')}
                 error={createError}
-                hint={`A new collection starts private, and ${subjectNoun(subjectKind)} is saved into it straight away.`}
+                hint={t('save.newHint', { kind: subjectKind })}
               />
               <div className="mt-3 flex justify-end">
                 <Button
@@ -381,7 +409,7 @@ export function SaveToCollection({
                   disabled={newTitle.trim().length === 0}
                   iconLeft={<Plus aria-hidden className="size-3.5" />}
                 >
-                  Create and save
+                  {t('save.newSubmit')}
                 </Button>
               </div>
             </form>
@@ -403,6 +431,10 @@ export function SaveToCollection({
  * sequence is to write, then refresh and let the server say what is there. The
  * button holds a "removed" state in the meantime so a second click cannot fire
  * the same write twice.
+ *
+ * This control is handed a collection id and no title, so its confirmation says
+ * "the collection" rather than naming one — which is also true to the context:
+ * it only ever appears on that collection's own page, under its masthead.
  */
 export function RemoveFromCollectionButton({
   collectionId,
@@ -419,6 +451,7 @@ export function RemoveFromCollectionButton({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const t = useTranslations('collections');
 
   const [pending, setPending] = useState(false);
   const [removed, setRemoved] = useState(false);
@@ -445,16 +478,13 @@ export function RemoveFromCollectionButton({
       // A delete that matched no row is still the state the owner asked for,
       // but it is not a change — so it is reported, not celebrated.
       toast.show(
-        result.message ?? 'Removed from the collection.',
+        result.data.removed ? t('removeItem.done') : t('removeItem.nothingRemoved'),
         result.data.removed ? 'success' : 'default',
       );
       router.refresh();
     } catch {
-      setError('That could not be removed. Check your connection and try again.');
-      toast.show(
-        'That could not be removed. Check your connection and try again.',
-        'danger',
-      );
+      setError(t('removeItem.failed'));
+      toast.show(t('removeItem.failed'), 'danger');
     } finally {
       setPending(false);
     }
@@ -469,9 +499,9 @@ export function RemoveFromCollectionButton({
         loading={pending}
         disabled={removed}
         iconLeft={pending ? undefined : <X aria-hidden className="size-3" />}
-        aria-label={`Remove ${subjectLabel} from this collection`}
+        aria-label={t('removeItem.ariaLabel', { label: subjectLabel })}
       >
-        {removed ? 'Removed' : 'Remove'}
+        {removed ? t('removeItem.removedLabel') : t('removeItem.label')}
       </Button>
       {error ? (
         <span role="alert" className="text-meta font-semibold text-danger">

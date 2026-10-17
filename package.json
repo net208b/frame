@@ -2,7 +2,7 @@
   "name": "frame",
   "version": "0.1.0",
   "private": true,
-  "description": "FRAME \u2014 a street photography community. Discover places. Capture moments.",
+  "description": "FRAME — a street photography community. Discover places. Capture moments.",
   "license": "MIT",
   "scripts": {
     "dev": "next dev",
@@ -28,6 +28,7 @@
     "lucide-react": "^1.58.0",
     "maplibre-gl": "^5.24.0",
     "next": "^15.5.28",
+    "next-intl": "^4.14.9",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "sharp": "^0.35.5",

@@ -2,10 +2,11 @@
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Bookmark, ChevronDown, LogOut, ShieldCheck, Upload, User } from 'lucide-react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useId, type ComponentType, type ReactNode } from 'react';
 
 import { Avatar } from '@/components/photographer/Avatar';
+import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -38,6 +39,8 @@ export function UserMenu({
   canModerate: boolean;
   className?: string;
 }) {
+  const t = useTranslations('nav');
+
   // A real form POST, so signing out does not depend on a click handler.
   const signOutFormId = useId();
 
@@ -48,7 +51,10 @@ export function UserMenu({
           'flex items-center gap-1.5 rounded-pill p-0.5 text-muted transition-colors hover:text-ink',
           className,
         )}
-        aria-label={`Account menu for ${viewer.displayName}`}
+        // One message with the name inside it, not a label stitched together
+        // from a fragment and a variable: Thai puts no space before the name
+        // and English does, and only the message file can know that.
+        aria-label={t('accountMenu', { name: viewer.displayName })}
       >
         <Avatar src={viewer.avatarUrl} name={viewer.displayName} size={34} decorative />
         <ChevronDown className="size-3.5" aria-hidden />
@@ -72,17 +78,17 @@ export function UserMenu({
           <DropdownMenu.Separator className="mx-1 mb-1.5 h-px bg-line" />
 
           <MenuLink href="/upload" icon={Upload}>
-            Upload a photograph
+            {t('upload')}
           </MenuLink>
           <MenuLink href="/collections" icon={Bookmark}>
-            My collections
+            {t('myCollections')}
           </MenuLink>
           <MenuLink href={`/photographers/${viewer.username}`} icon={User}>
-            My profile
+            {t('myProfile')}
           </MenuLink>
           {canModerate && (
             <MenuLink href="/moderation" icon={ShieldCheck}>
-              Moderation
+              {t('moderation')}
             </MenuLink>
           )}
 
@@ -91,7 +97,7 @@ export function UserMenu({
           <DropdownMenu.Item asChild>
             <button type="submit" form={signOutFormId} className={ITEM_CLASS}>
               <LogOut className="size-4 shrink-0 text-muted" aria-hidden />
-              Sign out
+              {t('signOut')}
             </button>
           </DropdownMenu.Item>
 

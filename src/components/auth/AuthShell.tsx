@@ -1,9 +1,10 @@
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { CapabilityNotice } from '@/components/system/DemoNotice';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -28,7 +29,19 @@ export function AuthShell({
   /** Allows one serif italic accent word, as the prototype's headlines do. */
   title: ReactNode;
   description: string;
-  /** Named in the capability notice, for example "Signing in". */
+  /**
+   * Named in the capability notice, for example "Signing in".
+   *
+   * DELIBERATELY STILL ENGLISH, and the only string on these pages that is.
+   * `CapabilityNotice` builds its sentence around this word — "{action} needs
+   * {subject}, which this deployment has not been given" — and `subject` ("a
+   * database", "accounts and sign-in") lives in `CAPABILITY_COPY` in
+   * `components/system/DemoNotice.tsx` with no key in the `common` namespace to
+   * translate it through. Handing that English frame a Thai verb would produce
+   * a half-translated sentence, which reads worse than a coherent English one.
+   * When the notice itself is translated, these five callers pass a message
+   * instead and nothing else here changes.
+   */
   action: string;
   children?: ReactNode;
   footer?: ReactNode;
@@ -80,8 +93,13 @@ export function AuthCta({
  * somebody who followed a stale `?next=` link with no idea why they moved.
  * The sign-out control is a real POST form, so it works without JavaScript and
  * cannot be fired by a cross-site image tag.
+ *
+ * The sentence naming the member is one message with the name and the handle
+ * interpolated into it, rather than three fragments stitched together: Thai
+ * puts "ในชื่อ" before the name and no space after it, which no amount of
+ * concatenation in JSX would get right in both languages.
  */
-export function AlreadySignedIn({
+export async function AlreadySignedIn({
   displayName,
   username,
   continueHref,
@@ -92,12 +110,17 @@ export function AlreadySignedIn({
   continueHref: string;
   continueLabel: string;
 }) {
+  const t = await getTranslations('auth');
+
   return (
     <div>
       <p className="text-body leading-relaxed text-ink">
-        You are already signed in as <strong className="font-bold">{displayName}</strong> (
-        <span className="text-muted">@{username}</span>). Sign out first to use a different
-        account.
+        {t.rich('shell.signedInAs', {
+          displayName,
+          username,
+          name: (chunks) => <strong className="font-bold">{chunks}</strong>,
+          handle: (chunks) => <span className="text-muted">{chunks}</span>,
+        })}
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -105,7 +128,7 @@ export function AlreadySignedIn({
 
         <form action="/auth/signout" method="post">
           <Button type="submit" variant="secondary">
-            Sign out
+            {t('shell.signOut')}
           </Button>
         </form>
       </div>

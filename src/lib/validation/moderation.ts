@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 import type { ModerationAction, ModerationDecision } from '@/types/domain';
 
-import { blankToNull, choice, flag, identifier, optionalText, requiredText } from './fields';
+import { validationCode } from './codes';
+import { blankToNull, choice, flag, identifier } from './fields';
 import { REPORT_SUBJECT_TYPES } from './report';
 
 /**
@@ -12,24 +13,71 @@ import { REPORT_SUBJECT_TYPES } from './report';
  * A rejection a member cannot understand is indistinguishable from a mistake,
  * and a moderator who is required to write one sentence is a moderator who has
  * had to think about the decision.
+ *
+ * MESSAGES. Every `error` here is a key rather than a sentence —
+ * `validation.reason.required` instead of "Write the reason for this
+ * decision." — following the pattern `src/lib/validation/codes.ts` sets out for
+ * every validation module. The copy sits under `moderation.validation` in
+ * `src/messages/{en,th}.json` and `DecisionForm` resolves it with its own
+ * translator, so a refusal is written in the language the moderator is reading.
+ * The bounds appear in that copy as literals, which is honest because they are
+ * constants of this schema rather than runtime values; {@link MODERATION_LIMITS}
+ * is what keeps the form's own controls and checks on the same numbers.
+ *
+ * Two messages are still English, and deliberately so rather than by oversight:
+ * the record identifiers below use `identifier()` from `./fields`, whose
+ * primitives compose their messages from an English label and have not been
+ * converted by their owner yet. Those fields are hidden values the queue puts
+ * in the request, never something a moderator types, so a failure there means a
+ * crafted request rather than a mistake somebody can read and correct.
  */
 
-/** Keyed by the union: a new decision cannot be added without a description. */
-export const MODERATION_DECISION_LABELS: Record<ModerationDecision, string> = {
-  approve: 'Approve',
-  reject: 'Reject',
-  request_changes: 'Ask for changes',
-  remove_content: 'Remove the content',
-  suspend_account: 'Suspend the account',
-  dismiss: 'Dismiss the report',
+/**
+ * The bounds a moderation decision is held to, shared by the schemas here and
+ * by the form that collects them: `DecisionForm` caps the reason field and the
+ * suspension input from this object, so the control cannot offer something the
+ * schema will reject. The copy states the same numbers in words.
+ */
+export const MODERATION_LIMITS = {
+  /** Applies to every queue: the reason column is the same width everywhere. */
+  reasonMaxLength: 1_200,
+  /** A suspension reason is the whole of what the member is told, so it is longer. */
+  suspensionReasonMinLength: 10,
+  suspensionMinDays: 1,
+  /** Beyond ten years, an indefinite suspension is the honest record. */
+  suspensionMaxDays: 3_650,
+} as const;
+
+/**
+ * Keyed by the union: a new decision cannot be added without a message key.
+ *
+ * The values are keys into the `moderation` namespace, so a caller renders a
+ * decision with `t(MODERATION_DECISION_MESSAGE_KEYS[decision])`. The record
+ * also derives the `z.enum` tuple below, which is what keeps the schema and the
+ * domain union from drifting apart.
+ */
+export const MODERATION_DECISION_MESSAGE_KEYS: Record<ModerationDecision, string> = {
+  approve: 'decision.approve',
+  reject: 'decision.reject',
+  request_changes: 'decision.request_changes',
+  remove_content: 'decision.remove_content',
+  suspend_account: 'decision.suspend_account',
+  dismiss: 'decision.dismiss',
 };
 
-const decisions = Object.keys(MODERATION_DECISION_LABELS) as [
+const decisions = Object.keys(MODERATION_DECISION_MESSAGE_KEYS) as [
   ModerationDecision,
   ...ModerationDecision[],
 ];
 
-/** Decisions the member is told about, and which therefore require a reason. */
+/**
+ * Decisions that are told to somebody, and which therefore require a reason.
+ *
+ * Which reader that is differs by queue — the member for a rejection, the
+ * moderation trail for a hold — and the form says which before the reason is
+ * typed. What is uniform is that none of these may be recorded as a bare
+ * verdict.
+ */
 const NEGATIVE_DECISIONS: ReadonlySet<string> = new Set<ModerationDecision>([
   'reject',
   'request_changes',
@@ -37,12 +85,30 @@ const NEGATIVE_DECISIONS: ReadonlySet<string> = new Set<ModerationDecision>([
   'suspend_account',
 ]);
 
-const REASON_REQUIRED =
-  'Write the reason for this decision. The member is shown it, so it has to stand on its own.';
+const REASON_REQUIRED = validationCode('reason.required');
 
-/** `optionalText` turns a blank field into null, so a null reason is a blank one. */
+/** A blank field arrives as null, so a null reason is a blank one. */
 function hasReason(value: { reason: string | null }): boolean {
   return value.reason !== null;
+}
+
+/**
+ * The reason field, identical in every queue.
+ *
+ * Written out rather than built with `optionalText` from `./fields` for the
+ * reason the account schemas give: that helper composes its messages from an
+ * English label. The behaviour is the same as
+ * `optionalText({ label: 'Reason', max: MODERATION_LIMITS.reasonMaxLength })`.
+ */
+function reasonField() {
+  return z.preprocess(
+    blankToNull,
+    z
+      .string({ error: validationCode('reason.text') })
+      .trim()
+      .max(MODERATION_LIMITS.reasonMaxLength, { error: validationCode('reason.max') })
+      .nullable(),
+  );
 }
 
 type ModerationSubjectType = ModerationAction['subjectType'];
@@ -58,10 +124,10 @@ export const MODERATION_SUBJECT_TYPES = [
  */
 export const moderationDecisionSchema = z
   .object({
-    subjectType: choice(MODERATION_SUBJECT_TYPES, 'Choose what this decision applies to.'),
+    subjectType: choice(MODERATION_SUBJECT_TYPES, validationCode('subjectType.required')),
     subjectId: identifier('Item under review'),
-    decision: choice(decisions, 'Choose a decision.'),
-    reason: optionalText({ label: 'Reason', max: 1_200 }),
+    decision: choice(decisions, validationCode('decision.required')),
+    reason: reasonField(),
   })
   .refine((value) => !NEGATIVE_DECISIONS.has(value.decision) || hasReason(value), {
     error: REASON_REQUIRED,
@@ -73,9 +139,9 @@ export const submissionDecisionSchema = z
     submissionId: identifier('Submission'),
     decision: choice(
       ['approve', 'reject', 'request_changes'],
-      'Choose whether to approve this place, reject it, or ask for changes.',
+      validationCode('decision.submission'),
     ),
-    reason: optionalText({ label: 'Reason', max: 1_200 }),
+    reason: reasonField(),
     /**
      * The coordinate-privacy decision, taken once, here. Both flags are read by
      * `publishableCoordinates`: `isSensitive` publishes the point at reduced
@@ -94,9 +160,9 @@ export const reportResolutionSchema = z
     reportId: identifier('Report'),
     decision: choice(
       ['remove_content', 'request_changes', 'dismiss'],
-      'Choose how this report was resolved.',
+      validationCode('decision.report'),
     ),
-    reason: optionalText({ label: 'Reason', max: 1_200 }),
+    reason: reasonField(),
   })
   .refine((value) => !NEGATIVE_DECISIONS.has(value.decision) || hasReason(value), {
     error: REASON_REQUIRED,
@@ -108,9 +174,9 @@ export const uploadActionSchema = z
     photographId: identifier('Photograph'),
     decision: choice(
       ['approve', 'remove_content', 'request_changes'],
-      'Choose what happens to this upload.',
+      validationCode('decision.upload'),
     ),
-    reason: optionalText({ label: 'Reason', max: 1_200 }),
+    reason: reasonField(),
   })
   .refine((value) => !NEGATIVE_DECISIONS.has(value.decision) || hasReason(value), {
     error: REASON_REQUIRED,
@@ -120,15 +186,21 @@ export const uploadActionSchema = z
 /** Suspension is always adverse, so the reason is required outright. */
 export const suspendAccountSchema = z.object({
   accountId: identifier('Account'),
-  reason: requiredText({ label: 'Reason', min: 10, max: 1_200 }),
+  reason: z
+    .string({ error: validationCode('reason.suspensionRequired') })
+    .trim()
+    .min(MODERATION_LIMITS.suspensionReasonMinLength, {
+      error: validationCode('reason.suspensionMin'),
+    })
+    .max(MODERATION_LIMITS.reasonMaxLength, { error: validationCode('reason.max') }),
   /** Omitted for an indefinite suspension, which a second moderator reviews. */
   durationDays: z.preprocess(
     blankToNull,
     z.coerce
-      .number({ error: 'A suspension length must be a number of days.' })
-      .int({ error: 'A suspension length must be a whole number of days.' })
-      .gte(1, { error: 'A suspension must last at least one day.' })
-      .lte(3_650, { error: 'Use an indefinite suspension rather than one over ten years.' })
+      .number({ error: validationCode('duration.number') })
+      .int({ error: validationCode('duration.whole') })
+      .gte(MODERATION_LIMITS.suspensionMinDays, { error: validationCode('duration.min') })
+      .lte(MODERATION_LIMITS.suspensionMaxDays, { error: validationCode('duration.max') })
       .nullable(),
   ),
 });

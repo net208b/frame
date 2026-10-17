@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { LOCALES, withLocalePrefix } from '@/i18n/locales';
 import { siteUrl } from '@/lib/config';
 
 /**
@@ -17,19 +18,36 @@ import { siteUrl } from '@/lib/config';
  * Each entry below is a prefix rather than a directory: `/api` covers `/api`
  * itself and everything beneath it, whereas `/api/` would leave the bare path
  * open.
+ *
+ * The page routes are listed once per language and once unprefixed, because a
+ * crawler that finds `/upload` follows a redirect to `/en/upload` and a rule
+ * naming only one of the two would leave the other open. `/api` and `/auth` are
+ * endpoints rather than pages and have no language, so they are listed as they
+ * are.
  */
-const DISALLOWED = [
-  '/api',
+const DISALLOWED_ENDPOINTS = ['/api', '/auth'] as const;
+
+const DISALLOWED_PAGES = [
   '/upload',
   '/moderation',
   '/search',
-  '/auth',
   '/login',
   '/join',
   '/forgot-password',
   '/reset-password',
   '/verify-email',
 ] as const;
+
+function disallowed(): string[] {
+  const paths: string[] = [...DISALLOWED_ENDPOINTS];
+
+  for (const path of DISALLOWED_PAGES) {
+    paths.push(path);
+    for (const locale of LOCALES) paths.push(withLocalePrefix(path, locale));
+  }
+
+  return paths;
+}
 
 export default function robots(): MetadataRoute.Robots {
   const base = siteUrl();
@@ -39,7 +57,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: [...DISALLOWED],
+        disallow: disallowed(),
       },
     ],
     // No `host` directive: Google and Bing ignore it and Yandex retired it, so

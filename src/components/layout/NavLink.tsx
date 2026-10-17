@@ -1,9 +1,8 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import type { MouseEventHandler, ReactNode } from 'react';
 
+import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -13,6 +12,11 @@ import { cn } from '@/lib/utils';
  * `aria-current="page"`, a heavier weight and a drawn rule, so the current
  * section is legible to a screen reader, to someone who cannot distinguish
  * the two greys, and in a high-contrast theme.
+ *
+ * `usePathname` comes from `@/i18n/navigation`, which strips the locale prefix:
+ * on `/th/discover` it returns `/discover`, so the comparison below is against
+ * the href the caller actually wrote and the active state survives a language
+ * change.
  */
 
 export interface NavLinkProps {

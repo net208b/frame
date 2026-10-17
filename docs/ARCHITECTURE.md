@@ -102,7 +102,7 @@ the same question twice:
 
 - [`src/lib/auth.ts`](../src/lib/auth.ts) wraps the session plus profile read,
   so a layout, a header and a repository call share one round trip.
-- [`src/app/photographs/[slug]/page.tsx`](../src/app/photographs/[slug]/page.tsx)
+- [`src/app/[locale]/photographs/[slug]/page.tsx`](../src/app/[locale]/photographs/[slug]/page.tsx)
   wraps the photograph read, so `generateMetadata` and the page body do not
   both fetch it.
 
@@ -275,10 +275,10 @@ session from Supabase on the server. Identity never comes from a prop, a
 cookie the client could write, or a value passed in from a component.
 
 **Route protection is deliberately not in middleware.**
-[`middleware.ts`](../middleware.ts) refreshes the session and nothing else.
-Middleware runs before a route is resolved and cannot read the database
-cheaply, so a redirect decided there would be a guess; the decision is made
-where the real role is known. Within an action, `authoriseModerator()` in
+[`middleware.ts`](../middleware.ts) refreshes the session and settles the
+locale, and nothing else. Middleware runs before a route is resolved and cannot
+read the database cheaply, so a redirect decided there would be a guess; the
+decision is made where the real role is known. Within an action, `authoriseModerator()` in
 [`src/server/actions/moderation.ts`](../src/server/actions/moderation.ts)
 repeats the three rules — signed in, not suspended, role `moderator` or
 `admin` — because an action is a public HTTP endpoint whether or not a page
@@ -443,7 +443,9 @@ the URL would need a proxy route, which this abstraction does not have.
 
 | Path | What lives there |
 | --- | --- |
-| `src/app/` | Routes, layouts, `globals.css`. One folder per route segment; `loading.tsx`, `error.tsx` and `not-found.tsx` beside the page they belong to |
+| `src/app/` | Routes, layouts, `globals.css`. Every page sits under `src/app/[locale]/`, one folder per route segment, with `loading.tsx`, `error.tsx` and `not-found.tsx` beside the page they belong to. What stays outside that segment is what is not a page: `sitemap.ts`, `robots.ts`, `manifest.ts`, `icon.svg`, `global-error.tsx`, `api/` and the `auth/` route handlers, plus the root `layout.tsx` that holds the stylesheet |
+| `src/i18n/` | The locale set, the next-intl routing and navigation wrappers, and the per-request message configuration. Every internal link imports `Link` from `src/i18n/navigation` rather than `next/link` |
+| `src/messages/` | One message catalogue per language, `en.json` and `th.json`, in the same key order |
 | `src/components/ui/` | Primitives with no domain knowledge: `Button`, `Chip`, `Dialog`, `Field`, `states`, `SectionHead`, `Pagination` |
 | `src/components/layout/` | The shell: header, footer, nav, brand |
 | `src/components/system/` | Cross-cutting behaviour: notices, toasts, the report dialog |
@@ -481,10 +483,14 @@ the URL would need a proxy route, which this abstraction does not have.
    assets, the image endpoint and the crawler files) and calls
    [`updateSession()`](../src/lib/supabase/middleware.ts), which refreshes the
    Supabase session and writes any rotated tokens onto the response. In demo
-   mode the request passes through untouched. Nothing is authorised here.
+   mode the request passes through untouched. It then runs the next-intl
+   middleware, which rewrites `/en/discover` into the `[locale]` segment or
+   redirects a request that arrived without a language prefix, and the rotated
+   cookies are carried onto that response. Nothing is authorised here.
 
-2. **[`src/app/discover/page.tsx`](../src/app/discover/page.tsx)** runs as a
-   Server Component. `searchParams` is a Promise, so it is awaited, then passed
+2. **[`src/app/[locale]/discover/page.tsx`](../src/app/[locale]/discover/page.tsx)**
+   runs as a Server Component. `params` carries the locale and `searchParams` is
+   a Promise, so both are awaited, then the search params are passed
    through `parseDiscoverSearchParams()` in
    [`src/lib/discover-query.ts`](../src/lib/discover-query.ts) — the only
    translation between that URL and a `DiscoverQuery`. Parsing never throws: an

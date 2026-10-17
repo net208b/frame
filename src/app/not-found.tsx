@@ -1,84 +1,65 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
-import { Button } from '@/components/ui/Button';
-import { Eyebrow } from '@/components/ui/SectionHead';
-import { buildMetadata } from '@/lib/seo';
+import { DEFAULT_LOCALE } from '@/i18n/locales';
+import { SITE } from '@/lib/config';
+import { cn } from '@/lib/utils';
 
 /**
- * The 404.
+ * The 404 for an address that has no language at all.
  *
- * Useful rather than apologetic: on a platform where members remove their own
- * work and moderators remove other people's, a missing page usually has a
- * reason, and naming the likely ones saves somebody wondering whether the site
- * is broken. The routes out are the three that always have something on them.
+ * `src/app/[locale]/not-found.tsx` is the one a reader normally meets: it has a
+ * header, a footer and the page's own language, because by then the request is
+ * inside the locale segment. This file is the fallback for the requests that
+ * never get that far — a single-segment address the middleware skips, such as
+ * `/missing.png`, which matches the `[locale]` segment as a locale that does not
+ * exist. Without it those requests would land on Next's built-in 404 inside a
+ * root layout that renders no `<html>`, and the reader would get a framework
+ * error instead of a 404.
+ *
+ * It therefore renders its own document, and it is deliberately plain. The
+ * stylesheet is here, because the root layout imports it, so the colours and
+ * spacing are the real ones; the web fonts are not, because they are declared by
+ * the locale layout that this page is standing in for. System sans on an
+ * address like `/missing.png` is the right trade.
+ *
+ * English, and `lang` says so: there is no locale to read and no reason to
+ * guess one. The way out points at `/en`, which is where every visitor lands.
  */
+
 export const metadata: Metadata = {
-  ...buildMetadata({
-    title: 'Page not found',
-    description: 'There is nothing at this address on FRAME.',
-    path: '/',
-    noIndex: true,
-  }),
-  // The requested address is not knowable here, and the root layout would
-  // otherwise have this page advertise the homepage as its canonical URL.
-  alternates: { canonical: null },
+  title: `Page not found · ${SITE.name}`,
+  description: 'There is nothing at this address on FRAME.',
+  robots: { index: false, follow: false },
 };
 
-const REASONS = [
-  'The address was mistyped, or the link that brought you here was built by hand.',
-  'The photographer removed the photograph, or a moderator removed it after a report.',
-  'The location has been submitted but not approved yet, so it has no public page.',
-  'A collection that used to be public has been made private by its owner.',
-] as const;
-
-export default function NotFound() {
+export default function GlobalNotFound() {
   return (
-    <div className="site-container py-16 lg:py-24">
-      <div className="max-w-2xl">
-        <Eyebrow>Error 404</Eyebrow>
+    <html lang={DEFAULT_LOCALE}>
+      <body className="flex min-h-dvh flex-col items-center justify-center px-6 py-16">
+        <main className="max-w-[46ch]">
+          <p className="text-eyebrow text-muted uppercase">Error 404</p>
 
-        <h1 className="mt-4 text-display-fluid">
-          Nothing at this <em className="font-serif font-normal italic">address.</em>
-        </h1>
+          <h1 className="mt-4 text-section font-bold">Nothing at this address.</h1>
 
-        <p className="mt-6 text-lead leading-relaxed text-muted">
-          The page you asked for is not here. That is usually one of four things.
-        </p>
+          <p className="mt-5 text-body leading-relaxed text-muted">
+            This address does not match a page on {SITE.name}. It is not a page in one of our
+            languages either, which usually means the link was assembled by hand or by a crawler.
+          </p>
 
-        <ul className="mt-5 space-y-2.5 border-t border-line pt-5">
-          {REASONS.map((reason) => (
-            <li key={reason} className="flex gap-3 text-caption leading-relaxed text-ink-soft">
-              <span aria-hidden className="mt-2 size-1 shrink-0 rounded-pill bg-muted-soft" />
-              {reason}
-            </li>
-          ))}
-        </ul>
-
-        <div className="mt-9 flex flex-wrap items-center gap-2.5">
-          <Button asChild size="lg">
-            <Link href="/discover">Browse photographs</Link>
-          </Button>
-          <Button asChild variant="secondary" size="lg">
-            <Link href="/map">Open the map</Link>
-          </Button>
-          <Button asChild variant="ghost" size="lg">
-            <Link href="/">Back to the homepage</Link>
-          </Button>
-        </div>
-
-        <p className="mt-8 text-caption text-muted">
-          If you were looking for something in particular, searching for the place or the
-          photographer by name is usually quicker than guessing a URL.{' '}
-          <Link
-            href="/search"
-            className="font-semibold text-ink underline decoration-line-strong underline-offset-4 transition-colors hover:decoration-ink"
+          {/* A full document load rather than a client transition: this page is
+              outside the application's own layout, so there is no router here to
+              navigate within. */}
+          <a
+            href={`/${DEFAULT_LOCALE}`}
+            className={cn(
+              'mt-8 inline-flex items-center rounded-pill bg-ink px-5 py-3',
+              'text-caption font-bold text-on-ink transition-opacity hover:opacity-90',
+            )}
           >
-            Search FRAME
-          </Link>
-          .
-        </p>
-      </div>
-    </div>
+            Go to the {SITE.name} home page
+          </a>
+        </main>
+      </body>
+    </html>
   );
 }

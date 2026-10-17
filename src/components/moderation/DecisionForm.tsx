@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useId, useState, type FormEvent } from 'react';
 
 import { useToast } from '@/components/system/Toast';
@@ -8,6 +9,8 @@ import { ConfirmDialog } from '@/components/ui/Dialog';
 import { CheckboxField, TextAreaField, TextField } from '@/components/ui/Field';
 import type { ActionResult } from '@/lib/action-result';
 import { cn } from '@/lib/utils';
+import { isValidationCode } from '@/lib/validation/codes';
+import { MODERATION_LIMITS } from '@/lib/validation/moderation';
 import {
   actOnUpload,
   decideSubmission,
@@ -31,6 +34,15 @@ import type { ModerationDecision } from '@/types/domain';
  * checks it again, and two database constraints check it a fourth time, because
  * a member told "rejected" and nothing else has been given a verdict rather
  * than an explanation.
+ *
+ * LANGUAGE. The decisions themselves arrive already translated: each queue is a
+ * Server Component and writes its own `DecisionOption` list with its own
+ * translator, because what a decision does is queue-specific prose and this
+ * component has no business holding five queues' worth of it. What this
+ * component translates is its own furniture — the legend, the reason hint, the
+ * confirmation — and the refusals that come back from the server. Those arrive
+ * as validation codes (see `src/lib/validation/codes.ts`), which are resolved
+ * here, in the language the moderator is actually reading.
  */
 
 export type DecisionTarget =
@@ -54,8 +66,9 @@ export type ReasonAudience = 'member' | 'internal' | 'none';
 
 export interface DecisionOption {
   value: ModerationDecision;
+  /** Already translated by the queue that offers it. */
   label: string;
-  /** What the decision actually does to the subject, in one line. */
+  /** What the decision actually does to the subject, in one line. Translated. */
   effect: string;
   reasonRequired: boolean;
   reasonAudience: ReasonAudience;
@@ -63,29 +76,17 @@ export interface DecisionOption {
   destructive?: boolean;
 }
 
-const REASON_HINTS: Record<ReasonAudience, string> = {
-  member:
-    'The member reads this, so write it for them. It has to stand on its own without this queue next to it.',
-  internal:
-    'This goes to the moderation trail, which only moderators can read. FRAME sends the member no message, so anything they need to hear has to reach them another way.',
-  none: 'This decision keeps no reason, so anything typed here is not stored. Leave it empty.',
-};
-
-const NEUTRAL_REASON_HINT =
-  'Choose a decision above and this will say who reads the reason you write.';
-
-/** The last line of the confirmation, which must not promise the wrong reader. */
-const CONFIRM_REASON_NOTE: Record<ReasonAudience, string> = {
-  member:
-    'The member is shown your reason, and the decision is written to the audit trail under your name.',
-  internal:
-    'Your reason goes to the audit trail under your name, where only moderators can read it. The member is not told.',
-  none: 'The decision is written to the audit trail under your name. No reason is kept.',
-};
-
 interface Status {
   tone: 'pending' | 'success';
   message: string;
+}
+
+/** A whole-number day count, or null for "left blank", or false for "not a number". */
+function parseDays(raw: string): number | null | false {
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) ? value : false;
 }
 
 export function DecisionForm({
@@ -107,8 +108,22 @@ export function DecisionForm({
   reasonHint?: string;
   className?: string;
 }) {
+  const t = useTranslations('moderation');
   const toast = useToast();
   const groupId = useId();
+
+  /**
+   * One refusal from the server, in the reader's language.
+   *
+   * A schema emits a key; an action can also file a sentence it wrote itself,
+   * which is passed through. `t.has` is checked first so a key with no copy
+   * behind it shows a plain sentence rather than printing
+   * `validation.reason.required` at a moderator.
+   */
+  function resolve(message: string): string {
+    if (!isValidationCode(message)) return message;
+    return t.has(message) ? t(message) : t('validation.fallback');
+  }
 
   // Pre-selected only when there is nothing to choose between.
   const [decision, setDecision] = useState<ModerationDecision | null>(
@@ -161,13 +176,16 @@ export function DecisionForm({
     setPending(true);
     setError(null);
     setFieldErrors({});
-    setStatus({ tone: 'pending', message: `Recording ${option.label.toLowerCase()}…` });
+    setStatus({ tone: 'pending', message: t('form.recording', { decision: option.label }) });
 
     try {
       const result = await dispatch(option.value);
 
       if (result.ok) {
-        const message = result.message ?? 'The decision is recorded.';
+        // The action's own sentence, not one written here: several of these say
+        // something specific about what was published or taken down, and a
+        // generic replacement would claim less than happened.
+        const message = result.message ?? t('form.recorded');
         setStatus({ tone: 'success', message });
         setRecorded(true);
         setConfirming(false);
@@ -175,23 +193,52 @@ export function DecisionForm({
         return;
       }
 
+      const resolvedFields: Record<string, string> = {};
+      for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
+        resolvedFields[field] = resolve(message);
+      }
+
+      /*
+       * `parseForm` builds its summary from the issues it found, so for a single
+       * failed field that summary is the field's own code, which resolves. When
+       * several failed it is a sentence written in English in
+       * `src/lib/validation/index.ts`, which this namespace does not own — so
+       * the count is recomputed and the summary taken from here instead.
+       */
+      const fieldCount = Object.keys(resolvedFields).length;
+      const summary =
+        result.code === 'validation' && fieldCount > 1
+          ? t('validation.fallback')
+          : resolve(result.error);
+
       setStatus(null);
-      setError(result.error);
-      setFieldErrors(result.fieldErrors ?? {});
+      setError(summary);
+      setFieldErrors(resolvedFields);
       setConfirming(false);
-      toast.show(result.error, 'danger');
+      toast.show(summary, 'danger');
     } catch {
       // A thrown error here is a transport failure, not a refusal: the action
       // returns every expected refusal as a value. Whether the write landed is
       // genuinely unknown, so say that instead of guessing either way.
       setStatus(null);
-      setError(
-        'The decision could not be sent, so whether it was recorded is unknown. Reload the queue before deciding again.',
-      );
+      setError(t('form.transportFailure'));
       setConfirming(false);
     } finally {
       setPending(false);
     }
+  }
+
+  /**
+   * The checks the form makes before it sends anything.
+   *
+   * Each one tests a rule the schema also tests, and says so with the same
+   * message the schema would have produced — the shared ones by resolving the
+   * schema's own key. A moderator therefore reads the same sentence whether the
+   * form caught it or the server did.
+   */
+  function fail(message: string, field?: string): void {
+    setError(message);
+    setFieldErrors(field ? { [field]: message } : {});
   }
 
   function onSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -199,16 +246,51 @@ export function DecisionForm({
     if (pending) return;
 
     if (!selected) {
-      setError('Choose a decision before recording it.');
+      fail(t('form.chooseDecision'));
       return;
     }
 
-    if (selected.reasonRequired && reason.trim().length === 0) {
-      const message = 'This decision is shown to the member, so it needs a reason.';
-      setError(message);
-      setFieldErrors({ reason: message });
+    const trimmedReason = reason.trim();
+
+    if (selected.reasonRequired && trimmedReason.length === 0) {
+      fail(
+        selected.reasonAudience === 'member'
+          ? t('form.reasonRequired.member')
+          : t('form.reasonRequired.internal'),
+        'reason',
+      );
       return;
     }
+
+    if (target.kind === 'account') {
+      if (trimmedReason.length < MODERATION_LIMITS.suspensionReasonMinLength) {
+        fail(t('validation.reason.suspensionMin'), 'reason');
+        return;
+      }
+
+      const days = parseDays(durationDays);
+      if (days === false) {
+        fail(t('validation.duration.number'), 'durationDays');
+        return;
+      }
+      if (days !== null) {
+        if (!Number.isInteger(days)) {
+          fail(t('validation.duration.whole'), 'durationDays');
+          return;
+        }
+        if (days < MODERATION_LIMITS.suspensionMinDays) {
+          fail(t('validation.duration.min'), 'durationDays');
+          return;
+        }
+        if (days > MODERATION_LIMITS.suspensionMaxDays) {
+          fail(t('validation.duration.max'), 'durationDays');
+          return;
+        }
+      }
+    }
+
+    setError(null);
+    setFieldErrors({});
 
     if (selected.destructive) {
       setConfirming(true);
@@ -225,7 +307,9 @@ export function DecisionForm({
       {recorded ? null : (
         <form onSubmit={onSubmit} className="flex flex-col gap-4">
           <fieldset className="min-w-0">
-            <legend className="text-eyebrow text-muted uppercase">Decision</legend>
+            <legend className="text-eyebrow text-muted uppercase">
+              {t('form.decisionLegend')}
+            </legend>
             <div className="mt-2.5 flex flex-col gap-2">
               {options.map((option) => {
                 const id = `${groupId}-${option.value}`;
@@ -263,22 +347,21 @@ export function DecisionForm({
           {target.kind === 'submission' && decision === 'approve' ? (
             <fieldset className="min-w-0 rounded-card border border-line bg-surface px-4 py-3.5">
               <legend className="px-1 text-eyebrow text-muted uppercase">
-                Coordinate privacy
+                {t('form.coordinatePrivacy.legend')}
               </legend>
               <p className="text-meta leading-relaxed text-muted">
-                Taken once, here. Precision is only ever reduced on publication, never widened
-                afterwards, and withholding the point overrides reduced precision.
+                {t('form.coordinatePrivacy.intro')}
               </p>
               <div className="mt-3 flex flex-col gap-2.5">
                 <CheckboxField
-                  label="Publish at reduced precision"
-                  description="About a kilometre instead of about eleven metres. For a place where the exact point could expose a person or a private address."
+                  label={t('form.coordinatePrivacy.reducedLabel')}
+                  description={t('form.coordinatePrivacy.reducedDescription')}
                   checked={isSensitive}
                   onChange={(event) => setIsSensitive(event.currentTarget.checked)}
                 />
                 <CheckboxField
-                  label="Publish no coordinate at all"
-                  description="The place is listed and searchable but carries no point on the map."
+                  label={t('form.coordinatePrivacy.withholdLabel')}
+                  description={t('form.coordinatePrivacy.withholdDescription')}
                   checked={withholdCoordinates}
                   onChange={(event) => setWithholdCoordinates(event.currentTarget.checked)}
                 />
@@ -288,29 +371,30 @@ export function DecisionForm({
 
           {target.kind === 'account' ? (
             <TextField
-              label="Suspension length in days"
+              label={t('form.suspension.label')}
               type="number"
               inputMode="numeric"
-              min={1}
-              max={3650}
+              min={MODERATION_LIMITS.suspensionMinDays}
+              max={MODERATION_LIMITS.suspensionMaxDays}
               value={durationDays}
               onChange={(event) => setDurationDays(event.currentTarget.value)}
               error={fieldErrors.durationDays ?? null}
-              hint="Leave this empty for an indefinite suspension. FRAME has no scheduled job that lifts one, so whatever you enter is recorded in the reason the member reads and a moderator ends the suspension by hand."
+              hint={t('form.suspension.hint')}
             />
           ) : null}
 
           <TextAreaField
-            label="Reason"
+            label={t('form.reasonLabel')}
             rows={3}
             required={reasonRequired}
+            maxLength={MODERATION_LIMITS.reasonMaxLength}
             value={reason}
             onChange={(event) => setReason(event.currentTarget.value)}
             error={fieldErrors.reason ?? null}
             hint={
               selected
-                ? `${REASON_HINTS[selected.reasonAudience]}${reasonHint ? ` ${reasonHint}` : ''}`
-                : NEUTRAL_REASON_HINT
+                ? `${t(`form.reasonHint.${selected.reasonAudience}`)}${reasonHint ? ` ${reasonHint}` : ''}`
+                : t('form.reasonHint.neutral')
             }
           />
 
@@ -322,7 +406,9 @@ export function DecisionForm({
               variant={selected?.destructive ? 'danger' : 'primary'}
               loading={pending}
             >
-              {selected ? `Record: ${selected.label}` : 'Record decision'}
+              {selected
+                ? t('form.submitWithDecision', { decision: selected.label })
+                : t('form.submit')}
             </Button>
           </div>
         </form>
@@ -351,7 +437,11 @@ export function DecisionForm({
             if (!pending) setConfirming(open);
           }}
           title={selected.label}
-          body={`${selected.effect} This applies to ${subjectLabel}. ${CONFIRM_REASON_NOTE[selected.reasonAudience]}`}
+          body={t('form.confirmBody', {
+            effect: selected.effect,
+            subject: subjectLabel,
+            note: t(`form.confirmNote.${selected.reasonAudience}`),
+          })}
           confirmLabel={selected.label}
           pending={pending}
           onConfirm={() => void send(selected)}

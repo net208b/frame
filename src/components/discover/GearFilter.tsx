@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useTransition, type ChangeEvent } from 'react';
 
 import { SelectField } from '@/components/ui/Field';
+import { Link, useRouter } from '@/i18n/navigation';
 import {
   activeGearFilterCount,
   buildDiscoverHref,
@@ -24,6 +24,12 @@ import type { DiscoverQuery, GearFacets, GearOption } from '@/types/domain';
  * The panel is a real GET form. With JavaScript a change navigates straight
  * away; without it the submit button still applies the selection, so the
  * controls are never decoration.
+ *
+ * Brand and model names are not translated. "Fujifilm", "X100V" and "Summicron"
+ * are what is engraved on the body and written in the EXIF, and they are what a
+ * Thai photographer says out loud — translating them would make the filter
+ * impossible to match against a camera in somebody's hands. The field names
+ * around them are translated; the values are not.
  */
 export function GearFilter({
   query,
@@ -35,6 +41,8 @@ export function GearFilter({
   className?: string;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations('discover');
   const [pending, startTransition] = useTransition();
 
   const activeCount = activeGearFilterCount(query);
@@ -58,17 +66,13 @@ export function GearFilter({
   }
 
   if (!hasAnyFacets) {
-    return (
-      <p className={cn('text-caption text-muted', className)}>
-        None of the published photographs carry camera or lens details yet, so there is nothing
-        to filter by here.
-      </p>
-    );
+    return <p className={cn('text-caption text-muted', className)}>{t('gear.noFacets')}</p>;
   }
 
   return (
     <form
-      action="/discover"
+      // A real address for the no-JavaScript submit, so it carries the locale.
+      action={`/${locale}/discover`}
       method="get"
       aria-busy={pending || undefined}
       className={cn('min-w-0', className)}
@@ -82,29 +86,41 @@ export function GearFilter({
 
       <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
         <GearSelect
-          label="Camera brand"
+          label={t('gear.cameraBrand')}
           name="cameraBrand"
-          anyLabel="Any camera brand"
+          anyLabel={t('gear.anyCameraBrand')}
           options={facets.cameraBrands}
           value={query.cameraBrand ?? null}
           onChange={onCameraBrandChange}
+          emptyHint={t('gear.emptyHint')}
+          formatOption={(option) =>
+            t('gear.option', { label: option.label, count: option.photographCount })
+          }
         />
         <GearSelect
-          label="Camera model"
+          label={t('gear.cameraModel')}
           name="cameraModel"
-          anyLabel="Any camera model"
+          anyLabel={t('gear.anyCameraModel')}
           options={facets.cameraModels}
           value={query.cameraModel ?? null}
           onChange={(event) => navigate({ cameraModel: event.target.value || null })}
-          hint="Models are listed across every brand."
+          hint={t('gear.cameraModelHint')}
+          emptyHint={t('gear.emptyHint')}
+          formatOption={(option) =>
+            t('gear.option', { label: option.label, count: option.photographCount })
+          }
         />
         <GearSelect
-          label="Lens brand"
+          label={t('gear.lensBrand')}
           name="lensBrand"
-          anyLabel="Any lens brand"
+          anyLabel={t('gear.anyLensBrand')}
           options={facets.lensBrands}
           value={query.lensBrand ?? null}
           onChange={(event) => navigate({ lensBrand: event.target.value || null })}
+          emptyHint={t('gear.emptyHint')}
+          formatOption={(option) =>
+            t('gear.option', { label: option.label, count: option.photographCount })
+          }
         />
       </div>
 
@@ -113,7 +129,7 @@ export function GearFilter({
           type="submit"
           className="rounded-pill border border-line bg-surface px-3.5 py-2 text-meta font-bold text-ink transition-colors duration-150 hover:border-line-strong"
         >
-          Apply
+          {t('gear.apply')}
         </button>
 
         {activeCount > 0 ? (
@@ -126,12 +142,12 @@ export function GearFilter({
             })}
             className="text-meta font-semibold text-ink underline underline-offset-4 transition-opacity duration-150 hover:opacity-65"
           >
-            Clear gear filters
+            {t('gear.clear')}
           </Link>
         ) : null}
 
         <p role="status" className="text-meta text-muted">
-          {pending ? 'Updating the gallery' : ''}
+          {pending ? t('status.updating') : ''}
         </p>
       </div>
     </form>
@@ -145,6 +161,10 @@ export function GearFilter({
  * a brand whose last photograph was removed — it is added to the list with a
  * zero count rather than silently falling back to "any", which would show the
  * filter as off while it is still narrowing the gallery.
+ *
+ * Every string arrives already translated. This is a presentational helper and
+ * deliberately has no translator of its own, so there is one place per label
+ * where the key is named.
  */
 function GearSelect({
   label,
@@ -154,6 +174,8 @@ function GearSelect({
   value,
   onChange,
   hint,
+  emptyHint,
+  formatOption,
 }: {
   label: string;
   name: 'cameraBrand' | 'cameraModel' | 'lensBrand';
@@ -162,6 +184,8 @@ function GearSelect({
   value: string | null;
   onChange: (event: ChangeEvent<HTMLSelectElement>) => void;
   hint?: string;
+  emptyHint: string;
+  formatOption: (option: GearOption) => string;
 }) {
   const known = value !== null && options.some((option) => option.label === value);
   const listed: GearOption[] =
@@ -178,12 +202,12 @@ function GearSelect({
       value={value ?? ''}
       onChange={onChange}
       disabled={empty}
-      hint={empty ? 'Nothing recorded yet.' : hint}
+      hint={empty ? emptyHint : hint}
     >
       <option value="">{anyLabel}</option>
       {listed.map((option) => (
         <option key={option.id} value={option.label}>
-          {`${option.label} (${option.photographCount})`}
+          {formatOption(option)}
         </option>
       ))}
     </SelectField>

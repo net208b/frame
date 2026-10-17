@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { LocationCard } from '@/components/location/LocationCard';
@@ -7,6 +7,8 @@ import { PhotographerCard } from '@/components/photographer/PhotographerCard';
 import { Button } from '@/components/ui/Button';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
+import type { Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { formatCount, truncate } from '@/lib/utils';
 import type { LocationDetail, PhotographCard, PhotographerProfile } from '@/types/domain';
 
@@ -18,6 +20,11 @@ import type { LocationDetail, PhotographCard, PhotographerProfile } from '@/type
  * counts are only ever as exact as the repository can be — a group whose total
  * cannot be computed cheaply says "or more" rather than passing off the page
  * length as a total.
+ *
+ * The locale arrives as a prop rather than being read from the request, for the
+ * same reason `formatCount` takes one: this component is rendered from a page
+ * that already has it, and the count has to be formatted in the language the
+ * sentence around it is written in.
  */
 
 export interface SearchGroup<T> {
@@ -27,18 +34,11 @@ export interface SearchGroup<T> {
   hasMore: boolean;
 }
 
+/** The three groups, which are also the three sub-keys under `search.results`. */
+type GroupKind = 'photographs' | 'places' | 'people';
+
 const MORE_LINK =
   'text-caption font-semibold text-ink-soft underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink';
-
-function countHeading(group: SearchGroup<unknown>, singular: string, plural: string): string {
-  if (group.totalCount !== null) {
-    return `${formatCount(group.totalCount)} ${group.totalCount === 1 ? singular : plural}`;
-  }
-
-  const shown = group.items.length;
-  if (group.hasMore) return `${formatCount(shown)} or more ${plural}`;
-  return `${formatCount(shown)} ${shown === 1 ? singular : plural}`;
-}
 
 function ResultSection({
   label,
@@ -63,17 +63,24 @@ function NothingHere({ children }: { children: ReactNode }) {
   return <p className="text-caption text-muted">{children}</p>;
 }
 
-export function SearchResults({
+export async function SearchResults({
   query,
+  locale,
   photographs,
   places,
   people,
 }: {
   query: string;
+  locale: Locale;
   photographs: SearchGroup<PhotographCard>;
   places: SearchGroup<LocationDetail>;
   people: SearchGroup<PhotographerProfile>;
 }) {
+  const t = await getTranslations({ locale, namespace: 'search' });
+  // "Photographs" and "Places" are the shared vocabulary and already translated
+  // there; only the plural of "photographer" is missing from it.
+  const common = await getTranslations({ locale, namespace: 'common' });
+
   const found = photographs.items.length + places.items.length + people.items.length;
   // React escapes this on the way out, so a query full of angle brackets is
   // rendered as the text somebody typed rather than parsed as markup.
@@ -83,28 +90,52 @@ export function SearchResults({
     return (
       <EmptyState
         className="mt-12"
-        title={`Nothing matches “${echoed}”`}
-        description="No place name, city, country or photographer name matched those words. A shorter search, or just the city, usually finds more."
+        title={t('empty.title', { query: echoed })}
+        description={t('empty.body')}
         action={
           <Button asChild variant="secondary">
-            <Link href="/discover">Browse everything instead</Link>
+            <Link href="/discover">{t('empty.action')}</Link>
           </Button>
         }
       />
     );
   }
 
+  /**
+   * How many this group holds, as one whole sentence.
+   *
+   * The number is passed twice: as a number, which chooses the English plural
+   * form, and as the compact string `formatCount` built for the active locale,
+   * which is what is actually shown. ICU would otherwise print 1200 where the
+   * design asks for 1.2k. Thai has no plural inflection, so its messages use
+   * the formatted value alone and ignore the count — which is why the plural is
+   * in the message rather than in a ternary here.
+   *
+   * A group with no exact total that still has more to give reports a floor
+   * rather than a total, because the search stopped looking before the end.
+   */
+  const heading = (group: SearchGroup<unknown>, kind: GroupKind): string => {
+    const value = group.totalCount ?? group.items.length;
+    const formatted = formatCount(value, locale);
+
+    if (group.totalCount === null && group.hasMore) {
+      return t(`results.${kind}.countOrMore`, { formatted });
+    }
+
+    return t(`results.${kind}.count`, { count: value, formatted });
+  };
+
   const placeSearch = `/locations?search=${encodeURIComponent(query)}`;
 
   return (
     <div className="mt-12 space-y-16 animate-fade-in">
       <ResultSection
-        label="Photographs"
-        heading={countHeading(photographs, 'photograph', 'photographs')}
+        label={common('photographs')}
+        heading={heading(photographs, 'photographs')}
         action={
           photographs.items.length > 0 ? (
             <Link href={`/discover?place=${encodeURIComponent(query)}`} className={MORE_LINK}>
-              Open this search in Discover
+              {t('results.photographs.more')}
             </Link>
           ) : null
         }
@@ -112,19 +143,17 @@ export function SearchResults({
         {photographs.items.length > 0 ? (
           <MasonryGallery photos={photographs.items} priorityCount={3} />
         ) : (
-          <NothingHere>
-            No published photograph is pinned to a place matching {`“${echoed}”`}.
-          </NothingHere>
+          <NothingHere>{t('results.photographs.empty', { query: echoed })}</NothingHere>
         )}
       </ResultSection>
 
       <ResultSection
-        label="Places"
-        heading={countHeading(places, 'place', 'places')}
+        label={common('places')}
+        heading={heading(places, 'places')}
         action={
           places.hasMore ? (
             <Link href={placeSearch} className={MORE_LINK}>
-              All matching places
+              {t('results.places.more')}
             </Link>
           ) : null
         }
@@ -138,14 +167,11 @@ export function SearchResults({
             ))}
           </ul>
         ) : (
-          <NothingHere>No approved location matches those words yet.</NothingHere>
+          <NothingHere>{t('results.places.empty')}</NothingHere>
         )}
       </ResultSection>
 
-      <ResultSection
-        label="Photographers"
-        heading={countHeading(people, 'photographer', 'photographers')}
-      >
+      <ResultSection label={t('results.people.label')} heading={heading(people, 'people')}>
         {people.items.length > 0 ? (
           <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {people.items.map((person) => (
@@ -155,10 +181,7 @@ export function SearchResults({
             ))}
           </ul>
         ) : (
-          <NothingHere>
-            No photographer name or username matches those words. Names are matched as written, so a
-            partial surname works better than a full one spelled differently.
-          </NothingHere>
+          <NothingHere>{t('results.people.empty')}</NothingHere>
         )}
       </ResultSection>
     </div>

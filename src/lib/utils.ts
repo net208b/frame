@@ -42,24 +42,46 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Dates, numbers and counts in a second language.
+ *
+ * Each formatter takes an optional locale and defaults to the value it used
+ * before this file knew about languages, so no existing caller changes
+ * behaviour. A Thai page passes `'th'` and gets Thai month names and Thai
+ * compact numbers.
+ *
+ * Thai dates render in the Gregorian calendar deliberately. `Intl` would
+ * otherwise give the Buddhist era for `th` — 2569 rather than 2026 — and FRAME
+ * is an international platform where a link is shared between people reading
+ * different languages. Two readers comparing the same photograph's date must
+ * see the same year, so the calendar is pinned here rather than left to the
+ * locale's default.
+ */
+function intlLocale(locale: string): string {
+  return locale === 'th' || locale.startsWith('th-') ? 'th-u-ca-gregory' : locale;
+}
+
+/**
  * Compact counts for dense editorial metadata (248, 1.2k, 18k).
  * Intl handles locale-aware grouping; we keep one decimal below 10k.
  */
-export function formatCount(value: number): string {
+export function formatCount(value: number, locale = 'en'): string {
   if (!Number.isFinite(value)) return '0';
   if (value < 1000) return String(Math.max(0, Math.round(value)));
-  return new Intl.NumberFormat('en', {
+  return new Intl.NumberFormat(locale, {
     notation: 'compact',
     maximumFractionDigits: value < 10_000 ? 1 : 0,
   }).format(value);
 }
 
 /** "12 March 2024" — unambiguous across locales, no US/EU ordering trap. */
-export function formatDate(value: string | Date | null | undefined): string | null {
+export function formatDate(
+  value: string | Date | null | undefined,
+  locale = 'en-GB',
+): string | null {
   if (!value) return null;
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -68,24 +90,37 @@ export function formatDate(value: string | Date | null | undefined): string | nu
 }
 
 /** "March 2024" — used for "member since", which should not expose a day. */
-export function formatMonthYear(value: string | Date | null | undefined): string | null {
+export function formatMonthYear(
+  value: string | Date | null | undefined,
+  locale = 'en-GB',
+): string | null {
   if (!value) return null;
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('en-GB', {
+  return new Intl.DateTimeFormat(intlLocale(locale), {
     month: 'long',
     year: 'numeric',
     timeZone: 'UTC',
   }).format(date);
 }
 
-/** Relative time for moderation queues ("4 hours ago"). */
-export function formatRelative(value: string | Date, now: Date = new Date()): string {
+/**
+ * Relative time for moderation queues ("4 hours ago").
+ *
+ * The locale comes last because `now` was already the second parameter and is
+ * what the moderation queues pass to keep a page's rows consistent with each
+ * other.
+ */
+export function formatRelative(
+  value: string | Date,
+  now: Date = new Date(),
+  locale = 'en',
+): string {
   const date = typeof value === 'string' ? new Date(value) : value;
   if (Number.isNaN(date.getTime())) return '';
 
   const seconds = Math.round((date.getTime() - now.getTime()) / 1000);
-  const formatter = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
+  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
   const divisions: Array<[Intl.RelativeTimeFormatUnit, number]> = [
     ['second', 60],
     ['minute', 60],

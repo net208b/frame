@@ -1,6 +1,7 @@
 'use client';
 
 import { Expand } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useState } from 'react';
 
@@ -19,7 +20,8 @@ import type { PhotoImage } from '@/types/domain';
  * the return of focus to the trigger.
  *
  * This is a client component because it owns the dialog's open state, and only
- * that. Everything it renders is markup the server sends with the page.
+ * that. Everything it renders is markup the server sends with the page, so it
+ * reads its one label with `useTranslations` rather than `getTranslations`.
  */
 export function PhotoStage({
   image,
@@ -35,6 +37,7 @@ export function PhotoStage({
   caption?: string | null;
   className?: string;
 }) {
+  const t = useTranslations('photo');
   const [open, setOpen] = useState(false);
   const ratio = aspectRatio(image);
 
@@ -65,7 +68,7 @@ export function PhotoStage({
               className="absolute right-3 bottom-3 inline-flex items-center gap-2 rounded-pill bg-surface/88 px-3.5 py-2 text-meta font-bold text-ink transition-colors duration-150 hover:bg-surface"
             >
               <Expand aria-hidden className="size-3.5" />
-              Full view
+              {t('stage.fullView')}
             </button>
           </DialogTrigger>
 

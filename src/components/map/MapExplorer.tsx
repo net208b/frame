@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronDown, ChevronUp, CircleDashed } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 
 import { Button } from '@/components/ui/Button';
@@ -69,6 +70,9 @@ export function MapExplorer({
   const baseId = useId();
   const panelId = `${baseId}-panel`;
   const headingId = `${baseId}-heading`;
+
+  const t = useTranslations('map');
+  const locale = useLocale();
 
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [selectedSlug, setSelectedSlug] = useState<string | null>(initialSelectedSlug);
@@ -171,11 +175,17 @@ export function MapExplorer({
     return [selectedPin, ...sorted];
   }, [inView, selectedPin]);
 
-  // "In view" is only true once the map has reported a viewport.
-  const scopeWord = visibleIds ? 'in view' : 'pinned';
+  // "In view" is only true once the map has reported a viewport. The scope is
+  // two whole messages rather than one sentence with a word swapped into it:
+  // the Thai for "in view" is not a word that can be dropped into the Thai for
+  // "N locations pinned" and still read as a sentence.
+  const scopeLabel = visibleIds ? t('explorer.scopeInView') : t('explorer.scopePinned');
+  const summaryCount = { count: listed.length, formatted: formatCount(listed.length, locale) };
   const summaryLabel = selectedPin
     ? selectedPin.name
-    : `${formatCount(listed.length)} ${listed.length === 1 ? 'location' : 'locations'} ${scopeWord}`;
+    : visibleIds
+      ? t('explorer.summaryInView', summaryCount)
+      : t('explorer.summaryPinned', summaryCount);
 
   return (
     <div
@@ -218,7 +228,7 @@ export function MapExplorer({
         {/* Names the panel and keeps the page's headings in order, since the
             cards below it start at h3. The eyebrow carries the visible label. */}
         <h2 id={headingId} className="sr-only">
-          Locations on the map
+          {t('explorer.listHeading')}
         </h2>
 
         {mapConfigured ? (
@@ -234,10 +244,10 @@ export function MapExplorer({
               <span className="block truncate text-meta text-muted">
                 {selectedPin
                   ? `${selectedPin.city}, ${selectedPin.country}`
-                  : 'Search and filter the places on the map'}
+                  : t('explorer.sheetHint')}
               </span>
               <span className="sr-only">
-                {sheetOpen ? 'Hide the list of locations' : 'Show the list of locations'}
+                {sheetOpen ? t('explorer.hideList') : t('explorer.showList')}
               </span>
             </span>
             {sheetOpen ? (
@@ -255,7 +265,7 @@ export function MapExplorer({
             mapConfigured && !sheetOpen && 'hidden lg:block',
           )}
         >
-          <Eyebrow className="hidden px-4 pt-1 lg:flex lg:px-0">{scopeWord}</Eyebrow>
+          <Eyebrow className="hidden px-4 pt-1 lg:flex lg:px-0">{scopeLabel}</Eyebrow>
 
           <MapFilterBar
             query={filters.query}
@@ -293,18 +303,20 @@ export function MapExplorer({
 
 /** Size and density, not colour alone, separate an exact pin from a vague one. */
 function PinLegend() {
+  const t = useTranslations('map');
+
   return (
     <ul className="pointer-events-none absolute top-3 left-3 z-10 space-y-2 rounded-card border border-line bg-surface/92 px-3 py-2.5 text-meta text-ink-soft">
       <li className="flex items-center gap-2">
         <span aria-hidden className="size-2.5 shrink-0 rounded-full bg-accent ring-2 ring-surface" />
-        Exact position
+        {t('explorer.legendExact')}
       </li>
       <li className="flex items-center gap-2">
         <span
           aria-hidden
           className="size-4 shrink-0 rounded-full bg-accent/30 ring-1 ring-accent-strong"
         />
-        Approximate, withheld for privacy
+        {t('explorer.legendApproximate')}
       </li>
     </ul>
   );
@@ -327,23 +339,27 @@ function PanelList({
   onReset: () => void;
   className?: string;
 }) {
+  const t = useTranslations('map');
+  const tCommon = useTranslations('common');
+  const locale = useLocale();
+
   if (pins.length === 0) {
     return (
       <div className={className}>
         {emptyBecauseOfFilters ? (
           <EmptyState
-            title="No places match those filters"
-            description="Try a shorter search, or clear the filters to see every pinned location again."
+            title={t('panel.noMatchTitle')}
+            description={t('panel.noMatchDescription')}
             action={
               <Button variant="secondary" size="sm" onClick={onReset}>
-                Clear the filters
+                {t('actions.clearFilters')}
               </Button>
             }
           />
         ) : (
           <EmptyState
-            title="Nothing in this view"
-            description="Zoom out or drag the map to bring pinned locations back into view."
+            title={t('panel.outOfViewTitle')}
+            description={t('panel.outOfViewDescription')}
           />
         )}
       </div>
@@ -361,7 +377,7 @@ function PanelList({
               <>
                 <MapPinPreview pin={pin} />
                 <Button variant="ghost" size="sm" onClick={onClear} className="mt-1">
-                  Clear selection
+                  {t('actions.clearSelection')}
                 </Button>
               </>
             ) : (
@@ -383,14 +399,18 @@ function PanelList({
                 {pin.isApproximate ? (
                   <span className="shrink-0 text-muted-soft">
                     <CircleDashed aria-hidden className="size-3.5" />
-                    <span className="sr-only">Approximate position.</span>
+                    <span className="sr-only">{t('panel.approximate')}</span>
                   </span>
                 ) : null}
 
+                {/* The compact figure is for the eye and the full sentence for
+                    assistive tech, rather than a noun stitched onto a number:
+                    in Thai the noun comes first and the classifier last, so
+                    "1.2k" + " photographs" cannot be assembled that way. */}
                 <span className="shrink-0 text-meta tabular-nums text-muted-soft">
-                  {formatCount(pin.photographCount)}
+                  <span aria-hidden>{formatCount(pin.photographCount, locale)}</span>
                   <span className="sr-only">
-                    {pin.photographCount === 1 ? ' photograph' : ' photographs'}
+                    {tCommon('photographCount', { count: pin.photographCount })}
                   </span>
                 </span>
               </button>

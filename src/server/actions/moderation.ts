@@ -1,12 +1,12 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { fail, NOT_CONFIGURED_MESSAGE, ok, type ActionResult } from '@/lib/action-result';
 import { getViewer, getViewerSuspension, isModerator, type Viewer } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { parseForm } from '@/lib/validation';
 import {
@@ -403,10 +403,10 @@ export async function decideSubmission(input: unknown): Promise<ActionResult<voi
       .maybeSingle();
     const slug = slugRowSchema.safeParse(slugRow);
 
-    revalidatePath('/moderation');
-    revalidatePath('/locations');
-    revalidatePath('/map');
-    if (slug.success) revalidatePath(`/locations/${slug.data.slug}`);
+    revalidateLocalisedPath('/moderation');
+    revalidateLocalisedPath('/locations');
+    revalidateLocalisedPath('/map');
+    if (slug.success) revalidateLocalisedPath(`/locations/${slug.data.slug}`);
 
     if (privacyNote) {
       return fail(`The submission was approved.${privacyNote}`, 'conflict');
@@ -448,8 +448,8 @@ export async function decideSubmission(input: unknown): Promise<ActionResult<voi
     moderatorId: viewer.id,
   });
 
-  revalidatePath('/moderation');
-  revalidatePath('/locations');
+  revalidateLocalisedPath('/moderation');
+  revalidateLocalisedPath('/locations');
 
   if (!audit.ok) {
     return fail(auditGapMessage(decision, `location submission ${submissionId}`), 'unknown');
@@ -632,16 +632,16 @@ function revalidateAfterReport(paths: {
   ownerUsername: string | null;
   locationSlug: string | null;
 }): void {
-  revalidatePath('/moderation');
+  revalidateLocalisedPath('/moderation');
   if (paths.photographSlug) {
-    revalidatePath(`/photographs/${paths.photographSlug}`);
-    revalidatePath('/discover');
+    revalidateLocalisedPath(`/photographs/${paths.photographSlug}`);
+    revalidateLocalisedPath('/discover');
   }
-  if (paths.ownerUsername) revalidatePath(`/photographers/${paths.ownerUsername}`);
+  if (paths.ownerUsername) revalidateLocalisedPath(`/photographers/${paths.ownerUsername}`);
   if (paths.locationSlug) {
-    revalidatePath(`/locations/${paths.locationSlug}`);
-    revalidatePath('/locations');
-    revalidatePath('/map');
+    revalidateLocalisedPath(`/locations/${paths.locationSlug}`);
+    revalidateLocalisedPath('/locations');
+    revalidateLocalisedPath('/map');
   }
 }
 
@@ -726,10 +726,10 @@ export async function actOnUpload(input: unknown): Promise<ActionResult<void>> {
   });
 
   const ownerUsername = await usernameOf(supabase, current.owner_id);
-  revalidatePath('/moderation');
-  revalidatePath('/discover');
-  revalidatePath(`/photographs/${current.slug}`);
-  if (ownerUsername) revalidatePath(`/photographers/${ownerUsername}`);
+  revalidateLocalisedPath('/moderation');
+  revalidateLocalisedPath('/discover');
+  revalidateLocalisedPath(`/photographs/${current.slug}`);
+  if (ownerUsername) revalidateLocalisedPath(`/photographers/${ownerUsername}`);
 
   if (!audit.ok) return fail(auditGapMessage(decision, `photograph ${photographId}`), 'unknown');
 
@@ -826,9 +826,9 @@ export async function suspendAccount(input: unknown): Promise<ActionResult<void>
     moderatorId: viewer.id,
   });
 
-  revalidatePath('/moderation');
-  revalidatePath('/community');
-  revalidatePath(`/photographers/${profile.data.username}`);
+  revalidateLocalisedPath('/moderation');
+  revalidateLocalisedPath('/community');
+  revalidateLocalisedPath(`/photographers/${profile.data.username}`);
 
   if (!audit.ok) return fail(auditGapMessage('suspend_account', `account ${accountId}`), 'unknown');
 
@@ -879,7 +879,7 @@ export async function recordDuplicateReview(input: unknown): Promise<ActionResul
 
   if (!audit.ok) return failFromQuery(audit.error, 'recording the duplicate review');
 
-  revalidatePath('/moderation');
+  revalidateLocalisedPath('/moderation');
 
   return ok<void>(
     undefined,

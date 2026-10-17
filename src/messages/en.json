@@ -1,0 +1,2125 @@
+{
+  "common": {
+    "appreciate": "Appreciate",
+    "photograph": "Photograph",
+    "photographs": "Photographs",
+    "photographCount": "{count, plural, =0 {No photographs} one {# photograph} other {# photographs}}",
+    "place": "Place",
+    "places": "Places",
+    "placeCount": "{count, plural, =0 {No places} one {# place} other {# places}}",
+    "photographer": "Photographer",
+    "loading": "Loading",
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "clear": "Clear",
+    "required": "Required",
+    "optional": "Optional",
+    "language": "Language",
+    "skipToContent": "Skip to content",
+    "demoMode": {
+      "eyebrow": "Demo content",
+      "thisPage": "this page",
+      "body": "No database is configured, so {context} is showing the bundled sample dataset. Every count, photograph and photographer here describes that sample rather than a real community."
+    },
+    "capabilityMissing": {
+      "title": "{action} is unavailable in this deployment",
+      "body": "{action} needs {subject}, which this deployment has not been given.",
+      "setVariables": "Set <code>{variables}</code> to turn it on.",
+      "seeDocs": "See <code>{docs}</code> for the full list.",
+      "subjects": {
+        "database": "a database",
+        "auth": "accounts and sign-in",
+        "uploads": "image storage",
+        "maps": "a map style from a provider whose terms allow this traffic"
+      }
+    },
+    "dismissMessage": "Dismiss this message"
+  },
+  "nav": {
+    "primary": "Main",
+    "home": "FRAME, home",
+    "discover": "Discover",
+    "map": "Map",
+    "community": "Community",
+    "locations": "Locations",
+    "collections": "Collections",
+    "logIn": "Log in",
+    "join": "Join FRAME",
+    "openNavigation": "Open navigation",
+    "closeNavigation": "Close navigation",
+    "panelTitle": "Site navigation",
+    "panelDescription": "Navigate FRAME, search the archive and reach your account.",
+    "allSections": "All sections",
+    "searchLabel": "Search FRAME",
+    "searchPlaceholder": "Photographs, places, photographers",
+    "accountMenu": "Account menu for {name}",
+    "upload": "Upload a photograph",
+    "myCollections": "My collections",
+    "myProfile": "My profile",
+    "moderation": "Moderation",
+    "signOut": "Sign out"
+  },
+  "footer": {
+    "headings": {
+      "explore": "Explore",
+      "community": "Community",
+      "policies": "Policies"
+    },
+    "links": {
+      "discover": "Discover",
+      "map": "Map",
+      "locations": "Locations",
+      "collections": "Collections",
+      "community": "Community",
+      "join": "Join FRAME",
+      "upload": "Upload",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "copyright": "Copyright and takedown",
+      "guidelines": "Community guidelines"
+    },
+    "copyrightLine": "© {year} {name}",
+    "credit": "Every photograph belongs to the photographer who made it and is shown with their credit. FRAME licenses nothing on their behalf.",
+    "demoCredit": "The sample photographs in this deployment come from Unsplash under the Unsplash licence."
+  },
+  "theme": {
+    "label": "Theme",
+    "toggle": "{choice, select, light {Theme: light. Switch to dark.} dark {Theme: dark. Switch to following the system.} other {Theme: following the system. Switch to light.}}"
+  },
+  "home": {
+    "meta": {
+      "description": "A community for street photographers. Discover photographs, explore the real places behind them, and learn how each frame was made."
+    },
+    "hero": {
+      "eyebrow": "Street photography, place by place",
+      "headline": "Start with a place. The frame <accent>follows</accent>.",
+      "lead": "Every photograph here is pinned to the place it was made, with the settings behind it. Begin with a city, a corner or a single frame, and find somewhere worth standing.",
+      "explore": "Explore photographs",
+      "share": "Share your work"
+    },
+    "cover": {
+      "trendingEyebrow": "Trending now",
+      "editorsEyebrow": "Editor’s pick",
+      "trendingNote": "{count, plural, one {The only photograph currently trending} other {Ranked first of the # photographs currently trending}}",
+      "editorsNote": "{count, plural, one {The only photograph chosen by FRAME editors} other {The first of # photographs chosen by FRAME editors}}",
+      "empty": "No photographs have been published yet, so there is no cover frame to show. The first published photograph will appear here."
+    },
+    "stats": {
+      "headingReal": "FRAME in numbers",
+      "headingDemo": "The bundled demo dataset in numbers",
+      "photographs": "Photographs",
+      "locations": "Locations",
+      "countries": "Countries",
+      "photographers": "Photographers",
+      "demoNote": "<strong>Sample figures.</strong> No database is configured, so these four counts describe the demo dataset bundled with this build. They are not a measure of any community."
+    },
+    "curated": {
+      "eyebrow": "Chosen by FRAME editors",
+      "title": "Frames worth finding.",
+      "description": "Chosen by FRAME editors. Always labelled, never paid for.",
+      "browseAll": "Browse every published photograph",
+      "emptyTitle": "No editor’s picks yet",
+      "emptyDescription": "Nothing has been selected for this surface so far. Everything published is still there to look through."
+    },
+    "locations": {
+      "eyebrow": "Places to shoot",
+      "title": "Where the frames come from.",
+      "description": "Ordered by how many published photographs each place holds.",
+      "all": "All locations",
+      "emptyTitle": "No locations have been approved yet",
+      "emptyDescription": "A place appears here once a member has submitted it and a moderator has approved it."
+    },
+    "photographers": {
+      "eyebrow": "Made by photographers",
+      "title": "The people behind the frames.",
+      "description": "The members whose published work has drawn the most appreciation.",
+      "all": "Meet the community",
+      "emptyTitle": "No profiles to show yet",
+      "emptyDescription": "This surface fills in once members have published work for others to appreciate."
+    },
+    "map": {
+      "eyebrow": "Explore by place",
+      "title": "Every pin is somewhere to stand.",
+      "description": "Each pin is a place a member submitted and a moderator approved, with the photographs made there and any access notes on file.",
+      "open": "Open the map",
+      "pinCount": "{count, plural, one {{formatted} approved place is pinned on the full map.} other {{formatted} approved places are pinned on the full map.}}",
+      "noPins": "No places have been approved yet, so the map has nothing to show.",
+      "sample": "A sample of {count, plural, one {# place} other {# places}}"
+    },
+    "cta": {
+      "eyebrow": "Contribute",
+      "title": "Add the place you know best.",
+      "body": "Share the photograph, pin the place it was made and say what the light was doing. Nothing is published until you confirm the work is yours, and no exact coordinate is published unless you choose to share it.",
+      "uploadAction": "Upload a photograph",
+      "joinAction": "Create your profile",
+      "uploadCapability": "Uploading a photograph",
+      "joinCapability": "Creating an account"
+    },
+    "loading": {
+      "status": "Loading the FRAME home page."
+    }
+  },
+  "discover": {
+    "eyebrow": "The community gallery",
+    "heading": "Discover photographs",
+    "lead": "Every photograph here was published by the photographer who made it, with the place and the settings behind it.",
+    "meta": {
+      "description": "Browse street photography from the FRAME community. Every photograph here was published by the photographer who made it, with the place and the settings behind it.",
+      "filteredDescription": "{subject} in the FRAME community, ordered by {sort}.",
+      "viewTitle": {
+        "all": "Photographs",
+        "allInPlace": "Photographs from {place}",
+        "category": "{category} photographs",
+        "categoryInPlace": "{category} photographs from {place}"
+      }
+    },
+    "filters": {
+      "sectionLabel": "Gallery filters",
+      "categoryGroupLabel": "Filter by category",
+      "allCategories": "All frames",
+      "allCategoriesLabel": "All categories"
+    },
+    "sort": {
+      "groupLabel": "Sort photographs",
+      "orderedBy": "Ordered by {sort}"
+    },
+    "place": {
+      "label": "Search photographs by place",
+      "placeholder": "City, country or place",
+      "clear": "Clear the place search"
+    },
+    "gear": {
+      "summary": "Camera and lens",
+      "badgeActive": "{count} on",
+      "badgeOff": "off",
+      "appliedCount": "{count, plural, =0 {No gear filters applied} one {# gear filter applied} other {# gear filters applied}}",
+      "noFacets": "None of the published photographs carry camera or lens details yet, so there is nothing to filter by here.",
+      "cameraBrand": "Camera brand",
+      "anyCameraBrand": "Any camera brand",
+      "cameraModel": "Camera model",
+      "anyCameraModel": "Any camera model",
+      "cameraModelHint": "Models are listed across every brand.",
+      "lensBrand": "Lens brand",
+      "anyLensBrand": "Any lens brand",
+      "option": "{label} ({count, number})",
+      "emptyHint": "Nothing recorded yet.",
+      "apply": "Apply",
+      "clear": "Clear gear filters"
+    },
+    "status": {
+      "updating": "Updating the gallery"
+    },
+    "results": {
+      "heading": "Results",
+      "onThisPage": "{count, plural, one {# photograph on this page} other {# photographs on this page}}",
+      "total": "{count, plural, one {{formatted} photograph} other {{formatted} photographs}}",
+      "totalFiltered": "{count, plural, one {{formatted} photograph matches these filters} other {{formatted} photographs match these filters}}"
+    },
+    "active": {
+      "count": "{count, plural, one {# filter} other {# filters}}",
+      "clearAll": "Clear all",
+      "kind": {
+        "category": "Category",
+        "place": "Place",
+        "cameraBrand": "Camera",
+        "cameraModel": "Model",
+        "lensBrand": "Lens"
+      },
+      "remove": {
+        "category": "Remove the category filter {value}",
+        "place": "Remove the place filter {value}",
+        "cameraBrand": "Remove the camera filter {value}",
+        "cameraModel": "Remove the camera model filter {value}",
+        "lensBrand": "Remove the lens filter {value}"
+      }
+    },
+    "empty": {
+      "filtered": {
+        "title": "No photographs match these filters",
+        "body": "The filters are stacked, so each one narrows what the one before it left. Drop one of them above, or clear them all and start again.",
+        "action": "Clear all filters"
+      },
+      "pastEnd": {
+        "title": "This page is past the end of the gallery",
+        "body": "Photographs may have been removed since the link you followed was made.",
+        "action": "Back to the first page"
+      },
+      "none": {
+        "title": "No photographs have been published yet",
+        "body": "The gallery fills up as members publish their work. The places are already mapped, so that is a good place to start.",
+        "action": "Explore the locations"
+      }
+    },
+    "error": {
+      "title": "The gallery could not be loaded",
+      "body": "Something went wrong while reading the photographs. This is on our side, not yours.",
+      "fullGallery": "Start from the full gallery"
+    }
+  },
+  "taxonomy": {
+    "category": {
+      "street": "Street",
+      "architecture": "Architecture",
+      "night": "Night",
+      "urban-landscape": "Urban landscape",
+      "documentary": "Documentary",
+      "portrait": "Street portrait"
+    },
+    "sort": {
+      "recent": "Recently added",
+      "appreciated": "Most appreciated",
+      "trending": "Trending",
+      "editors": "Editor’s picks"
+    },
+    "sortInline": {
+      "recent": "recently added",
+      "appreciated": "most appreciated",
+      "trending": "trending",
+      "editors": "editor’s picks"
+    },
+    "sortExplanation": {
+      "recent": "Newest published photographs first.",
+      "appreciated": "Highest lifetime appreciation count first.",
+      "trending": "Appreciations earned recently count for more than older ones, so new work can surface.",
+      "editors": "Chosen by FRAME editors. Always labelled, never paid for."
+    }
+  },
+  "photo": {
+    "loading": "Loading the photograph",
+    "meta": {
+      "notFoundTitle": "Photograph not found",
+      "notFoundDescription": "This photograph is not on FRAME, or it is no longer published.",
+      "creditWithPlace": "Photographed in {place} by {photographer}.",
+      "credit": "Photographed by {photographer}."
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "discover": "Discover"
+    },
+    "status": {
+      "noticeTitle": "Not published",
+      "noticeBody": "{note} Only you and the moderation team can open this page, and it is kept out of search engines.",
+      "draft": "This photograph is still a draft.",
+      "processing": "This upload is still being processed.",
+      "underReview": "This photograph is under review by a moderator.",
+      "removed": "This photograph has been removed."
+    },
+    "notFound": {
+      "eyebrow": "Not found",
+      "title": "That photograph is not here.",
+      "body": "The link may be mistyped, or the frame may have been unpublished by the photographer or taken down by a moderator. Photographs on FRAME keep their address for as long as they are published, so an old link that worked before has probably been withdrawn rather than moved.",
+      "browse": "Browse photographs",
+      "map": "Explore the map"
+    },
+    "headline": {
+      "editorsPick": "Editor’s pick",
+      "published": "Published <date>{published}</date>"
+    },
+    "appreciate": {
+      "label": "Appreciate {name}. {count, plural, =0 {No appreciations yet} one {# appreciation} other {# appreciations}}.",
+      "signInLabel": "Sign in to appreciate {name}. {count, plural, =0 {No appreciations yet} one {# appreciation so far} other {# appreciations so far}}.",
+      "count": "{count, plural, =0 {No appreciations} one {# appreciation} other {# appreciations}}",
+      "thisPhotograph": "this photograph",
+      "rateLimited": "That is a lot of appreciation in a short time. Slow down for a moment, then try again.",
+      "notConfigured": "Appreciation needs a database, so it is switched off in this build.",
+      "unauthenticated": "Your session has ended. Sign in again to appreciate this photograph.",
+      "failed": "Your appreciation could not be saved. Check your connection and try again."
+    },
+    "stage": {
+      "fullView": "Full view"
+    },
+    "capture": {
+      "eyebrow": "In the camera",
+      "title": "Capture settings",
+      "none": "The photographer did not record the settings for this frame, so there is nothing to show here. Settings are optional on upload and are never inferred from the file.",
+      "aperture": "Aperture",
+      "shutter": "Shutter",
+      "iso": "ISO",
+      "cameraBrand": "Camera brand",
+      "camera": "Camera",
+      "lensBrand": "Lens brand",
+      "lens": "Lens",
+      "focalLength": "Focal length"
+    },
+    "editing": {
+      "eyebrow": "After the shutter",
+      "title": "Editing",
+      "none": "No editing was recorded for this frame.",
+      "taken": "Taken",
+      "editedIn": "Edited in",
+      "notes": "The photographer’s notes"
+    },
+    "place": {
+      "noneTitle": "No place attached",
+      "noneBody": "The photographer did not attach a place to this frame. Pinning a location is optional, and a photograph is never assigned one automatically from its file.",
+      "approximate": "This point is deliberately approximate, accurate to about {distance}. The precision was reduced on purpose because publishing the exact spot could cause harm.",
+      "withheld": "No coordinate is published for this place, so there is no point to put on a map. That is either a privacy decision taken by a moderator or a location that has not been given one."
+    },
+    "photographer": {
+      "basedIn": "Based in <place>{city}</place>",
+      "portfolio": "See the full portfolio"
+    },
+    "byline": {
+      "by": "by <name>{photographer}</name>"
+    },
+    "related": {
+      "placeEyebrow": "More from this place",
+      "placeTitle": "Other frames at {place}",
+      "placeTitleUnnamed": "Other frames at this place",
+      "photographerEyebrow": "More by this photographer",
+      "photographerTitle": "Other frames by {photographer}"
+    },
+    "reportCta": {
+      "intro": "If this photograph is not the uploader’s work, misstates its location, or should not be published, tell a moderator.",
+      "trigger": "Report this photograph",
+      "subject": "“{title}” by {photographer}"
+    }
+  },
+  "report": {
+    "trigger": "Report",
+    "title": "Report this item",
+    "describeSubject": "You are reporting {subject}.",
+    "submit": "Send report",
+    "filed": "Report filed. A moderator will review it.",
+    "failed": "Your report could not be sent. Check your connection and try again — nothing has been filed.",
+    "errorTitle": "This report was not filed",
+    "demo": {
+      "title": "Reports cannot be filed in this build",
+      "body": "No database is configured, so there is no moderation queue to file into and nothing typed here would be stored. See <file>docs/ENVIRONMENT.md</file> for the environment variables that connect one."
+    },
+    "reasonLabel": "Reason",
+    "reasonPlaceholder": "Choose a reason",
+    "reasonHint": "Pick the closest match — the detail you add below matters more than the category.",
+    "reason": {
+      "copyright": "Copyright infringement",
+      "not-my-photograph": "This photograph is not the uploader’s work",
+      "wrong-location": "The location is wrong or misleading",
+      "privacy": "Privacy concern about a person or a private place",
+      "inappropriate": "Inappropriate or unsafe content",
+      "spam": "Spam or misleading upload",
+      "duplicate": "Duplicate of an existing entry",
+      "other": "Something else"
+    },
+    "detailsLabel": "Details",
+    "detailsPlaceholder": "Anything that would help a moderator see what you are seeing.",
+    "detailsHint": "Optional, unless the reason is “{reason}”. {remaining, plural, one {# character left} other {# characters left}}.",
+    "byHand": "A moderator reviews each report by hand. Nothing is removed automatically, and the person you are reporting is not shown who filed it.",
+    "copyright": "A copyright claim is handled under the takedown policy rather than this queue, so read <policy>the copyright and takedown policy</policy> before filing one — it sets out what a claim has to contain."
+  },
+  "location": {
+    "openMap": "Open the map",
+    "index": {
+      "metaTitle": "Locations",
+      "metaDescription": "Places street photographers have worked, each one submitted by a member and approved by a moderator, with the shooting notes and access restrictions recorded for it.",
+      "eyebrow": "Explore by place",
+      "title": "Where the work was made.",
+      "lead": "Every place here was submitted by a photographer and approved by a moderator. Each one carries what the community has worked out about it: what the light does, when to go, and what you are not permitted to do once you arrive.",
+      "searchLabel": "Search places",
+      "searchPlaceholder": "Place name, city or country",
+      "searchHint": "Matches the place name, the city and the country.",
+      "resultsFor": "Results for “{query}”",
+      "allPlaces": "All places",
+      "matchCount": "{count, plural, one {# place matches this search.} other {# places match this search.}}",
+      "ordering": "Ordered by how many photographs have been published at each place.",
+      "noMatchTitle": "No places match that search",
+      "noMatchBody": "Try a city or a country rather than a street, or clear the search to see everything that has been approved.",
+      "clearSearch": "Clear the search",
+      "noneTitle": "No places have been approved yet",
+      "noneBody": "Locations appear here once a moderator has approved a submission. Nothing has reached that point.",
+      "submitPlace": "Submit a place",
+      "loading": "Loading locations"
+    },
+    "detail": {
+      "loading": "Loading this location",
+      "metaTitle": "{name}, {city}",
+      "metaDescription": "{name} in {city}, {country}. Shooting notes from members, the access restrictions on record, and every photograph published at the place.",
+      "notFoundMetaTitle": "Location not found",
+      "notFoundMetaDescription": "This location is not published on FRAME."
+    },
+    "notFound": {
+      "eyebrow": "Location",
+      "title": "This place is not published.",
+      "body": "The address does not match an approved location. A place reaches FRAME only once a moderator has approved it, and one that has been merged into another entry or taken down stops resolving. Nothing here says the place does not exist.",
+      "browseAll": "Browse all locations"
+    },
+    "header": {
+      "allLocations": "All locations",
+      "isoCountryCode": "{code} is the ISO country code",
+      "noDescription": "No description has been written for this place yet.",
+      "bestTimeOfDay": "Best time of day",
+      "goodFor": "Good for",
+      "submittedBy": "Submitted by <photographer>{name}</photographer>",
+      "submitterUnknown": "Submitter not on record",
+      "approvedOn": "Approved by a moderator on {date}",
+      "approvalDateUnknown": "Approval date not recorded",
+      "report": "Report an incorrect location"
+    },
+    "coordinates": {
+      "withheldTitle": "Position withheld",
+      "withheldBody": "No coordinate is published for {name}. FRAME withholds a point when a place is somebody’s home or workplace, when publishing its position would expose the people who use it, or when a moderator could not verify the point well enough to stand behind it.",
+      "withheldNote": "The place itself is real and has been approved. Only its position is held back.",
+      "approximateTitle": "Approximate position",
+      "exactTitle": "Position",
+      "copyLabel": "Copy the coordinates for {name} as decimal degrees",
+      "copy": "Copy",
+      "copied": "Copied",
+      "copiedStatus": "Copied {coordinates} to the clipboard.",
+      "copyFailed": "The clipboard is not available here. Select the coordinates above and copy them by hand.",
+      "approximateBody": "This point is deliberately coarse. It is published to {decimals, number} decimal places, which places you within about {distance} of the spot rather than at a doorway.",
+      "approximateNote": "FRAME reduces precision for places where an exact position could expose the people who live, work or shelter there. The finer point is never published, here or anywhere else on the site.",
+      "exactBody": "Published to {decimals, number} decimal places, which is accurate to about {distance}. Copied as decimal degrees, latitude first."
+    },
+    "card": {
+      "photographCount": "{count, plural, =0 {No photographs} one {{value} photograph} other {{value} photographs}}",
+      "distanceAway": "{distance} away"
+    },
+    "gallery": {
+      "eyebrow": "Made here",
+      "title": "Photographs from this place",
+      "empty": "Nothing published here yet.",
+      "publishedCount": "{count, plural, one {{value} published photograph.} other {{value} published photographs.}}",
+      "emptyTitle": "No photographs published here yet",
+      "emptyBody": "Nobody has published a photograph made at {name}. If you have been, yours would be the first.",
+      "addPhotograph": "Add a photograph",
+      "publishAction": "Publishing a photograph"
+    },
+    "nearby": {
+      "eyebrow": "Within reach",
+      "title": "Nearby places",
+      "description": "Distances are straight-line, measured between published points."
+    },
+    "restrictions": {
+      "title": "Access and restrictions",
+      "sourceRule": "A restriction is only listed once a moderator has recorded where the claim comes from.",
+      "noneTitle": "No restrictions have been verified for this place.",
+      "noneWarning": "That is not the same as permission: it means nothing has been checked, not that everything is allowed. Look for signage when you arrive, and ask if you are unsure.",
+      "sourceNote": "Each note carries its source and the date it was recorded. Conditions change, so treat an older note as a starting point rather than as the current rule.",
+      "source": "Source:",
+      "recorded": "Recorded {date}",
+      "recordedUnknown": "The date this was recorded is not on file",
+      "kind": {
+        "permit": "Permit required",
+        "privateProperty": "Private property",
+        "noTripod": "No tripods",
+        "hours": "Access hours",
+        "fee": "Entry fee",
+        "other": "Other restriction"
+      }
+    },
+    "notes": {
+      "title": "Shooting notes",
+      "provenance": "Written by members who have photographed here and reviewed by a moderator before publication. They are not official guidance from whoever manages the place.",
+      "empty": "Nobody has contributed shooting notes for this place yet."
+    }
+  },
+  "map": {
+    "meta": {
+      "title": "Map",
+      "description": "Every approved street-photography location on one map, with the photographs made at each place. Positions that are deliberately imprecise are marked as such."
+    },
+    "page": {
+      "eyebrow": "Explore by place",
+      "heading": "The places, mapped.",
+      "listHeading": "Places on the map",
+      "pinned": "{count, plural, one {{formatted} place is pinned, submitted by a member and approved by a moderator.} other {{formatted} places are pinned, each submitted by a member and approved by a moderator.}}",
+      "approximate": "{count, plural, one {{formatted} is marked approximate: the exact point is withheld because the place is privacy-sensitive, leaving it accurate only to about {precision}.} other {{formatted} are marked approximate: the exact point is withheld because those places are privacy-sensitive, leaving them accurate only to about {precision}.}}",
+      "noneApproximate": "None is approximate at present; one whose point was withheld would say so.",
+      "emptyTitle": "No place has a position that may be published",
+      "emptyDescription": "A pin needs an approved location with a coordinate the privacy policy permits us to publish. Nothing on file meets both conditions yet, so there is nothing to draw. Places whose position is withheld still appear in the location list.",
+      "loading": "Loading the map"
+    },
+    "actions": {
+      "browseList": "Browse the location list",
+      "clearFilters": "Clear the filters",
+      "clearSelection": "Clear selection"
+    },
+    "precision": "{unit, select, km {{value, number} km} other {{value, number} m}}",
+    "canvas": {
+      "accessibleName": "Map of photography locations",
+      "instructions": "An interactive map. Use the arrow keys to pan and the plus and minus keys to zoom. The same places are listed beside the map.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "statusLoading": "Loading the map.",
+      "statusReady": "The map is ready.",
+      "statusFailed": "The map could not be loaded."
+    },
+    "explorer": {
+      "listHeading": "Locations on the map",
+      "sheetHint": "Search and filter the places on the map",
+      "showList": "Show the list of locations",
+      "hideList": "Hide the list of locations",
+      "summaryInView": "{count, plural, one {{formatted} location in view} other {{formatted} locations in view}}",
+      "summaryPinned": "{count, plural, one {{formatted} location pinned} other {{formatted} locations pinned}}",
+      "scopeInView": "In view",
+      "scopePinned": "Pinned",
+      "legendExact": "Exact position",
+      "legendApproximate": "Approximate, withheld for privacy"
+    },
+    "panel": {
+      "approximate": "Approximate position.",
+      "noMatchTitle": "No places match those filters",
+      "noMatchDescription": "Try a shorter search, or clear the filters to see every pinned location again.",
+      "outOfViewTitle": "Nothing in this view",
+      "outOfViewDescription": "Zoom out or drag the map to bring pinned locations back into view."
+    },
+    "filters": {
+      "searchLabel": "Search places",
+      "searchPlaceholder": "Search by place, city or country",
+      "categoryOption": "{category}, {count, plural, one {# location} other {# locations}}",
+      "matching": "{count, plural, one {{matching} of {total} locations matches} other {{matching} of {total} locations match}}",
+      "pinned": "{count, plural, one {{formatted} location pinned} other {{formatted} locations pinned}}"
+    },
+    "pinPreview": {
+      "approximate": "This pin is deliberately approximate, accurate to about {precision}, because the place is privacy-sensitive."
+    },
+    "static": {
+      "title": "Map showing {name}",
+      "description": "{name} on a map at {coordinates}.",
+      "approximateSr": "This position is deliberately approximate, accurate to about {precision}.",
+      "approximateNote": "Approximate position, accurate to about {precision}. The exact point is withheld because this place is privacy-sensitive."
+    },
+    "unavailable": {
+      "capabilityAction": "The map",
+      "tileServerPolicy": "FRAME ships no default tile server on purpose. MapLibre’s demo tiles are licensed for evaluation only, so falling back to them would breach those terms on the first page view."
+    },
+    "loadFailure": {
+      "title": "The map could not be loaded",
+      "description": "The style configured in {variable} did not answer, so nothing has been drawn. The places themselves are unaffected. See {docs} for the provider setup."
+    },
+    "attribution": {
+      "missing": "No map attribution is configured. Most providers require a credit line: set <code>{variable}</code>."
+    }
+  },
+  "profile": {
+    "metaTitle": "{name} (@{username})",
+    "metaDescription": "{name} photographs streets and the places behind them on FRAME.",
+    "metaDescriptionBasedIn": "{name} photographs streets and the places behind them on FRAME, based in {city}.",
+    "memberSince": "Member since {month}",
+    "websiteNote": "Member-supplied link. FRAME has not checked where it leads.",
+    "reportAccount": "Report this account",
+    "role": {
+      "moderator": "Community moderator",
+      "admin": "Administrator"
+    },
+    "roleShort": {
+      "moderator": "Moderator",
+      "admin": "Admin"
+    },
+    "stats": {
+      "eyebrow": "Contributions",
+      "appreciations": "Appreciations",
+      "locations": "Locations",
+      "locationsAdded": "Locations added",
+      "note": "Appreciations are counted once per member and can be withdrawn again."
+    },
+    "gear": {
+      "eyebrow": "Usual gear",
+      "cameraFilter": "{brand} cameras on Discover",
+      "lensFilter": "{brand} lenses on Discover",
+      "note": "Written by the member. FRAME does not check gear against a photograph’s metadata."
+    },
+    "portfolio": {
+      "eyebrow": "Portfolio",
+      "title": "Published photographs",
+      "countPublished": "{shown} published",
+      "countOfTotal": "{shown} most recent of {total}",
+      "emptyTitle": "Nothing published yet",
+      "emptyDescription": "{name} has not published a photograph. Drafts and uploads still in review are never shown here."
+    },
+    "collections": {
+      "eyebrow": "Collections",
+      "title": "Sets worth keeping",
+      "description": "Photographs and places {name} has grouped and made public."
+    },
+    "notFound": {
+      "metaTitle": "Photographer not found",
+      "metaDescription": "No FRAME member uses this profile address.",
+      "eyebrow": "Profile",
+      "title": "No photographer here.",
+      "body": "This profile address does not belong to a FRAME member. The link may be mistyped, or the account may no longer be on FRAME.",
+      "community": "Meet the community",
+      "discover": "Browse photographs"
+    }
+  },
+  "community": {
+    "metaTitle": "Community",
+    "metaDescription": "How FRAME works: who the photographers are, what an appreciation means, and how a new location is proposed and reviewed.",
+    "eyebrow": "The community",
+    "heading": "Photographs,<break></break>and the people <accent>behind</accent> them.",
+    "lead": "FRAME is a record of street photographs and of the real places they were made in. Everything on it was published by a member who holds the rights to their own work, and every location was reviewed by a person before it appeared on the map.",
+    "stats": {
+      "eyebrow": "FRAME in numbers",
+      "photographs": "Photographs",
+      "locations": "Locations",
+      "countries": "Countries",
+      "photographers": "Photographers",
+      "sampleFigure": "sample data",
+      "sampleNote": "No database is configured for this deployment, so these four figures describe the bundled sample dataset rather than a real community."
+    },
+    "featured": {
+      "eyebrow": "Members",
+      "title": "The most appreciated photographers",
+      "description": "Ranked by the appreciations their published photographs have received, nothing else.",
+      "emptyTitle": "No photographers to show yet",
+      "emptyDescription": "This list is built from published photographs, so it fills up as members publish their first frames."
+    },
+    "appreciation": {
+      "title": "What an appreciation means",
+      "once": "An appreciation is the only way to say something about a photograph on FRAME, and it counts once per member. Appreciating a frame a second time withdraws the first, so the number under an image is a count of people rather than a count of clicks.",
+      "notForSale": "Appreciations cannot be bought, promoted or transferred, and no amount of them changes how a photograph is moderated. The editor’s picks are chosen by editors, always carry that label, and are never paid for.",
+      "trending": "Trending orders photographs so that recent appreciations weigh more than old ones. That is the whole rule, and it is written on the <discover>Discover</discover> page beside the sort control, because a ranking nobody can explain is a ranking nobody should trust."
+    },
+    "review": {
+      "title": "How a location is reviewed",
+      "proposeTitle": "A member proposes a place.",
+      "proposeBody": "A name, a city, a coordinate and a note about what makes it worth the walk. Up to {maxPerDay, plural, one {# proposal} other {# proposals}} a day, which is enough for a good afternoon and not enough to flood the queue.",
+      "checksTitle": "Automated checks run.",
+      "checksBody": "Duplicate candidates nearby, a coordinate that does not sit in the country it claims, an unusually coarse point. These are shown to a moderator as signals and never decide anything on their own.",
+      "decideTitle": "A moderator decides.",
+      "decideBody": "Approved, declined with a reason the member can read, or returned with a request for changes. Access and photography restrictions are only published when a moderator has recorded where the claim came from.",
+      "publishTitle": "The coordinate is published carefully.",
+      "publishBody": "An approved place is pinned to {publicPrecision}. Somewhere privacy-sensitive is coarsened to {reducedPrecision} and labelled as approximate, and some places carry no coordinate at all. GPS found in a photograph’s metadata is never published unless the member chooses to publish it.",
+      "precisionMetres": "about {value, number} m",
+      "precisionKilometres": "about {value, number} km",
+      "guidelines": "What will and will not be approved is set out in the <guidelines>community guidelines</guidelines>."
+    },
+    "join": {
+      "eyebrow": "Made by photographers",
+      "title": "Your perspective belongs here.",
+      "body": "Publish the photograph, pin the place, and say how the frame was made. Keep your copyright, withdraw a photograph whenever you like, and help the next person find a street they would not have walked down.",
+      "cta": "Create your profile",
+      "signIn": "Already a member? <signin>Sign in</signin>.",
+      "capabilityAction": "Creating an account"
+    }
+  },
+  "auth": {
+    "shell": {
+      "eyebrow": "Account",
+      "backHome": "— back to the home page",
+      "whyEyebrow": "Why an account",
+      "whyTitle": "Every frame here carries the name of the person who <accent>made it</accent>.",
+      "whyBody": "Reading FRAME needs no account: the gallery, the places and the profiles are open to everybody. An account is what lets you publish work under your own name, appreciate somebody else’s, and decide for each photograph how precisely its location is shown.",
+      "signedInAs": "You are already signed in as <name>{displayName}</name> (<handle>@{username}</handle>). Sign out first to use a different account.",
+      "signOut": "Sign out"
+    },
+    "fields": {
+      "email": "Email address",
+      "username": "Username",
+      "displayName": "Display name",
+      "password": "Password",
+      "newPassword": "New password",
+      "repeatPassword": "Repeat the new password"
+    },
+    "passwordToggle": {
+      "show": "Show",
+      "hide": "Hide",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password"
+    },
+    "status": {
+      "unauthenticated": "Could not sign in",
+      "forbidden": "Not permitted",
+      "rateLimited": "Too many attempts",
+      "validation": "Check the form",
+      "notConfigured": "Not available in this deployment",
+      "conflict": "Already in use",
+      "notFound": "Not found",
+      "unknown": "Something went wrong",
+      "validationSeveral": "{count, plural, one {One of these details needs attention. The form shows what to change.} other {# of these details need attention. The form shows what to change.}}",
+      "validationFallback": "That submission could not be validated. Check the form and try again."
+    },
+    "login": {
+      "metaTitle": "Sign in",
+      "metaDescription": "Sign in to FRAME to publish your photographs, appreciate other people’s work and keep collections.",
+      "title": "Welcome <accent>back</accent>",
+      "description": "Sign in to publish photographs, appreciate other people’s work and keep collections. Browsing FRAME needs no account at all.",
+      "footer": "No account yet? <join>Join FRAME</join>. It takes an email address, a handle and a password.",
+      "continueLabel": "Continue",
+      "forgotPassword": "Forgotten your password?",
+      "submit": "Sign in",
+      "submitPending": "Signing in",
+      "arrivalNotConfiguredTitle": "Accounts are not configured here",
+      "arrivalNotConfiguredBody": "This deployment has no identity service, so the link you followed could not sign anybody in. Nothing was created and nothing was changed.",
+      "arrivalLinkExpiredTitle": "That link could not be used",
+      "arrivalLinkExpiredBody": "A sign-in link works once, expires after an hour, and has to be opened in the browser that asked for it. Sign in below, or ask for a new link.",
+      "arrivalSignoutFailedTitle": "You may still be signed in",
+      "arrivalSignoutFailedBody": "The sign-out could not be completed, so this browser may still hold a session. Try signing out again from the account menu."
+    },
+    "join": {
+      "metaTitle": "Join FRAME",
+      "metaDescription": "Create a FRAME account to publish street photography, appreciate other people’s work and build collections.",
+      "title": "Join <accent>FRAME</accent>",
+      "description": "An account lets you publish your own photographs, appreciate work you admire and keep collections. Three details and a password are all it takes.",
+      "footer": "Already a member? <signin>Sign in</signin>. Waiting on a confirmation email? <resend>Ask for another link</resend>.",
+      "continueLabel": "Open your profile",
+      "emailHint": "Used for the confirmation link and for account notices. It is never shown on your profile.",
+      "usernameHint": "Three to 24 characters: lowercase letters, numbers and underscores. This is public — it becomes the address of your profile — and FRAME has no way to change it yet, so choose one you will still want next year.",
+      "displayNameHint": "The name shown beside your photographs.",
+      "passwordHint": "At least 10 characters. Three or four unrelated words are easier to remember and harder to guess than one word with symbols in it.",
+      "termsLabel": "I accept the <terms>terms</terms> and the <guidelines>community guidelines</guidelines>.",
+      "termsDescription": "The <privacy>privacy notice</privacy> explains what FRAME stores and what it never publishes without asking — including the location data inside your photographs.",
+      "submit": "Create account",
+      "submitPending": "Creating your account",
+      "confirmationSentTitle": "Confirmation sent",
+      "accountReadyTitle": "Account ready",
+      "nothingArrived": "Nothing arrived? <resend>Ask for another link</resend>.",
+      "startExploring": "Start exploring"
+    },
+    "forgot": {
+      "metaTitle": "Forgotten password",
+      "metaDescription": "Ask FRAME for a link that lets you set a new password.",
+      "title": "Forgotten <accent>password</accent>",
+      "description": "Give the address the account was created with and FRAME will send a link that lets you set a new password.",
+      "footer": "Remembered it? <signin>Sign in</signin>. If the address itself is lost, there is no way to recover the account — FRAME holds nothing else that could prove it is yours.",
+      "linkExpiredTitle": "That recovery link could not be used",
+      "linkExpiredBody": "A recovery link works once and expires after an hour. Ask for a new one below.",
+      "emailHint": "The address the account was created with. FRAME cannot tell you which address that was.",
+      "submit": "Send a reset link",
+      "submitPending": "Sending the link",
+      "successTitle": "Reset link requested",
+      "successDetail": "The link is valid for one hour and can be used once. Open it in this browser if you can — a link opened elsewhere still works, it simply has to be confirmed again."
+    },
+    "reset": {
+      "metaTitle": "Set a new password",
+      "metaDescription": "Choose a new password for your FRAME account.",
+      "title": "Set a <accent>new</accent> password",
+      "descriptionSignedIn": "Choose a password you have not used anywhere else. This browser stays signed in once it is saved.",
+      "descriptionNoLink": "This page is opened from the recovery link in your email. The link is what proves the account is yours.",
+      "footerSignedIn": "Signed in as <profile>@{username}</profile>. Changing the password here does not sign your other devices out.",
+      "footerNoLink": "Links expire after an hour and can be used once. <request>Ask for a new one</request>.",
+      "noLinkTitle": "No recovery link is open in this browser",
+      "noLinkBody": "FRAME cannot change a password without one. Request a link, then open it in this browser — a link opened on another device signs that device in instead of this one.",
+      "noLinkCta": "Request a recovery link",
+      "passwordHint": "At least 10 characters. Three or four unrelated words are easier to remember and harder to guess than one word with symbols in it.",
+      "submit": "Save the new password",
+      "submitPending": "Saving the password",
+      "successTitle": "Password changed",
+      "successGallery": "Go to the gallery"
+    },
+    "verify": {
+      "metaTitle": "Confirm your email address",
+      "metaDescription": "Confirm the address on your FRAME account, or ask for another confirmation link.",
+      "confirmedTitle": "Address <accent>confirmed</accent>",
+      "confirmedNoticeTitle": "That worked",
+      "confirmedDescription": "Your email address is confirmed and this browser is signed in. Your account is ready to use.",
+      "confirmedNoticeBody": "The link has been used and cannot be used again. You are signed in on this device only.",
+      "emailChangedDescription": "Your new email address is confirmed. Account notices and any future reset links will go there from now on.",
+      "emailChangedNoticeBody": "The old address is no longer attached to the account. Nothing on your public profile has changed — FRAME never shows an email address there.",
+      "invalidTitle": "That link has <accent>expired</accent>",
+      "invalidDescription": "A confirmation link works once and expires after 24 hours. Ask for another one below and it will replace it.",
+      "invalidNoticeTitle": "The link could not be used",
+      "invalidNoticeBody": "It has either been used already, expired, or been altered in transit — some mail clients rewrite links. Copying the address straight from the email usually fixes the last of those.",
+      "pendingTitle": "Check your <accent>email</accent>",
+      "pendingDescription": "A confirmation link is what stops somebody else signing up with your address. Open the link and the account is ready; until then there is no account to sign in to.",
+      "footerResend": "Confirmed already? <signin>Sign in</signin>. FRAME sends nothing else to this address apart from account notices.",
+      "footerDone": "Signed in on this device. The <privacy>privacy notice</privacy> lists everything FRAME stores against an account.",
+      "ctaGallery": "Go to the gallery",
+      "ctaUpload": "Publish a photograph",
+      "emailHint": "The address you joined with. Only two links are sent per address every ten minutes, so check your spam folder before asking again.",
+      "submit": "Send another link",
+      "submitPending": "Sending the link",
+      "successTitle": "Request sent"
+    },
+    "validation": {
+      "email": {
+        "required": "An email address is required.",
+        "tooLong": "That email address is too long to be valid.",
+        "invalid": "Enter an email address in the form you@example.com."
+      },
+      "username": {
+        "required": "A username is required.",
+        "min": "A username needs at least 3 characters.",
+        "max": "A username must be 24 characters or fewer.",
+        "charset": "A username may only use lowercase letters, numbers and underscores.",
+        "reserved": "That username is reserved by FRAME. Please choose another."
+      },
+      "displayName": {
+        "required": "Display name is required.",
+        "max": "Display name must be 60 characters or fewer."
+      },
+      "password": {
+        "required": "A password is required.",
+        "min": "A password needs at least 10 characters.",
+        "max": "A password must be 72 characters or fewer.",
+        "enter": "Enter your password.",
+        "repeat": "Repeat the new password.",
+        "mismatch": "The two passwords do not match."
+      },
+      "terms": {
+        "required": "Please confirm you accept the terms and the community guidelines before joining."
+      }
+    },
+    "actions": {
+      "notConfigured": "This action needs a database and none is configured, so nothing was saved — see docs/ENVIRONMENT.md for the environment variables that connect one.",
+      "retrySeconds": "Too many attempts. Try again in {count, plural, one {# second} other {# seconds}}.",
+      "retryMinutes": "Too many attempts. Try again in {count, plural, one {# minute} other {# minutes}}.",
+      "retryHours": "Too many attempts. Try again in {count, plural, one {# hour} other {# hours}}.",
+      "signInRefused": "Those details do not match an account. Check the address and the password, then try again.",
+      "signInUnconfirmed": "That address has not been confirmed yet. Open the link in the email we sent, or ask for another one from the confirmation page.",
+      "signInSuspended": "This account is suspended. Open the profile page while signed in to read the reason, or write to the moderators.",
+      "signInProviderRate": "The identity service is refusing further attempts for now. Wait a minute, then try again.",
+      "signUpEmailExists": "An account already exists for that address.",
+      "signUpEmailExistsField": "An account already exists for that address. Sign in instead, or reset the password.",
+      "signUpUsernameTaken": "That username is already taken.",
+      "signUpUsernameTakenField": "That username is already taken. Please choose another.",
+      "signUpWeakPassword": "That password was refused.",
+      "signUpWeakPasswordField": "That password was refused as too easy to guess. Try a longer one, or a few unrelated words.",
+      "signUpAddressRefused": "That address was refused.",
+      "signUpAddressRefusedField": "The identity service refused that address. Try another one.",
+      "signUpDisabled": "New accounts are not being accepted on this deployment at the moment.",
+      "signUpEmailRate": "Too many confirmation emails have been sent from this deployment recently. Try again in a few minutes.",
+      "signUpFailed": "Your account could not be created. Try again in a few minutes.",
+      "signUpReady": "Your account is ready, and this browser is signed in. This deployment does not ask for email confirmation.",
+      "signUpCheckEmail": "Check your email. If that address is not already registered, a confirmation link is on its way.",
+      "resetRequested": "If that address has an account, a reset link is on its way. Check your inbox, and your spam folder.",
+      "resetEmailRate": "Too many reset emails have been sent recently. Try again in a few minutes.",
+      "resetSendFailed": "The reset email could not be sent. Try again in a few minutes.",
+      "passwordNeedsLink": "This form needs the recovery link from your email. Request a new link and open it in this browser.",
+      "passwordSame": "That is already your password.",
+      "passwordSameField": "That is already your password. Choose a different one.",
+      "passwordWeak": "That password was refused.",
+      "passwordWeakField": "That password was refused as too easy to guess. Try a longer one, or a few unrelated words.",
+      "passwordLinkExpired": "That recovery link has expired. Request a new one and open it in this browser.",
+      "passwordFailed": "Your password could not be changed. Try again in a few minutes.",
+      "passwordChanged": "Your password has been changed, and this browser is signed in.",
+      "resendEmailRate": "Too many confirmation emails have been sent recently. Try again in a few minutes.",
+      "resendSent": "If that address is waiting for confirmation, another link is on its way. Check your inbox, and your spam folder.",
+      "resendFailed": "The confirmation email could not be sent. Try again in a few minutes.",
+      "signOutFailed": "Your session could not be ended. Try again in a moment.",
+      "signOutDone": "You are signed out."
+    }
+  },
+  "upload": {
+    "meta": {
+      "title": "Upload a photograph",
+      "description": "Add a street photograph to FRAME: the file, what is in the frame, where and how it was made, and the rights declaration that lets FRAME show it."
+    },
+    "page": {
+      "eyebrow": "Upload",
+      "heading": "Add a <accent>photograph</accent>",
+      "lead": "Seven steps: the file, what is in the frame, where it was made, what it was made with, how it was exposed and edited, a look over everything, and the rights declaration. You can move back and forth freely — nothing leaves your machine until the last step.",
+      "uploadingAs": "Uploading as {displayName} (@{username}). Photographs up to {size}, at least {width} by {height} pixels."
+    },
+    "capability": {
+      "action": "Uploading a photograph"
+    },
+    "storage": {
+      "title": "Image storage is not ready",
+      "body": "A database is configured, but the storage provider this deployment selected is not usable, so a file sent from this page would have nowhere to land. {reason}",
+      "note": "The wizard below still works as a design review. Step seven will refuse rather than report an upload that did not happen."
+    },
+    "limits": {
+      "fileSize": "{size, number} {unit}",
+      "precision": "about {value, number} {unit, select, km {km} other {m}}"
+    },
+    "steps": {
+      "file": {
+        "title": "Photograph",
+        "summary": "Choose the image file."
+      },
+      "describe": {
+        "title": "Description",
+        "summary": "Title, category and alt text."
+      },
+      "place": {
+        "title": "Place",
+        "summary": "Where the frame was made."
+      },
+      "gear": {
+        "title": "Camera",
+        "summary": "Body and lens."
+      },
+      "settings": {
+        "title": "Settings",
+        "summary": "Exposure and editing."
+      },
+      "review": {
+        "title": "Review",
+        "summary": "Check everything, confirm the rights."
+      },
+      "submit": {
+        "title": "Submit",
+        "summary": "Upload and publish."
+      }
+    },
+    "progress": {
+      "railLabel": "Upload steps",
+      "announce": "Step {number, number} of {total, number} — {title}. {summary}",
+      "srGoBack": " — step {number, number} of {total, number}, go back to it",
+      "srCurrent": " — current step, {number, number} of {total, number}",
+      "srLocked": " — step {number, number} of {total, number}, finished and no longer editable",
+      "srNotReached": " — step {number, number} of {total, number}, not reached yet"
+    },
+    "nav": {
+      "continue": "Continue",
+      "confirmAndContinue": "Confirm and continue",
+      "nextUploadsFile": "The next step uploads the file.",
+      "nothingUploadedYet": "Nothing is uploaded until the last step.",
+      "errorsHeading": "{count, plural, one {One thing needs attention before this step is finished} other {# things need attention before this step is finished}}"
+    },
+    "prefilled": {
+      "label": "Read from the file"
+    },
+    "file": {
+      "heading": "Choose the photograph",
+      "lead": "One photograph per upload. {formats} files up to {size}, at least {width} by {height} pixels.",
+      "dropZone": "Drop a photograph here",
+      "dropZoneReplace": "Choose a different photograph",
+      "browseHint": "or press Enter to browse your files",
+      "clientCheckNote": "These two checks run in your browser, so they are a convenience rather than a control. FRAME reads the real contents of the file on the server after it arrives, and refuses anything that is not a photograph it can publish — whatever the file was named or said it was.",
+      "chosenFile": "Chosen file",
+      "previewAlt": "Preview of {fileName}, the photograph you have chosen to upload",
+      "dimensions": "{width} × {height} px",
+      "focalLengthFact": "{value} mm",
+      "apertureFact": "f/{value}",
+      "isoFact": "ISO {value}",
+      "exifReading": "Reading the camera metadata…",
+      "exifRead": "Read from the file: {facts}. You can change any of it later.",
+      "exifNone": "This file carries no camera metadata. That is common and nothing is wrong — you can type the details in yourself.",
+      "replace": "Replace this file"
+    },
+    "exifGps": {
+      "title": "This file records where it was taken",
+      "policy": "This file contains the coordinates your camera recorded. FRAME will not publish them unless you choose to: leave this question alone and the position stays out of the photograph entirely. If you do publish a place, the point shown is rounded by policy rather than exact, and rounded further for somewhere sensitive, so a published location never puts a doorway on a map. Camera metadata is also not a claim of authorship — it says which device wrote the file, not who holds the rights to the photograph.",
+      "onFileStep": "You will be asked about it on the place step, and nothing happens with it unless you choose it there.",
+      "usedTitle": "Using the position from the file",
+      "usedBody": "The coordinates below were copied from the file because you chose to use them. Edit them freely — they are a starting point, not a fact.",
+      "declinedTitle": "The position in the file stays out of this",
+      "declinedBody": "Nothing from the file’s position has been copied anywhere, and none of it will be stored.",
+      "change": "Change this answer",
+      "coordinates": "The file says {latitude}, {longitude}.",
+      "use": "Use it to start a proposal",
+      "decline": "Leave the position out"
+    },
+    "describe": {
+      "heading": "Describe the frame",
+      "lead": "A title, a category, and the alt text a screen reader will read aloud. The description is optional and is where the story behind the frame goes.",
+      "titleLabel": "Title",
+      "titleHint": "Up to {max, number} characters. This becomes the photograph's web address.",
+      "titlePlaceholder": "After the last train",
+      "categoryLabel": "Category",
+      "categoryHint": "One category per photograph. It decides which filters this frame appears under.",
+      "categoryEmpty": "Choose a category",
+      "altTextLabel": "Alt text",
+      "altTextHint": "This is what a screen-reader user hears instead of seeing the photograph, so describe what is in the frame rather than how it makes you feel. Between {min, number} and {max, number} characters — {count, number} so far.",
+      "altTextPlaceholder": "A woman crosses an empty street under a row of shuttered shopfronts, lit by a single vending machine.",
+      "descriptionLabel": "Description",
+      "descriptionHint": "Optional. How you found the frame, what you waited for, what you would do differently.",
+      "descriptionPlaceholder": "I had walked past this junction four nights running before the shutters and the rain lined up."
+    },
+    "place": {
+      "heading": "Where was it made?",
+      "lead": "A place is what turns a photograph into something another photographer can go and see for themselves. It is also somewhere real, so FRAME publishes a rounded point and only after a person has looked at it.",
+      "modeLegend": "How would you like to answer?",
+      "modeNoneLabel": "No place for now",
+      "modeNoneDescription": "Publish without a location. You can tell us where it was made later without re-uploading.",
+      "modeExistingLabel": "An approved FRAME location",
+      "modeExistingDescription": "Search the places already on the map and pick the one this frame was made at.",
+      "modeProposeLabel": "Propose a new place",
+      "modeProposeDescription": "Somewhere FRAME does not have yet. A moderator reads every proposal before it appears.",
+      "searchLabel": "Search approved places",
+      "searchHint": "Search by place, city or country. Two characters is enough to start.",
+      "searchPlaceholder": "Shinjuku, Copenhagen, Bangkok…",
+      "searching": "Searching…",
+      "searchNoResults": "No approved place matches that. If FRAME does not have it yet, propose it instead.",
+      "searchResultCount": "{count, plural, one {# place found.} other {# places found.}}",
+      "searchLegend": "Choose the place this frame was made at",
+      "searchClear": "Clear this choice",
+      "nameLabel": "Place name",
+      "nameHint": "What a photographer would call it, not a postal address.",
+      "namePlaceholder": "Omoide Yokocho",
+      "cityLabel": "City",
+      "cityPlaceholder": "Tokyo",
+      "countryLabel": "Country",
+      "countryPlaceholder": "Japan",
+      "countryCodeLabel": "Country code",
+      "countryCodeHint": "Two letters, ISO 3166-1 — JP, DK, TH.",
+      "countryCodePlaceholder": "JP",
+      "latitudeLabel": "Latitude",
+      "latitudePlaceholder": "35.693990",
+      "longitudeLabel": "Longitude",
+      "longitudePlaceholder": "139.700377",
+      "noteLabel": "Note for the moderator",
+      "noteHint": "Optional. Access, opening hours, whether photography is restricted — anything a moderator should know before this goes on a public map.",
+      "checksHeading": "Automatic checks",
+      "checksIdle": "Enter a latitude, a longitude and a country code and the coordinate checks run here as you type.",
+      "checksNone": "The coordinate checks found nothing to flag. That is not the same as FRAME knowing this place exists — a moderator still reads the proposal.",
+      "severityInfo": "For information",
+      "severityWarn": "Worth a second look",
+      "severityHigh": "Needs attention",
+      "signalOutOfRange": "Coordinates fall outside the valid latitude/longitude range.",
+      "signalLowPrecision": "Coordinates look like placeholder values (whole degrees or 0,0). Ask for a precise point.",
+      "signalCountryMismatch": "The point does not fall within the bounding box of {countryCode}.",
+      "signalCountryUnknown": "No bounding box on file for {countryCode}, so the country could not be cross-checked.",
+      "signalPossibleDuplicate": "Within {metres, number} m of an existing location.",
+      "proposalNoticeTitle": "What happens to a proposed place",
+      "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes now, with the place marked pending, and is credited to the location once it is approved.",
+      "proposalNoticePrecision": "A published point is rounded to {precision} rather than shown exactly, and further still for anywhere a moderator marks as sensitive. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
+      "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them."
+    },
+    "gear": {
+      "heading": "Camera and lens",
+      "lead": "All optional. Filling it in is what makes the gear filters on Discover useful to somebody deciding what to carry.",
+      "noneRead": "This file recorded no camera or lens, so nothing has been filled in. Type what you used, or leave it blank.",
+      "cameraBrandLabel": "Camera brand",
+      "cameraBrandPlaceholder": "Fujifilm",
+      "cameraModelLabel": "Camera model",
+      "cameraModelPlaceholder": "X100V",
+      "lensBrandLabel": "Lens brand",
+      "lensBrandHint": "Leave blank for a fixed lens, or if it is the same as the camera.",
+      "lensBrandPlaceholder": "Voigtländer",
+      "lensModelLabel": "Lens model",
+      "lensModelPlaceholder": "35mm f/1.4 Nokton",
+      "note": "If your camera is not one FRAME already lists, what you type is kept exactly as you wrote it. Nobody is asked to pretend they shot something else."
+    },
+    "settings": {
+      "heading": "Exposure and editing",
+      "lead": "How the frame was exposed, and what you did to it afterwards. All optional, and all of it useful to somebody trying to work out how a photograph was made.",
+      "noneRead": "This file recorded no exposure settings, so nothing has been filled in. Type what you remember, or leave it blank — a guess written as a fact is worse than a gap.",
+      "focalLengthLabel": "Focal length",
+      "focalLengthHint": "In millimetres, as written on the lens.",
+      "focalLengthPlaceholder": "35",
+      "apertureLabel": "Aperture",
+      "apertureHint": "The f-number alone — 2 for f/2, 5.6 for f/5.6.",
+      "aperturePlaceholder": "2",
+      "shutterSpeedLabel": "Shutter speed",
+      "shutterSpeedHint": "Write it as 1/250 below a second, or as 4s at or above one.",
+      "shutterSpeedPlaceholder": "1/250",
+      "isoLabel": "ISO",
+      "isoHint": "The sensitivity the camera was set to.",
+      "isoPlaceholder": "800",
+      "editingSoftwareLabel": "Editing software",
+      "editingSoftwareHint": "Lightroom, Capture One, Darktable, the camera's own film simulation — whatever you used.",
+      "editingSoftwarePlaceholder": "Capture One 23",
+      "editingNotesLabel": "Editing notes",
+      "editingNotesHint": "What you changed and why. This is the part other photographers read most closely.",
+      "editingNotesPlaceholder": "Lifted the shadows about a stop, pulled the greens out of the fluorescent light, no crop.",
+      "captureDateHeading": "The date in the file",
+      "captureDateNone": "This file does not say when it was taken, so there is no date to publish or withhold. The date FRAME shows on the photograph is the day you published it.",
+      "captureDateBody": "Your camera recorded this frame as taken on {date}. A capture date can place a person somewhere on a particular evening, so FRAME leaves it out unless you ask for it. The camera carries no time zone, so the date is read as your camera’s own clock.",
+      "captureDatePublish": "Publish the capture date, {date}",
+      "captureDateDescription": "Leave this unticked and the date stays off the photograph and out of its record."
+    },
+    "review": {
+      "heading": "Check it over",
+      "lead": "This is everything FRAME is about to store. Nothing has been uploaded yet, so a change here costs you nothing.",
+      "change": "Change",
+      "changeSr": " {section} — back to step {number, number}, {step}",
+      "notGiven": "Not given",
+      "sectionPhotograph": "Photograph",
+      "sectionDescription": "Description",
+      "sectionPlace": "Place",
+      "sectionCamera": "Camera",
+      "sectionSettings": "Settings",
+      "sectionExifPosition": "Position in the file",
+      "rowFile": "File",
+      "rowSize": "Size",
+      "rowDimensions": "Dimensions",
+      "rowTitle": "Title",
+      "rowCategory": "Category",
+      "rowAltText": "Alt text",
+      "rowDescription": "Description",
+      "rowApprovedPlace": "Approved place",
+      "rowWhere": "Where",
+      "rowProposedPlace": "Proposed place",
+      "rowPoint": "Point",
+      "rowModeratorNote": "Note for the moderator",
+      "rowStatus": "Status",
+      "rowCamera": "Camera",
+      "rowLens": "Lens",
+      "rowFocalLength": "Focal length",
+      "rowAperture": "Aperture",
+      "rowShutterSpeed": "Shutter speed",
+      "rowIso": "ISO",
+      "rowEditingSoftware": "Editing software",
+      "rowEditingNotes": "Editing notes",
+      "rowCaptureDate": "Capture date",
+      "rowCameraGps": "Camera GPS",
+      "valueDimensions": "{width} × {height} pixels, as the file reports them",
+      "valueFocalLength": "{value} mm",
+      "valueAperture": "f/{value}",
+      "valueProposalStatus": "Queued for a moderator. Your photograph publishes now; the place appears once it is approved.",
+      "valueNoPlace": "None. The photograph publishes without a location, and you can add one later without re-uploading.",
+      "valueCaptureDateWithheld": "Withheld. The file records a date and you chose not to publish it.",
+      "valueGpsUsed": "The file records a position and you used it to start your proposal. It is stored with your consent recorded against it, and it is never published as an exact point.",
+      "valueGpsDeclined": "The file records a position. You chose to leave it out, so it is not stored.",
+      "valueGpsNone": "The file records no position.",
+      "previewAltFallback": "The photograph you have chosen. You have not written alt text for it yet.",
+      "rightsHeading": "Rights declaration",
+      "rightsIntro": "FRAME publishes photographs on the strength of this one statement, so it is worth reading rather than skipping.",
+      "rightsAuthor": "You are the photographer, or you hold written permission from the photographer to publish this work.",
+      "rightsCopyright": "You keep your copyright. Publishing here transfers nothing.",
+      "rightsLicence": "You grant FRAME only the licence it needs to display the work on the platform and to promote the platform with it — nothing wider.",
+      "rightsCommercial": "Any commercial or advertising use needs separate permission from you, asked for and agreed each time.",
+      "rightsTerms": "The full terms are at <link>the copyright policy</link>.",
+      "rightsConfirm": "I am the photographer or hold permission to publish this work, and I grant FRAME the licence described above.",
+      "rightsConfirmDescription": "FRAME records the moment you tick this and checks it again on the server before anything is published.",
+      "twoThingsTitle": "Two things are being sent",
+      "twoThingsBody": "Your photograph, which publishes as soon as it has been processed, and your proposed place, which waits for a moderator. A published point is rounded to {precision} rather than shown exactly."
+    },
+    "submit": {
+      "heading": "Send it",
+      "lead": "{fileName}, {size}, going to storage and then through the server's own checks.",
+      "noFile": "No file is attached to this upload.",
+      "notConfiguredTitle": "Nothing will be uploaded from this deployment",
+      "notConfiguredBody": "This copy of FRAME cannot accept a photograph: it has no database, or the storage provider it was pointed at is missing its credentials. The notice at the top of this page names exactly what is absent. Either way there is nowhere for the file to go, so the wizard is here in full only as a design review.",
+      "notConfiguredDocs": "Submitting will refuse and repeat that explanation rather than show you a success that did not happen. The variables that turn uploads on are listed in <code>docs/ENVIRONMENT.md</code>.",
+      "stageDraftTitle": "Reserve the record",
+      "stageDraftDetail": "FRAME creates the draft that will own the file, under your account.",
+      "stageGrantTitle": "Authorise the upload",
+      "stageGrantDetail": "The server works out where the file goes and issues a grant for that one object, that one format and that one size. Nothing about the destination is chosen by this browser.",
+      "stageUploadTitle": "Send the file",
+      "stageUploadDetail": "The bytes go straight to storage rather than through FRAME.",
+      "stageProcessTitle": "Check and resize",
+      "stageProcessDetail": "The server decodes the file that actually arrived, refuses anything that is not a photograph it can publish, then builds the sizes the site serves and strips every tag from each of them.",
+      "stagePublishTitle": "Publish",
+      "stagePublishDetail": "Your declaration is recorded and the photograph is written to the gallery.",
+      "stagePlaceTitle": "Queue the proposed place",
+      "stagePlaceDetail": "Your proposal goes to a moderator. Your photograph does not wait for it.",
+      "stateDone": "done",
+      "stateActive": "in progress",
+      "stateFailed": "stopped here",
+      "statePending": "not started",
+      "progressLabel": "File upload progress",
+      "progressValueText": "{percent, number} per cent sent",
+      "statusUploading": "{stage} — {percent, number}% sent",
+      "statusActive": "{stage}…",
+      "statusStopped": "Stopped at: {stage}.",
+      "statusPublished": "Published.",
+      "statusUnderReview": "Uploaded and waiting on a moderator.",
+      "statusIdle": "Not started.",
+      "failureTitle": "This upload stopped",
+      "guidanceNotConfigured": "Nothing was uploaded and nothing was saved. This is a configuration gap in the deployment, not something your file did wrong.",
+      "guidanceUnauthenticated": "Your session has ended. Sign in again in another tab and press submit here — everything you have entered is still on this page, as long as you do not reload it.",
+      "guidanceForbidden": "The reason is above. Nothing was uploaded.",
+      "guidanceRateLimited": "Wait for the time given above and submit again. Nothing was lost, and nothing was partly published.",
+      "guidanceValidation": "Step back to the field named above, correct it, and return here. Nothing has been published.",
+      "guidanceConflict": "This upload is no longer in the state FRAME expected. Reload the page to see where it actually stands before trying again.",
+      "guidanceNotFound": "FRAME cannot find this upload under your account any more. Reload the page and start it again.",
+      "guidanceUnknown": "Nothing was published. Submitting again is safe — it reuses the same record rather than making a second one.",
+      "grantUnreachable": "FRAME could not be reached to authorise the upload, so nothing was sent.",
+      "grantNoReason": "FRAME refused to authorise this upload (HTTP {status, number}) and gave no reason that can be shown here.",
+      "grantUnreadable": "FRAME returned an upload grant this page could not read, so nothing was sent. Reload and try again.",
+      "sendRefused": "Image storage refused the file with HTTP {status, number}. Nothing was published. If the grant had expired, submitting again issues a fresh one.",
+      "sendDropped": "The connection to image storage dropped before the file finished, so nothing was published. Submitting again starts the transfer from the beginning.",
+      "sendTimedOut": "The upload timed out before it finished, so nothing was published.",
+      "noFileAttached": "No file is attached to this upload any more. Go back to step one and choose it again.",
+      "outcomeLabel": "What happened to this upload",
+      "outcomePublishedTitle": "Published",
+      "outcomePublishedBody": "Your photograph is live, the sizes FRAME serves have been generated from it, and every tag has been stripped from each of them. The original is kept privately as the source for re-processing.",
+      "outcomeReviewTitle": "Uploaded, and with a moderator before it appears",
+      "outcomeReviewBody": "Your photograph has been stored and processed, and one of the automated checks asked for a person to look at it. A moderator reads it, usually within a day, and you will see it in your portfolio either way — published, or with the reason it was not.",
+      "signalsHeading": "What the checks noticed",
+      "signalHigh": "Held for review",
+      "signalWarn": "Worth knowing",
+      "signalInfo": "For information",
+      "signalsNote": "These are checks with an opinion, not verdicts. A moderator sees the same list.",
+      "placeQueued": "Your proposed place is queued for a moderator and will appear once it is approved.",
+      "placeFailedNote": "Your photograph published normally. You can propose the place again from the location index without re-uploading.",
+      "seePhotograph": "See the photograph",
+      "uploadAnother": "Upload another photograph",
+      "backToReview": "Back to review",
+      "uploadAndPublish": "Upload and publish",
+      "discard": "Discard this upload",
+      "retryNote": "Submitting again after a failure reuses the same record rather than starting a second one, so a retry cannot leave a half-finished upload behind. Nothing is kept in this browser between visits: leaving the page loses what you have typed, which is why FRAME asks before you go.",
+      "discardDialogTitle": "Discard this upload?",
+      "discardDialogBody": "The draft record and any file already stored for it are deleted, and the form here is cleared. This cannot be undone.",
+      "discardDialogConfirm": "Discard",
+      "toastPublished": "Your photograph is published.",
+      "toastUnderReview": "Your photograph is with a moderator.",
+      "toastDiscarded": "That upload has been discarded."
+    },
+    "validation": {
+      "generic": "There is something wrong with this answer. Check it again.",
+      "fileMissing": "Choose a photograph to upload.",
+      "fileExtension": "The file needs one of these extensions: {extensions}.",
+      "fileNameTooLong": "The file name must be {max, number} characters or fewer.",
+      "fileNameMissing": "The file name is missing.",
+      "fileType": "FRAME accepts JPEG, PNG, WebP and AVIF photographs.",
+      "fileTooLarge": "The file must be {size, number} {unit} or smaller.",
+      "fileEmpty": "The file is empty.",
+      "fileSizeUnknown": "The file size could not be read.",
+      "titleRequired": "A title is required.",
+      "titleMax": "The title must be {max, number} characters or fewer.",
+      "categoryRequired": "Choose one of the FRAME categories for this photograph.",
+      "altTextMin": "Alt text needs at least {min, number} characters.",
+      "altTextMax": "Alt text must be {max, number} characters or fewer.",
+      "descriptionMax": "The description must be {max, number} characters or fewer.",
+      "locationRequired": "Choose a place from the results, or propose a new one.",
+      "proposedNameMin": "The place name needs at least {min, number} characters.",
+      "proposedNameMax": "The place name must be {max, number} characters or fewer.",
+      "cityRequired": "A city is required.",
+      "cityMax": "The city must be {max, number} characters or fewer.",
+      "countryRequired": "A country is required.",
+      "countryMax": "The country must be {max, number} characters or fewer.",
+      "countryCodeFormat": "The country code must be two letters, ISO 3166-1 — for example JP.",
+      "latitudeInvalid": "Latitude must be a number between -90 and 90.",
+      "longitudeInvalid": "Longitude must be a number between -180 and 180.",
+      "noteMax": "The note must be {max, number} characters or fewer.",
+      "cameraBrandMax": "The camera brand must be {max, number} characters or fewer.",
+      "cameraBrandInvalid": "The camera brand must be text.",
+      "cameraModelMax": "The camera model must be {max, number} characters or fewer.",
+      "cameraModelInvalid": "The camera model must be text.",
+      "lensBrandMax": "The lens brand must be {max, number} characters or fewer.",
+      "lensBrandInvalid": "The lens brand must be text.",
+      "lensModelMax": "The lens model must be {max, number} characters or fewer.",
+      "lensModelInvalid": "The lens model must be text.",
+      "focalLengthMin": "The focal length must be at least {min, number} mm.",
+      "focalLengthMax": "The focal length must be at most {max, number} mm.",
+      "focalLengthWhole": "The focal length must be a whole number of millimetres.",
+      "focalLengthNumber": "The focal length must be a number.",
+      "apertureMin": "The aperture must be at least {min, number}.",
+      "apertureMax": "The aperture must be at most {max, number}.",
+      "apertureNumber": "The aperture must be a number — the f-number alone.",
+      "shutterSpeedFormat": "Write the shutter speed as 1/250 or as 4s.",
+      "shutterSpeedMax": "The shutter speed must be {max, number} characters or fewer.",
+      "isoMin": "The ISO must be at least {min, number}.",
+      "isoMax": "The ISO must be at most {max, number}.",
+      "isoWhole": "The ISO must be a whole number.",
+      "isoNumber": "The ISO must be a number.",
+      "editingSoftwareMax": "The editing software must be {max, number} characters or fewer.",
+      "editingSoftwareInvalid": "The editing software must be text.",
+      "editingNotesMax": "The editing notes must be {max, number} characters or fewer.",
+      "editingNotesInvalid": "The editing notes must be text.",
+      "rightsConfirmedRequired": "Confirm the declaration below: FRAME cannot publish a photograph without it."
+    }
+  },
+  "collections": {
+    "eyebrow": "Collection",
+    "updated": "Updated <time>{date}</time>",
+    "visibility": {
+      "private": "Private",
+      "public": "Public"
+    },
+    "meta": {
+      "indexTitle": "Collections",
+      "indexDescription": "Groups of photographs and places kept by FRAME members: shot lists for a city, routes to walk, and sets of frames worth returning to.",
+      "notFoundTitle": "Collection not found",
+      "notFoundDescription": "There is no collection at this address.",
+      "detailDescription": "A collection of {photographs, plural, one {# photograph} other {# photographs}} and {places, plural, one {# place} other {# places}}, kept by {owner}."
+    },
+    "index": {
+      "eyebrow": "Collections",
+      "heading": "Frames and places, <accent>grouped</accent>.",
+      "intro": "A collection is one member’s own grouping — a shot list for a city, a route to walk at dawn, or the frames they keep coming back to. Each one holds photographs, places, or both.",
+      "capabilityAction": "Keeping a collection",
+      "signedOutCta": "Sign in to keep your own",
+      "yours": {
+        "eyebrow": "Yours",
+        "title": "Your collections",
+        "description": "{count, plural, one {# collection} other {# collections}}, private ones included.",
+        "emptyTitle": "You have not started one yet",
+        "emptyDescription": "Use Create collection above, or save a photograph or a place from its own page and name a new collection as you go."
+      },
+      "community": {
+        "eyebrow": "Shared publicly",
+        "title": "From the community",
+        "sectionLabel": "Collections from the community",
+        "description": "Only collections their owners chose to make public appear here.",
+        "emptyTitle": "No public collections yet",
+        "emptyDescription": "Members keep a collection private until they decide to share it, so this list fills up slowly."
+      }
+    },
+    "loading": {
+      "index": "Loading collections",
+      "detail": "Loading this collection"
+    },
+    "card": {
+      "noCover": "This collection has no cover image yet",
+      "entryCount": "{count, plural, one {{formatted} entry} other {{formatted} entries}}"
+    },
+    "detail": {
+      "entriesLabel": "Entries in this collection",
+      "entriesEyebrow": "Entries",
+      "entriesTitle": "In this collection",
+      "entriesDescription": "{photographs, plural, one {# photograph} other {# photographs}} and {places, plural, one {# place} other {# places}}, most recently added first."
+    },
+    "notFound": {
+      "heading": "There is no collection <accent>here</accent>.",
+      "body": "Nothing at this address is open to you. A collection is private until its owner chooses otherwise, and an address can also change when a collection is renamed or disappear when it is deleted. If somebody shared this link with you, ask them to check it.",
+      "browse": "Browse public collections",
+      "discover": "Discover photographs"
+    },
+    "items": {
+      "saved": "Saved <time>{date}</time>",
+      "noteLabel": "Note",
+      "emptyOwnerTitle": "Nothing saved here yet",
+      "emptyOwnerDescription": "Open a photograph or a place and use Save to collection. Entries appear here newest first.",
+      "emptyOwnerAction": "Browse photographs",
+      "emptyVisitorTitle": "This collection is empty",
+      "emptyVisitorDescription": "Its owner has not added a photograph or a place to it yet."
+    },
+    "form": {
+      "createTrigger": "Create collection",
+      "editTrigger": "Edit details",
+      "createTitle": "Create a collection",
+      "editTitle": "Edit this collection",
+      "createDescription": "Group photographs and places together — a shot list for a city, a route to walk, or frames worth returning to.",
+      "editDescription": "Change the title, the description, the address or who can see it.",
+      "submitCreate": "Create collection",
+      "submitEdit": "Save changes",
+      "titleLabel": "Title",
+      "titlePlaceholder": "Tokyo after midnight",
+      "titleHint": "Up to {max} characters. The address is built from this unless you set one below.",
+      "descriptionLabel": "Description",
+      "descriptionHint": "Optional, up to {max} characters. Say what holds the set together, so somebody else can tell whether it is for them.",
+      "visibilityLabel": "Who can see it",
+      "visibilityPrivateLabel": "Private — only you",
+      "visibilityPrivateDescription": "Only you can open it. This is the default, and it stays that way until you say otherwise.",
+      "visibilityPublicLabel": "Public — anyone with the link",
+      "visibilityPublicDescription": "Anyone can open it and it may appear in the collections index.",
+      "slugLabel": "Address",
+      "slugHint": "The part after /collections/ in the link. Changing it breaks any link already shared; clearing it rebuilds the address from the title.",
+      "saving": "Saving your collection.",
+      "created": "“{title}” is ready for its first entry.",
+      "updated": "“{title}” is updated.",
+      "updatedWithAddress": "“{title}” is updated, and its address is now /collections/{slug}.",
+      "networkError": "That could not be saved. Check your connection and try again — nothing has changed."
+    },
+    "deleteDialog": {
+      "title": "Delete “{title}”?",
+      "body": "{count, plural, =0 {It holds nothing at the moment.} one {Its # entry goes with it.} other {Its # entries go with it.}} The photographs and places themselves are not affected — only this grouping of them. This cannot be undone.",
+      "confirm": "Delete collection",
+      "done": "“{title}” is deleted. The photographs and places it held are unaffected.",
+      "networkError": "That collection could not be deleted. Check your connection and try again — it is still there."
+    },
+    "save": {
+      "demoNotice": "Saving to a collection needs a database, and none is configured in this build. See <code>docs/ENVIRONMENT.md</code> for the environment variables that turn it on.",
+      "triggerAriaLabel": "Save {label} to a collection",
+      "dialogTitle": "Save to a collection",
+      "dialogDescription": "Choose where “{label}” belongs. Collections you keep private stay private.",
+      "loading": "Loading your collections.",
+      "loadFailed": "Your collections could not be loaded. Check your connection and try again.",
+      "loadFailedShort": "Your collections could not be loaded.",
+      "noneYet": "{kind, select, photograph {You have no collections yet. Name one below and this photograph goes straight into it.} other {You have no collections yet. Name one below and this place goes straight into it.}}",
+      "newLabel": "New collection",
+      "newPlaceholder": "Places to shoot at dawn",
+      "newHint": "{kind, select, photograph {A new collection starts private, and this photograph is saved into it straight away.} other {A new collection starts private, and this place is saved into it straight away.}}",
+      "newSubmit": "Create and save",
+      "createdAndSaved": "{kind, select, photograph {“{title}” is ready, and this photograph is saved to it.} other {“{title}” is ready, and this place is saved to it.}}",
+      "createdNotSaved": "{kind, select, photograph {“{title}” was created, but this photograph was not saved into it: {reason}} other {“{title}” was created, but this place was not saved into it: {reason}}}",
+      "createFailed": "That collection could not be created. Check your connection and try again.",
+      "savingTo": "Saving to “{title}”.",
+      "removingFrom": "Removing from “{title}”.",
+      "savedTo": "Saved to “{title}”.",
+      "alreadySavedIn": "Already saved in “{title}”.",
+      "removedFrom": "Removed from “{title}”.",
+      "nothingRemoved": "That entry was no longer in “{title}”, so nothing was removed.",
+      "changeFailed": "That change could not be saved. Check your connection and try again.",
+      "changeFailedShort": "That change could not be saved."
+    },
+    "removeItem": {
+      "label": "Remove",
+      "removedLabel": "Removed",
+      "ariaLabel": "Remove {label} from this collection",
+      "done": "Removed from the collection.",
+      "nothingRemoved": "That entry was no longer in the collection, so nothing was removed.",
+      "failed": "That could not be removed. Check your connection and try again."
+    }
+  },
+  "moderation": {
+    "meta": {
+      "title": "Moderation",
+      "description": "The working queues behind FRAME: proposed places, reported content, uploads held for review and the decisions already taken."
+    },
+    "loading": {
+      "label": "Loading the moderation queues"
+    },
+    "page": {
+      "eyebrow": "Moderation",
+      "title": "Review queue",
+      "nothingWaiting": "Nothing is waiting on a decision.",
+      "waiting": "{count, plural, one {# item is} other {# items are}} waiting on a decision.",
+      "waitingInSample": "{count, plural, one {# item is} other {# items are}} waiting on a decision in this sample.",
+      "signalsAreNotVerdicts": "Every signal on these rows is an automated check with an opinion, never a verdict: the decision is yours and it is recorded under your name.",
+      "reasonAudience": "Each decision says whether the reason you write reaches the member or stays in the moderation trail, because FRAME sends no messages of its own.",
+      "signedInAs": "Signed in as {name} (@{username}), {role}.",
+      "role": {
+        "member": "member",
+        "moderator": "moderator",
+        "admin": "admin"
+      },
+      "openOnlyInDemo": "This page is open to you only because no database is configured, so there are no accounts and nothing private behind it. Connect one and the route answers 404 to everyone who is not a moderator.",
+      "capabilityAction": "Recording a moderation decision"
+    },
+    "queues": {
+      "navLabel": "Moderation queues",
+      "capNote": "This is the first {limit, number} items only, and there may be more behind them. Decide these and reload: the queues are not paged yet.",
+      "submissions": {
+        "label": "Pending places",
+        "count": "{count, plural, =0 {no proposals awaiting a decision} one {# proposal awaiting a decision} other {# proposals awaiting a decision}}",
+        "countCapped": "at least {count, number} proposals awaiting a decision"
+      },
+      "reports": {
+        "label": "Reported content",
+        "count": "{count, plural, =0 {no reports still open} one {# report still open} other {# reports still open}}",
+        "countCapped": "at least {count, number} reports still open"
+      },
+      "uploads": {
+        "label": "Uploads to review",
+        "count": "{count, plural, =0 {no uploads awaiting a decision} one {# upload awaiting a decision} other {# uploads awaiting a decision}}",
+        "countCapped": "at least {count, number} uploads awaiting a decision"
+      },
+      "duplicates": {
+        "label": "Possible duplicates",
+        "count": "{count, plural, =0 {no pairs to look at} one {# pair to look at} other {# pairs to look at}}",
+        "countCapped": "at least {count, number} pairs to look at"
+      },
+      "actions": {
+        "label": "Recent decisions",
+        "count": "{count, plural, =0 {no decisions recorded recently} one {# decision recorded recently} other {# decisions recorded recently}}",
+        "countCapped": "at least {count, number} decisions recorded recently"
+      }
+    },
+    "severity": {
+      "info": "For information",
+      "warn": "Worth checking",
+      "high": "Needs attention"
+    },
+    "submissionSignal": {
+      "possible-duplicate": "Possible duplicate",
+      "coordinate-country-mismatch": "Coordinate and country disagree",
+      "coordinate-out-of-range": "Coordinate out of range",
+      "low-precision": "Low precision",
+      "rate-limited": "Rate limited",
+      "sensitive-area": "Sensitive area"
+    },
+    "uploadSignal": {
+      "perceptual-hash-match": "Similar image on file",
+      "exif-missing": "No EXIF",
+      "exif-conflict": "EXIF disagrees with the place",
+      "burst-upload": "Burst upload",
+      "embedded-credit-mismatch": "Embedded credit differs",
+      "low-resolution": "Below the minimum size"
+    },
+    "decision": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "request_changes": "Ask for changes",
+      "remove_content": "Remove the content",
+      "suspend_account": "Suspend the account",
+      "dismiss": "Dismiss the report"
+    },
+    "reportReason": {
+      "copyright": "Copyright infringement",
+      "not-my-photograph": "This photograph is not the uploader’s work",
+      "wrong-location": "The location is wrong or misleading",
+      "privacy": "Privacy concern about a person or a private place",
+      "inappropriate": "Inappropriate or unsafe content",
+      "spam": "Spam or misleading upload",
+      "duplicate": "Duplicate of an existing entry",
+      "other": "Something else"
+    },
+    "form": {
+      "decisionLegend": "Decision",
+      "reasonLabel": "Reason",
+      "reasonHint": {
+        "member": "The member reads this, so write it for them. It has to stand on its own without this queue next to it.",
+        "internal": "This goes to the moderation trail, which only moderators can read. FRAME sends the member no message, so anything they need to hear has to reach them another way.",
+        "none": "This decision keeps no reason, so anything typed here is not stored. Leave it empty.",
+        "neutral": "Choose a decision above and this will say who reads the reason you write."
+      },
+      "confirmNote": {
+        "member": "The member is shown your reason, and the decision is written to the audit trail under your name.",
+        "internal": "Your reason goes to the audit trail under your name, where only moderators can read it. The member is not told.",
+        "none": "The decision is written to the audit trail under your name. No reason is kept."
+      },
+      "confirmBody": "{effect} This applies to {subject}. {note}",
+      "recording": "Recording the decision: {decision}…",
+      "recorded": "The decision is recorded.",
+      "transportFailure": "The decision could not be sent, so whether it was recorded is unknown. Reload the queue before deciding again.",
+      "chooseDecision": "Choose a decision before recording it.",
+      "reasonRequired": {
+        "member": "This decision is shown to the member, so it needs a reason.",
+        "internal": "This decision needs a reason for the moderation trail, which only moderators read."
+      },
+      "submit": "Record decision",
+      "submitWithDecision": "Record: {decision}",
+      "coordinatePrivacy": {
+        "legend": "Coordinate privacy",
+        "intro": "Taken once, here. Precision is only ever reduced on publication, never widened afterwards, and withholding the point overrides reduced precision.",
+        "reducedLabel": "Publish at reduced precision",
+        "reducedDescription": "About a kilometre instead of about eleven metres. For a place where the exact point could expose a person or a private address.",
+        "withholdLabel": "Publish no coordinate at all",
+        "withholdDescription": "The place is listed and searchable but carries no point on the map."
+      },
+      "suspension": {
+        "label": "Suspension length in days",
+        "hint": "Leave this empty for an indefinite suspension. FRAME has no scheduled job that lifts one, so whatever you enter is recorded in the reason the member reads and a moderator ends the suspension by hand."
+      }
+    },
+    "validation": {
+      "fallback": "Some of these details need attention. The form shows what to change.",
+      "subjectType": {
+        "required": "Choose what this decision applies to."
+      },
+      "decision": {
+        "required": "Choose a decision.",
+        "submission": "Choose whether to approve this place, reject it, or ask for changes.",
+        "report": "Choose how this report was resolved.",
+        "upload": "Choose what happens to this upload."
+      },
+      "reason": {
+        "text": "A reason has to be text.",
+        "max": "A reason must be 1,200 characters or fewer.",
+        "required": "Write the reason for this decision. The member is shown it, so it has to stand on its own.",
+        "suspensionRequired": "A suspension needs a reason, because it is the whole of what the member is told.",
+        "suspensionMin": "A suspension reason needs at least 10 characters, because it is the whole of what the member is told."
+      },
+      "duration": {
+        "number": "A suspension length must be a number of days.",
+        "whole": "A suspension length must be a whole number of days.",
+        "min": "A suspension must last at least one day.",
+        "max": "Use an indefinite suspension rather than one over ten years."
+      }
+    },
+    "submissions": {
+      "eyebrow": "Queue",
+      "title": "Pending places",
+      "description": "Oldest first. A place is only ever published by a person, never by a check.",
+      "emptyTitle": "No places are waiting",
+      "emptyDescription": "Every proposal has been decided. New submissions arrive here oldest first.",
+      "placeLabel": "Place",
+      "coordinatesLabel": "Submitted coordinates",
+      "waitingLabel": "Waiting",
+      "noPlaceGiven": "No city or country given",
+      "precisionMetres": "about {metres, number} m",
+      "precisionKilometres": "about {kilometres} km",
+      "proposedBy": "Proposed by <link>{name}</link>",
+      "noSignals": "No automated check flagged this proposal, which is not the same as it being right.",
+      "duplicateBySearch": "(by search — this place publishes no map point)",
+      "duplicateDistance": "{metres, number} m away",
+      "subjectWithPlace": "{name}, {place}",
+      "options": {
+        "approve": {
+          "label": "Approve",
+          "effect": "Publishes the place, credits the member, and puts it on the map at the precision chosen below. An approval records no reason."
+        },
+        "requestChanges": {
+          "label": "Ask for changes",
+          "effect": "Leaves the place unpublished and shows the member your reason, so they can send a corrected proposal."
+        },
+        "reject": {
+          "label": "Reject",
+          "effect": "Closes the proposal for good. The member reads your reason."
+        }
+      }
+    },
+    "reports": {
+      "eyebrow": "Queue",
+      "title": "Reported content",
+      "description": "Oldest first. Copyright reports follow the published takedown policy.",
+      "emptyTitle": "No open reports",
+      "emptyDescription": "Every report has been resolved. New ones arrive here oldest first.",
+      "subject": {
+        "photograph": "Photograph",
+        "location": "Place",
+        "profile": "Profile",
+        "collection": "Collection"
+      },
+      "subjectNoun": {
+        "photograph": "photograph",
+        "location": "place",
+        "profile": "profile",
+        "collection": "collection"
+      },
+      "copyrightBadge": "Copyright",
+      "reviewingBadge": "Being reviewed",
+      "openSubject": "Open {label}, the reported {noun}",
+      "searchSubject": "Search FRAME for {label}, the reported {noun}",
+      "noDirectLink": "by search — no direct link to a {noun} is on file",
+      "noDetails": "The reporter added no further detail.",
+      "filed": "Filed <time>{when}</time>",
+      "internalLabel": "Internal",
+      "reportedBy": "reported by @{username}",
+      "reporterGone": "the reporting account is no longer on file",
+      "takedownTitle": "This follows the takedown policy",
+      "takedownBody": "A copyright report is handled as a takedown request: the work comes down while the claim is checked, and both the member and the claimant are told what happened. Read <policy>the copyright policy</policy> before deciding.",
+      "noWritePath": "FRAME gives moderators no write path over a {noun}, so this report cannot be closed by removing the content.",
+      "noWritePathProfile": "Suspending the account is the control that exists, below.",
+      "noWritePathCollection": "Close it with a note for the trail, or dismiss it, and take the content up with the owner directly.",
+      "suspendElsewhere": "Suspending an account needs that account, and a report carries the reported {noun} rather than its owner. Open the owner’s profile and suspend from a report filed against it.",
+      "suspensionSeparate": "A suspension is a separate decision and does not close the report. Resolve the report above as well.",
+      "subjectWithLabel": "{noun} “{label}”",
+      "accountBehind": "the account behind “{label}”",
+      "suspendReasonHint": "The member reads this as the explanation for their suspension, so it has to say what they did and what would lift it.",
+      "options": {
+        "dismiss": {
+          "label": "Dismiss the report",
+          "effect": "Closes the report and changes nothing. A reason is optional here and still goes on the record."
+        },
+        "close": {
+          "label": "Close it without removing anything",
+          "effect": "Closes the report and leaves the content up. Your note goes to the moderation trail only — the owner is not told, so contact them separately if they need to act."
+        },
+        "removePhotograph": {
+          "label": "Remove the photograph",
+          "effect": "Takes it off the public site and closes the report. The reason is stored on the photograph, so the member reads it."
+        },
+        "removeLocation": {
+          "label": "Remove the place",
+          "effect": "Takes the place off the public site and the map, and closes the report. A place stores no reason, so yours stays in the moderation trail."
+        },
+        "suspend": {
+          "label": "Suspend the account",
+          "effect": "Blocks every write by this account until a moderator lifts it by hand. Their published work stays up."
+        }
+      }
+    },
+    "uploads": {
+      "eyebrow": "Queue",
+      "title": "Uploads to review",
+      "description": "Held before publication. Every signal below is a reason to look, not a finding.",
+      "emptyTitle": "Nothing is held for review",
+      "emptyDescription": "No upload is waiting on a decision. Flagged uploads arrive here oldest first.",
+      "thumbAlt": "Upload held for review: {title}",
+      "uploadedAt": "Uploaded <time>{when}</time>",
+      "notPublishedYet": "not published, so it has no public page yet",
+      "uploadedBy": "Uploaded by <link>{name}</link>",
+      "noSignals": "No automated check flagged this upload. It is here because its status is still under review.",
+      "hashCaveatHeadline": "A similarity match is a signal for review, not evidence of infringement.",
+      "hashCaveatBody": "Two photographers can stand in the same place on different days and produce near-identical frames. Compare the files and ask the uploader before deciding anything from this signal alone.",
+      "subject": "“{title}” by {name}",
+      "options": {
+        "approve": {
+          "label": "Keep and publish",
+          "effect": "Clears the review and publishes the photograph."
+        },
+        "hold": {
+          "label": "Hold under review",
+          "effect": "Leaves it unpublished. A photograph has no separate “changes requested” state and no column for a moderator’s note, so the hold is durable but your reason stays in the moderation trail."
+        },
+        "remove": {
+          "label": "Remove the upload",
+          "effect": "Takes it out of FRAME. The reason is stored on the photograph, so the member reads it."
+        }
+      }
+    },
+    "duplicates": {
+      "eyebrow": "Queue",
+      "title": "Possible duplicates",
+      "description": "Approved places within {radius, number} metres of each other, closest first.",
+      "emptyTitle": "No places are overlapping",
+      "emptyDescription": "No two approved places sit within {radius, number} metres of each other. A park and the café across its path can legitimately be metres apart, so this scan only ever produces candidates.",
+      "and": "and",
+      "metresApart": "{metres, number} m apart",
+      "kilometresApart": "{kilometres} km apart",
+      "subject": "“{target}”, against “{other}”",
+      "reasonHint": "Say which entry should survive and why. This is read by whoever does the merge, and it is kept in the audit trail.",
+      "options": {
+        "keepBoth": {
+          "label": "Keep both",
+          "effect": "Records that this pair was looked at and both places are real. Nothing about either place changes."
+        },
+        "flagForMerging": {
+          "label": "Flag for merging",
+          "effect": "Writes a note to the audit trail against “{target}”, naming “{other}”. Nothing is merged — FRAME has no merge, so say in the reason which entry should survive and a person will do it."
+        }
+      }
+    },
+    "actions": {
+      "eyebrow": "Record",
+      "title": "Recent decisions",
+      "description": "Newest first. The trail is append-only, so nothing here can be edited or removed.",
+      "emptyTitle": "No decisions recorded yet",
+      "emptyDescription": "Every decision taken in this dashboard is written here with the moderator who took it.",
+      "caption": "Moderation decisions, newest first, with the moderator who recorded each one.",
+      "columns": {
+        "decision": "Decision",
+        "subject": "Subject",
+        "reason": "Reason",
+        "moderator": "Moderator",
+        "when": "When"
+      },
+      "subject": {
+        "photograph": "Photograph",
+        "location": "Place",
+        "profile": "Account",
+        "collection": "Collection",
+        "location_submission": "Proposed place"
+      },
+      "noneNeeded": "None needed",
+      "noneRecorded": "None recorded"
+    }
+  },
+  "legal": {
+    "nav": {
+      "label": "Policies",
+      "note": "All four are working drafts kept in step with the product. They are written in the same repository as the code so that a policy and the behaviour it describes cannot drift apart unnoticed."
+    },
+    "shell": {
+      "eyebrow": "Policy draft",
+      "draft": {
+        "title": "A starting draft, and not legal advice",
+        "body": "FRAME is a project in development. This document was drafted alongside the software so that what it says matches what the software does, but it is not legal advice, no lawyer has reviewed it, and it needs that review before FRAME is opened to the public."
+      },
+      "translation": {
+        "title": "A translation for convenience; the English version governs",
+        "body": "This page is a translation provided for your convenience. If anything in it conflicts with <english>the English version of this document</english>, the English version governs.",
+        "footer": "This page is a translation. Where it differs from <english>the English version</english>, the English version is the one that applies."
+      },
+      "lastReviewed": "Last reviewed <time>{date}</time>",
+      "tableOfContents": "On this page",
+      "defect": "Something in this document that does not match how FRAME behaves is a defect in the document. Report it the same way you would report anything else, and it will be corrected here rather than explained away."
+    },
+    "documents": {
+      "terms": {
+        "nav": "Terms of use",
+        "title": "Terms of use",
+        "description": "Who may use FRAME, what members may publish, and what happens when they do not.",
+        "summary": "These terms cover who may hold an account, what may be published, what happens when something is published that should not have been, and the limits of what FRAME promises while it is still being built."
+      },
+      "privacy": {
+        "nav": "Privacy",
+        "title": "Privacy notice",
+        "description": "What FRAME records, what it publishes, what it refuses to publish, and who else handles it.",
+        "summary": "FRAME collects an email address, whatever you choose to write on your profile, the photographs you upload, and the records needed to keep appreciation and moderation honest. It publishes far less than it holds, and it never publishes a coordinate you did not choose to publish."
+      },
+      "copyright": {
+        "nav": "Copyright and takedown",
+        "title": "Copyright and takedown",
+        "description": "The photographer keeps the copyright. What licence uploading grants, and how an infringement claim is handled.",
+        "summary": "You keep the copyright in everything you publish here. FRAME takes only the narrow licence it needs to show your work on FRAME, and this page sets out how a claim that somebody has published work that is not theirs is handled."
+      },
+      "guidelines": {
+        "nav": "Community guidelines",
+        "title": "Community guidelines",
+        "description": "What belongs on FRAME, how to photograph people in public, which places not to pin, and how appreciation is kept honest.",
+        "summary": "FRAME works because photographers treat the people in their frames, the places they pin and each other’s work carefully. These are the expectations that go with holding an account, written as plainly as they can be."
+      }
+    },
+    "categories": {
+      "street": "Street",
+      "architecture": "Architecture",
+      "night": "Night",
+      "urban-landscape": "Urban landscape",
+      "documentary": "Documentary",
+      "portrait": "Street portrait"
+    },
+    "terms": {
+      "eligibility": {
+        "heading": "Who may use FRAME",
+        "p1": "Anyone may read FRAME. Browsing photographs, places and profiles needs no account and no sign-in.",
+        "p2": "An account is for people aged 16 or over, or the local minimum age for consenting to online services where that is higher. One account per person. An account is personal, is not transferable, and the password on it is yours to keep to yourself.",
+        "p3": "FRAME may decline to create an account, and may close one, for the reasons set out under suspension below."
+      },
+      "acceptableUse": {
+        "heading": "Acceptable use",
+        "intro": "FRAME is a community archive of street photography. Use it for that. In particular, do not:",
+        "list": {
+          "notYourWork": "publish a photograph you did not make, or that you do not have the rights and permissions to publish;",
+          "unlawful": "publish anything unlawful, anything that harasses or endangers a person, or anything that sexualises a child;",
+          "unsafePin": "pin a photograph to a private home or to a place where a published coordinate puts somebody at risk, which the <guidelines>community guidelines</guidelines> set out in detail;",
+          "manipulation": "inflate appreciation with second accounts, reciprocal arrangements or automation, or interfere with the ordering of what other people see;",
+          "scraping": "scrape the site, work around a rate limit, or try to reach another member’s drafts, private collections, email address or reports;",
+          "falseReports": "file reports you do not believe, which wastes the time a real one needs."
+        },
+        "limits": "Uploads are also bounded technically: at most {maxFileSize} per file, at least {minWidth, number} by {minHeight, number} pixels, JPEG, PNG, WebP or AVIF, and up to {maxPerDay, plural, one {# photograph} other {# photographs}} a day. Those limits exist to keep one account from running up everybody’s costs, not to judge your work."
+      },
+      "yourWork": {
+        "heading": "Your work, and your responsibility for it",
+        "p1": "You keep the copyright in every photograph you upload. What uploading grants FRAME, and what it does not, is set out in the <copyright>copyright notice</copyright>.",
+        "confirmIntro": "By publishing a photograph on FRAME you confirm three things:",
+        "list": {
+          "madeIt": "you made it;",
+          "permission": "you have whatever permission the law where you were standing requires from a recognisable person in the frame, or from the owner of a private property;",
+          "noBreach": "publishing it breaks no contract, court order or embargo you are subject to."
+        },
+        "exif": "FRAME reads the EXIF in a file to fill in the camera, the lens and the settings for you. That is a convenience and nothing more: EXIF says which camera produced a file, not who holds the copyright in the photograph, and FRAME does not treat it as evidence of ownership either way. A file with no EXIF at all is published on the same terms.",
+        "altText": "Alt text is required on every photograph because a published image without it is not published to everybody. Write what is in the frame.",
+        "responsibility": "You remain responsible for what you publish. FRAME is the venue, not the author, and a claim about a photograph is answered by the person who uploaded it."
+      },
+      "suspension": {
+        "heading": "Suspension and termination",
+        "p1": "You can delete your account whenever you like. What that removes, and what survives it, is described in the <privacy>privacy notice</privacy>.",
+        "intro": "FRAME may suspend an account where there is:",
+        "list": {
+          "credibleClaim": "a credible claim that a photograph on it is not the uploader’s work;",
+          "repeatedDisregard": "repeated disregard of the community guidelines after being told;",
+          "manipulation": "manipulation of appreciation or of the ordering of the galleries;",
+          "harassment": "harassment of another member, or of a person in a photograph."
+        },
+        "recorded": "A suspension is recorded with a reason and the reason is shown to the account it concerns. A suspended account can still read FRAME but cannot publish, appreciate, submit a place or change a collection. Suspension is not deletion: the work is hidden, not destroyed, while the matter is settled.",
+        "revisited": "Every one of those decisions is made by a person and can be revisited by a person. If a decision about your account was wrong, say so and it will be looked at again.",
+        "record": "The record of a moderation decision is kept even after the photograph or the account it concerned has gone, because a record of why something was removed is what stops the same dispute reopening from the beginning."
+      },
+      "liability": {
+        "heading": "Limitation of liability",
+        "asIs": "FRAME is provided as it is. While the project is in development it may be unavailable without notice, may lose data, and may change in ways that are not backwards compatible. Keep your own copies of your photographs.",
+        "notes": "The shooting notes, access notes and restrictions attached to a place are written by members and checked by moderators against a recorded source. They are not a guarantee. Whether a place is safe to stand in, open to the public, or legal to photograph is for you to establish locally before you go, and it can change between the note being written and your arriving.",
+        "limits": "To the extent the law allows, FRAME is not liable for indirect or consequential loss arising from use of the site, including lost work, lost income or a journey made on the strength of a location note. Nothing here limits liability that cannot lawfully be limited, including liability for death or personal injury caused by negligence, or for fraud.",
+        "outstanding": "The operating entity, the governing law and the forum for a dispute are not yet settled and must be named here before FRAME is launched. Until then this document describes intent, not an enforceable agreement."
+      },
+      "changes": {
+        "heading": "Changes to these terms",
+        "p1": "These terms will change as the product does, and the date at the top of this page records when they were last read through.",
+        "p2": "A change that materially affects what members may do, or what FRAME may do with their work, will be announced in the interface before it takes effect rather than quietly published. Continuing to use FRAME after that notice means accepting the change; if you would rather not, you can remove your work and close your account.",
+        "p3": "The current version always lives at this address. There is no separate paper copy that says something different."
+      }
+    },
+    "privacy": {
+      "whatIsCollected": {
+        "heading": "What is collected",
+        "intro": "Only what the site needs in order to work:",
+        "list": {
+          "email": "<strong>An email address</strong>, so an account can be recovered and verified. The password itself is never stored; the authentication provider holds a hash of it and FRAME never sees the original.",
+          "profile": "<strong>The profile fields you write</strong>: username, display name, avatar, biography, where you are based, a website, and the gear you choose to list. Every one of them is free text you decide to enter, and every one of them is optional except the username and display name.",
+          "photographs": "<strong>The photographs you upload and the EXIF inside them</strong>: camera and lens, focal length, aperture, shutter speed, ISO, the capture date and, where the camera recorded one, a GPS coordinate.",
+          "appreciation": "<strong>Appreciation records</strong>: which account appreciated which photograph. Appreciation is one per member, and that cannot be enforced without keeping the record of who it was.",
+          "reports": "<strong>Reports</strong>: the thing reported, the reason chosen, any note written, and the reporting account where the reporter was signed in.",
+          "placeSubmissions": "<strong>Place submissions</strong>: the name, city, country, coordinate and note proposed for a new location.",
+          "rateLimits": "<strong>Rate-limit counters</strong>, keyed to the account taking the action."
+        },
+        "notCollected": "Not collected: an advertising identifier, a behavioural profile, cross-site tracking, or a record of what anyone searches for. FRAME has no analytics vendor embedded in it."
+      },
+      "whatIsPublished": {
+        "heading": "What is published, and what is not",
+        "published": "<strong>Published</strong>, meaning visible to anyone including people with no account: your display name, username and avatar; your biography, based-in line, website and listed gear; the month you joined; the photographs you have published, with their titles, alt text, descriptions, categories and capture settings; the places you submitted that were approved; your public collections; and the appreciation count on each photograph.",
+        "notPublished": "<strong>Not published</strong>: your email address; the exact day you joined, which is why a profile shows a month only; your drafts and anything still processing; your private collections; which photographs you appreciated, as distinct from the totals; the reports you filed and the fact that you filed them; and your rate-limit counters.",
+        "removal": "A photograph you remove, or that a moderator removes, stops being served immediately. Caches and other people’s browsers may hold a copy for a short while afterwards, which is a property of the web rather than a decision FRAME makes."
+      },
+      "exifAndPlace": {
+        "heading": "EXIF, and the place a photograph was made",
+        "p1": "EXIF is read in your browser as you choose a file, so the upload form can offer the camera and the settings back to you instead of asking you to type them. You can change or clear any of it before publishing.",
+        "gps": "<strong>A GPS coordinate found in EXIF is never published automatically.</strong> It is used for one purpose: to ask whether you want to pin the photograph to a place. If you do not answer, nothing is pinned. A coordinate that stays in the file you uploaded is not served to anyone, because what FRAME serves are generated derivatives with the metadata stripped out.",
+        "precision": "Where you do publish a place, the coordinate is rounded by policy to {publicUnit, select, km {about {publicValue, number} km} other {about {publicValue, number} m}} — enough to find a doorway, not enough to point at a window. Where a moderator has marked a place as privacy-sensitive it is coarsened further, to {reducedUnit, select, km {about {reducedValue, number} km} other {about {reducedValue, number} m}}, and where even that would be unsafe no coordinate is published at all. The map and the page both say when a point is deliberately approximate.",
+        "reduction": "Precision is only ever reduced, never widened: a coarsened point stays coarsened, and there is no stored copy of the finer value that a later change could expose. If you published a place and now regret it, ask and it will be coarsened or removed."
+      },
+      "ipAddresses": {
+        "heading": "Why an IP address is not treated as identity",
+        "p1": "An IP address identifies a connection at a moment, not a person. It is shared by everyone in a household, an office, a university or a café, it is shared at much larger scale by mobile carriers, and it changes — sometimes several times a day.",
+        "p2": "So FRAME keys its limits and its records to an account rather than to an address. Treating an address as a person gets it wrong in both directions: a crowded café is throttled as though it were one very busy member, while somebody determined to abuse the site only has to reconnect.",
+        "p3": "The exceptions are the requests that arrive before a session exists — signing up, signing in, asking for a password reset — where the limit can only be applied to the attempt itself. Those counters are short-lived and are not used to build a profile.",
+        "p4": "A hosting provider records the IP address of every request as part of serving it. That is true of any website. FRAME does not read those logs to identify a member, does not join them to account records, and does not use them for anything other than keeping the service running."
+      },
+      "retention": {
+        "heading": "How long things are kept",
+        "list": {
+          "account": "Account and profile: for as long as the account exists.",
+          "photographs": "Published photographs and their generated sizes: until you remove them, or until the account is deleted.",
+          "drafts": "Drafts: until you publish or discard them. A draft that is never finished is still yours.",
+          "appreciation": "Appreciation records: while both the account and the photograph exist.",
+          "reports": "Reports and moderation decisions: kept after the thing they concerned has gone, because the reason something was removed is the only answer to the same claim arriving twice. They are attached to the moderator who decided, not to the person who reported.",
+          "rateLimits": "Rate-limit counters: hours, not months. They are cleaned up as they expire."
+        },
+        "backups": "Backups will hold a copy of deleted content for a period after deletion. A specific retention window for backups has to be set, and stated here, before launch."
+      },
+      "accessAndDeletion": {
+        "heading": "Access, correction and deletion",
+        "p1": "Most of this you can do yourself, which is the point: edit any profile field, remove a photograph, make a collection private, or delete the account outright.",
+        "p2": "Deleting an account removes the profile, the photographs, the generated sizes and the collections. Two things survive it. Moderation decisions are kept with the account reference removed wherever that is possible, for the reason above. And where the account belonged to a moderator, the audit trail it authored cannot be left without an author, so such an account is demoted and retained rather than erased — a point worth knowing before anybody is made a moderator.",
+        "p3": "You can ask for a copy of what is held about you, and for a correction of anything that is wrong. The contact route for those requests, and the supervisory authority a complaint can be taken to, must be named here before launch."
+      },
+      "thirdParties": {
+        "heading": "Who else handles this",
+        "intro": "FRAME is a small application standing on four services:",
+        "list": {
+          "database": "<strong>The database and authentication provider</strong> (Supabase, Postgres and its auth service) holds accounts, profiles, photographs, appreciation, reports and the email address and password hash.",
+          "storage": "<strong>The image storage provider</strong> (Supabase Storage, or Cloudflare R2 where that is configured instead) holds the uploaded file and the sizes generated from it.",
+          "tiles": "<strong>The map tile provider</strong> supplies the style and tiles for the map. Your browser requests those tiles directly, so that provider sees the request, including your IP address, the way any website you visit does. FRAME ships with no tile provider configured and deliberately falls back to no map rather than to somebody’s evaluation server.",
+          "hosting": "<strong>The hosting provider</strong> runs the application and logs requests as described above."
+        },
+        "demo": "A deployment with no database configured shows a bundled sample dataset instead, and says so on every page. The sample photographs in that mode are served from Unsplash under the Unsplash licence and describe nobody real.",
+        "outstanding": "Each of those providers needs to be named specifically, with a data-processing agreement in place, before FRAME handles anybody’s real data. See <terms>the terms</terms> for what is still outstanding."
+      }
+    },
+    "copyright": {
+      "ownership": {
+        "heading": "The photographer keeps the copyright",
+        "p1": "Uploading a photograph to FRAME transfers nothing. You made it, you own it, and you can license it to whoever you like on whatever terms you like, including terms FRAME knows nothing about.",
+        "p2": "Every photograph is shown with its photographer’s name and a link to their profile, and the footer of every page says that FRAME licenses nothing on anyone’s behalf. That is not decoration: it is the whole arrangement."
+      },
+      "licence": {
+        "heading": "The licence you grant FRAME",
+        "intro": "Publishing a photograph grants FRAME a non-exclusive, worldwide, royalty-free licence, for as long as the photograph is on FRAME, to do four things and no more:",
+        "list": {
+          "store": "store the file you uploaded;",
+          "derivatives": "generate the smaller sizes needed to show it without sending a full-resolution original to every visitor;",
+          "display": "display it on FRAME’s own pages — the galleries, the map, a location page, a profile, a collection — with your credit;",
+          "editorial": "feature it in FRAME’s own editorial promotion of FRAME, such as an editor’s pick or a post about a photograph that is on the site, again with your credit."
+        },
+        "exclusions": "That licence does not include sublicensing your work to a third party, selling it, offering it as stock, printing it for sale, using it in paid advertising, or using it to train a machine-learning model. None of those are covered, and none of them will be added by amending this page quietly.",
+        "ends": "Removing the photograph ends the licence. Already-generated sizes are deleted with it; anything already printed on paper obviously cannot be recalled, which is why the promotional use above is deliberately narrow."
+      },
+      "commercialUse": {
+        "heading": "Commercial and advertising use needs separate permission",
+        "p1": "Any use beyond the four above is a separate agreement between you and whoever wants it. That includes advertising, merchandise, editorial use by a publication, print sales and licensing to a brand, whether the request reaches you through FRAME or not.",
+        "p2": "Where someone contacts FRAME wanting to license a photograph, they are given the photographer’s profile and nothing else. FRAME does not negotiate on your behalf, does not take a cut, and does not pass on your email address without asking you first."
+      },
+      "takedown": {
+        "heading": "Reporting an infringement",
+        "intro": "If a photograph on FRAME is yours and was published by somebody else, report it with the reason <em>{reasonNotMine}</em> or <em>{reasonCopyright}</em>, and include the following. A complaint missing any of it cannot be acted on, and will be returned saying which part is missing.",
+        "list": {
+          "address": "The address of the photograph on FRAME.",
+          "work": "Identification of the work you say it infringes: a link to where you published it, or a copy, or enough description to identify it unambiguously.",
+          "relationship": "Your relationship to that work — the photographer, the rights holder, or an agent.",
+          "contact": "Your name and an address we can reply to.",
+          "goodFaith": "A statement that you believe in good faith that the use on FRAME is not authorised.",
+          "accuracy": "A statement that what you have said is accurate."
+        },
+        "nextIntro": "What happens next, and roughly when:",
+        "steps": {
+          "acknowledge": "<strong>Within two working days</strong> the complaint is acknowledged and read by a moderator.",
+          "hidden": "<strong>Where the claim is on its face valid</strong>, the photograph is hidden while it is examined. Hiding it is a precaution, not a finding: it means nobody is harmed further while the question is open.",
+          "uploaderTold": "<strong>Within five working days</strong> the uploader is told what has been claimed, and by whom to the extent they need in order to answer it. They have ten working days to respond.",
+          "decision": "<strong>A decision is recorded with a reason</strong> and both sides are told what it was. If the claim is upheld the photograph stays down. If it is not, the photograph comes back and the report is closed as dismissed."
+        },
+        "timings": "Those timings are the intent of a project with a small moderation team, not a contractual guarantee, and they will be revised here if they turn out to be unrealistic rather than quietly missed."
+      },
+      "counterNotice": {
+        "heading": "If your photograph was removed and the claim was wrong",
+        "p1": "You can answer a claim. A counter-notice needs the address of the photograph, an explanation of why you have the right to publish it, your name and a contact address, and a statement that what you have said is accurate.",
+        "p2": "Where the answer is credible the photograph is restored and the complainant is told, so that they can take the matter further through a court if they still believe they are right. FRAME is not in a position to decide who owns a photograph: where two accounts both claim the same work and neither will move, the photograph stays down until they settle it between themselves or somebody with the authority to decide does.",
+        "p3": "Filing a claim or a counter-notice you know to be false is grounds for closing the account, and in several jurisdictions is an offence in its own right."
+      },
+      "repeatInfringement": {
+        "heading": "Repeat infringement",
+        "intro": "Upheld claims are counted against the account they were upheld against.",
+        "steps": {
+          "first": "A first upheld claim: the photograph is removed and the member is told why.",
+          "second": "A second: uploading is suspended while the account is reviewed, and every other photograph on it is checked.",
+          "third": "A third: the account is closed."
+        },
+        "notCounted": "Claims that were withdrawn, dismissed or answered successfully are not counted. Deleting a photograph and uploading it again does not reset the count, and neither does opening a second account — an account opened to continue after a closure is closed as well."
+      },
+      "similarityMatching": {
+        "heading": "A similarity match is a signal, never a finding",
+        "p1": "FRAME computes a perceptual fingerprint of each upload and shows a moderator when a new photograph closely resembles one already on the site. That check is useful and it is also close to blind: it cannot tell which of two uploads was made first, cannot tell a crop from a copy, and cannot tell a photographer re-uploading their own work from somebody taking it.",
+        "p2": "So it never removes anything by itself. It puts a pair in front of a person, who then has to do the actual work of establishing who made the photograph. The same is true of the other automated signals: a file with no EXIF is not evidence of theft, because exporting software strips EXIF as a matter of routine, and a burst of uploads is not evidence of anything except enthusiasm.",
+        "p3": "Those signals are shown in the moderation queue labelled as signals, with their severity, precisely so that nobody mistakes one for a conclusion. The <guidelines>community guidelines</guidelines> describe the rest of what moderators look at."
+      }
+    },
+    "guidelines": {
+      "whatBelongs": {
+        "heading": "What belongs on FRAME",
+        "categories": "Photographs made in public places, in the six categories the site is built around: {categories}. A frame that would sit comfortably in any of those belongs here.",
+        "posting": "Post your own work, once. Write alt text that says what is in the frame rather than what it means. Where you know the place, say something useful about standing there: the hour the light works, the side of the street to wait on, whether a tripod will get you stopped.",
+        "notBelongIntro": "What does not belong:",
+        "list": {
+          "notYourWork": "work you did not make, however freely it was available elsewhere;",
+          "generated": "generated images presented as photographs — if a frame was made by a model rather than a camera, this is not the place for it;",
+          "composites": "composites assembled from several moments and presented as one. Processing a frame is photography; building a scene that never existed and captioning it with a street corner is not;",
+          "humiliation": "anything whose point is a person’s humiliation, and anything published to settle a score with somebody in it."
+        },
+        "bounds": "The technical bounds, for completeness: at most {maxFileSize} per file, at least {minWidth, number} by {minHeight, number} pixels, and up to {maxPerDay, plural, one {# photograph} other {# photographs}} a day."
+      },
+      "people": {
+        "heading": "Consent and dignity when photographing people",
+        "p1": "In much of the world it is lawful to photograph people in a public place. Lawful and decent are not the same question, and street photography lives in the gap between them.",
+        "p2": "The test worth applying before publishing is simple: would the person recognise themselves as the subject of a photograph, or as its target? Do not publish a frame whose only content is somebody’s distress, poverty, disability, intoxication, illness or grief. A sleeping rough-sleeper is not a composition.",
+        "p3": "Children need more care than adults, not less. Avoid publishing an identifiable child without the agreement of whoever is responsible for them.",
+        "p4": "If someone in a photograph asks you to take it down, take it down. You do not have to agree that they are right, and you do not have to explain yourself; removing it costs you one frame.",
+        "p5": "Several countries require consent for publication regardless of where the photograph was taken — France and Germany among them. Publishing is your decision and the law that applies to it is yours to know."
+      },
+      "places": {
+        "heading": "Places not to pin",
+        "p1": "A pin is an invitation. It tells strangers that something worth photographing is here and that they should come and stand in it. Most of the time that is the best thing about the site. Sometimes it is the reason not to add one.",
+        "neverIntro": "Never pin:",
+        "list": {
+          "home": "a private home, including your own if anybody else lives there or next door to it;",
+          "sensitive": "a shelter, a refuge, a clinic, a school, a place of worship under threat, or anywhere a published coordinate increases the risk to the people who use it;",
+          "dangerous": "a place where standing there is dangerous or unlawful — a rooftop, a tunnel, a live railway, a restricted site. Marking it as a photographic location sends somebody else there after you."
+        },
+        "sensitive": "Where a place is genuinely sensitive but worth knowing about, pin the street or the district rather than the doorway. Every published coordinate is rounded before anyone sees it, and a moderator can coarsen or withhold a point entirely; the <privacy>privacy notice</privacy> sets out the precisions involved."
+      },
+      "appreciation": {
+        "heading": "Appreciation is one per member",
+        "p1": "Appreciation is a single mark of respect from one member to one photograph. It is not a score you can stack, and it cannot be given twice by the same account.",
+        "p2": "So: no second accounts, no arrangements to appreciate each other’s work in bulk, no scripts. Both sides of a swap are treated the same way, because both sides knew.",
+        "trending": "This matters more than it might sound. Appreciation feeds the trending order, where recent appreciation counts for more than old — the weight halves roughly every {halfLife, plural, one {# hour} other {# hours}}. Manipulating it does not just flatter one photograph; it decides what every visitor to the site is shown next.",
+        "correction": "Where manipulation is found the counts are corrected and the accounts involved are suspended. Correcting a count is not a punishment, it is an accounting fix: a number on this site is supposed to mean what it says."
+      },
+      "accuracy": {
+        "heading": "Location accuracy, and how to report an error",
+        "p1": "A place entry is only worth having if it is right. Use the name people actually use for it, the city and country it is in, and a coordinate you are confident about rather than one you guessed from memory.",
+        "checks": "Submissions are reviewed before they appear. Automated checks look for a coordinate outside its stated country, a point within {radius, plural, one {# metre} other {# metres}} of an existing place, suspiciously round coordinates and a few other patterns. Those checks produce signals for a moderator to read and never a decision — a duplicate flag on two genuinely different doorways is exactly the sort of thing a person has to settle.",
+        "reporting": "If a published place is wrong, report it with the reason <em>{reasonWrongLocation}</em> and say what is wrong in the note: the corrected name, the right side of the street, the coordinate that should be there. A correction is far more useful than a removal, and much more likely to be acted on quickly.",
+        "restrictions": "Access notes and restrictions — permits, opening hours, a tripod ban, a fee — are only shown when a moderator has recorded where the claim came from. A restriction note nobody can source is worse than none at all, because it either sends people away from somewhere open or walks them into somewhere closed."
+      },
+      "editorialPicks": {
+        "heading": "Editorial picks are never sold",
+        "p1": "An editor’s pick is chosen by a person at FRAME because they think the photograph deserves to be seen. It is always labelled as a pick, it is never paid for, and it is never traded for anything — not money, not reciprocal promotion, not a favour.",
+        "p2": "There is no promoted placement on FRAME, no paid position in the trending order and no sponsored collection. The orderings the galleries offer are described in the interface, including what each one actually sorts by, so that nobody has to guess whether a position was bought.",
+        "p3": "If that ever changes, the change will be labelled plainly as advertising and announced before it happens. A site that shows other people’s work has nothing to sell except whether it can be believed."
+      }
+    }
+  },
+  "search": {
+    "meta": {
+      "title": "Search",
+      "description": "Search FRAME for places, the photographs pinned to them and the photographers who made them."
+    },
+    "eyebrow": "Search",
+    "heading": "Find a place, a frame, a <accent>photographer.</accent>",
+    "scope": "Search matches place names, cities and countries, and photographer names and usernames — not photograph titles, and never the content of the photographs themselves.",
+    "form": {
+      "label": "Search FRAME",
+      "placeholder": "A city, a place or a photographer",
+      "searching": "Searching",
+      "clear": "Clear this search"
+    },
+    "prompt": {
+      "heading": "Start with a city",
+      "body": "A city name finds the places photographers have pinned there and the frames they brought back from them. These are starting points rather than popular searches: FRAME keeps no record of what anyone searches for.",
+      "suggestionsLabel": "Suggested searches",
+      "elsewhere": "Or browse <discover>Discover</discover>, open the <map>map</map> or read the <locations>location index</locations>."
+    },
+    "results": {
+      "photographs": {
+        "count": "{count, plural, one {{formatted} photograph} other {{formatted} photographs}}",
+        "countOrMore": "{formatted} or more photographs",
+        "more": "Open this search in Discover",
+        "empty": "No published photograph is pinned to a place matching “{query}”."
+      },
+      "places": {
+        "count": "{count, plural, one {{formatted} place} other {{formatted} places}}",
+        "countOrMore": "{formatted} or more places",
+        "more": "All matching places",
+        "empty": "No approved location matches those words yet."
+      },
+      "people": {
+        "label": "Photographers",
+        "count": "{count, plural, one {{formatted} photographer} other {{formatted} photographers}}",
+        "countOrMore": "{formatted} or more photographers",
+        "empty": "No photographer name or username matches those words. Names are matched as written, so a partial surname works better than a full one spelled differently."
+      }
+    },
+    "empty": {
+      "title": "Nothing matches “{query}”",
+      "body": "No place name, city, country or photographer name matched those words. A shorter search, or just the city, usually finds more.",
+      "action": "Browse everything instead"
+    },
+    "loading": {
+      "label": "Searching FRAME"
+    }
+  },
+  "errors": {
+    "route": {
+      "title": "This page could not be loaded",
+      "description": "Something failed on the server while building this page. Nothing you did caused it and nothing was saved or changed. Trying again often works, because a failed read is frequently a transient one.",
+      "goToDiscover": "Go to Discover",
+      "reference": "Quote this reference if you report it: <code>{digest}</code>"
+    },
+    "notFound": {
+      "eyebrow": "Error 404",
+      "title": "Nothing at this <em>address.</em>",
+      "lead": "The page you asked for is not here. That is usually one of four things.",
+      "reasons": {
+        "mistyped": "The address was mistyped, or the link that brought you here was built by hand.",
+        "removed": "The photographer removed the photograph, or a moderator removed it after a report.",
+        "pending": "The location has been submitted but not approved yet, so it has no public page.",
+        "private": "A collection that used to be public has been made private by its owner."
+      },
+      "browse": "Browse photographs",
+      "openMap": "Open the map",
+      "home": "Back to the homepage",
+      "searchHint": "If you were looking for something in particular, searching for the place or the photographer by name is usually quicker than guessing a URL. <link>Search FRAME</link>."
+    }
+  }
+}

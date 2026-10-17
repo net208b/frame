@@ -1,6 +1,5 @@
 import { PAGE_SIZE } from '@/lib/config';
 import {
-  CATEGORY_LABELS,
   PHOTO_CATEGORIES,
   SORT_OPTIONS,
   type DiscoverQuery,
@@ -55,13 +54,19 @@ export type DiscoverFilterKey =
 /** The gear filters, as one list, so "how many are active" is defined once. */
 export const GEAR_FILTER_KEYS = ['cameraBrand', 'cameraModel', 'lensBrand'] as const;
 
-export interface ActiveDiscoverFilter {
-  key: DiscoverFilterKey;
-  /** What the filter is, for the quiet prefix on a pill. */
-  kind: string;
-  /** The filter as a reader would say it. */
-  value: string;
-}
+/**
+ * One filter currently narrowing the gallery.
+ *
+ * This module is pure and has no locale, so it carries no prose: it reports
+ * *what* is filtering, and the component names it. A category is reported as
+ * its slug, because its name belongs to the shared `taxonomy` namespace
+ * (see `lib/taxonomy.ts`); every other filter is text the viewer typed or chose
+ * from the facets and is shown back to them verbatim in any language. The union
+ * is discriminated so a consumer cannot render a slug by mistake.
+ */
+export type ActiveDiscoverFilter =
+  | { key: 'category'; category: PhotoCategory }
+  | { key: Exclude<DiscoverFilterKey, 'category'>; value: string };
 
 /* ------------------------------------------------------------------------ */
 /* URL -> query                                                              */
@@ -212,31 +217,19 @@ export function buildClearedDiscoverHref(query: Partial<DiscoverQuery>): string 
 /* Describing a view                                                         */
 /* ------------------------------------------------------------------------ */
 
-const FILTER_KINDS: Record<DiscoverFilterKey, string> = {
-  category: 'Category',
-  place: 'Place',
-  cameraBrand: 'Camera',
-  cameraModel: 'Model',
-  lensBrand: 'Lens',
-};
-
 /** The active filters in reading order, for the removable pills and the title. */
 export function activeDiscoverFilters(query: DiscoverQuery): ActiveDiscoverFilter[] {
   const filters: ActiveDiscoverFilter[] = [];
 
   if (query.category) {
-    filters.push({
-      key: 'category',
-      kind: FILTER_KINDS.category,
-      value: CATEGORY_LABELS[query.category],
-    });
+    filters.push({ key: 'category', category: query.category });
   }
   if (query.place) {
-    filters.push({ key: 'place', kind: FILTER_KINDS.place, value: query.place });
+    filters.push({ key: 'place', value: query.place });
   }
   for (const key of GEAR_FILTER_KEYS) {
     const value = query[key];
-    if (value) filters.push({ key, kind: FILTER_KINDS[key], value });
+    if (value) filters.push({ key, value });
   }
 
   return filters;

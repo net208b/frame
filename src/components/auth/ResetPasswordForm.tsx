@@ -1,11 +1,12 @@
 'use client';
 
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 
-import { fieldError, FormStatus, FormSuccess } from '@/components/auth/AuthStatus';
+import { FormStatus, FormSuccess, useFieldErrors } from '@/components/auth/AuthStatus';
 import { PasswordField } from '@/components/auth/PasswordField';
 import { Button } from '@/components/ui/Button';
+import { Link } from '@/i18n/navigation';
 import { resetPassword } from '@/server/actions/auth';
 
 /**
@@ -25,20 +26,22 @@ type FormState = Awaited<ReturnType<typeof resetPassword>> | null;
 
 export function ResetPasswordForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(resetPassword, null);
+  const t = useTranslations('auth');
+  const errorFor = useFieldErrors(state);
   const changed = state?.ok === true;
 
   return (
     <form action={formAction} className="space-y-5">
       <FormStatus state={state}>
         {state?.ok ? (
-          <FormSuccess title="Password changed">
+          <FormSuccess title={t('reset.successTitle')}>
             <p>{state.message}</p>
             <p className="mt-3">
               <Link
                 href="/discover"
                 className="font-semibold text-ink underline underline-offset-2"
               >
-                Go to the gallery
+                {t('reset.successGallery')}
               </Link>
             </p>
           </FormSuccess>
@@ -48,26 +51,26 @@ export function ResetPasswordForm() {
       {changed ? null : (
         <>
           <PasswordField
-            label="New password"
+            label={t('fields.newPassword')}
             name="password"
             autoComplete="new-password"
             minLength={10}
             required
-            hint="At least 10 characters. Three or four unrelated words are easier to remember and harder to guess than one word with symbols in it."
-            error={fieldError(state, 'password')}
+            hint={t('reset.passwordHint')}
+            error={errorFor('password')}
           />
 
           <PasswordField
-            label="Repeat the new password"
+            label={t('fields.repeatPassword')}
             name="confirmPassword"
             autoComplete="new-password"
             minLength={10}
             required
-            error={fieldError(state, 'confirmPassword')}
+            error={errorFor('confirmPassword')}
           />
 
           <Button type="submit" size="lg" loading={pending} className="w-full">
-            {pending ? 'Saving the password' : 'Save the new password'}
+            {pending ? t('reset.submitPending') : t('reset.submit')}
           </Button>
         </>
       )}

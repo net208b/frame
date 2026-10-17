@@ -2,7 +2,6 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import {
@@ -23,6 +22,7 @@ import {
   type SignedUploadGrant,
   type StorageDriver,
 } from '@/lib/storage';
+import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
 import { parseForm } from '@/lib/validation';
@@ -1059,17 +1059,17 @@ export async function publishPhotograph(
 
   const row = published as { slug: string; status: PublicationStatus };
 
-  revalidatePath('/');
-  revalidatePath('/discover');
-  revalidatePath('/community');
-  revalidatePath(`/photographs/${row.slug}`);
-  revalidatePath(`/photographers/${viewer.username}`);
+  revalidateLocalisedPath('/');
+  revalidateLocalisedPath('/discover');
+  revalidateLocalisedPath('/community');
+  revalidateLocalisedPath(`/photographs/${row.slug}`);
+  revalidateLocalisedPath(`/photographers/${viewer.username}`);
   if (location) {
-    revalidatePath('/locations');
-    revalidatePath(`/locations/${location.slug}`);
-    revalidatePath('/map');
+    revalidateLocalisedPath('/locations');
+    revalidateLocalisedPath(`/locations/${location.slug}`);
+    revalidateLocalisedPath('/map');
   }
-  if (row.status === 'under_review') revalidatePath('/moderation');
+  if (row.status === 'under_review') revalidateLocalisedPath('/moderation');
 
   return ok(
     { slug: row.slug, status: row.status, signals },
@@ -1142,7 +1142,7 @@ export async function discardDraft(input: unknown): Promise<ActionResult<{ slug:
     );
   }
 
-  revalidatePath(`/photographers/${viewer.username}`);
+  revalidateLocalisedPath(`/photographers/${viewer.username}`);
 
   return ok({ slug: photograph.slug }, 'That upload has been discarded.');
 }

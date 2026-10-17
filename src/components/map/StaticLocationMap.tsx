@@ -2,10 +2,10 @@
 
 import { CircleDashed } from 'lucide-react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
+import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
 import { isMapConfigured, LOCATION_POLICY } from '@/lib/config';
-import { precisionLabel } from '@/lib/geo';
 import { cn, formatCoordinates } from '@/lib/utils';
 
 import { MapLoadFailure, MapUnavailable } from './MapUnavailable';
@@ -17,6 +17,7 @@ import {
   pointCollection,
   pointLayer,
 } from './map-style';
+import { precisionParts } from './precision';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -55,6 +56,8 @@ export function StaticLocationMap({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
 
+  const t = useTranslations('map');
+
   const styleUrl = mapStyleUrl();
   const attribution = mapAttribution();
 
@@ -67,6 +70,18 @@ export function StaticLocationMap({
       : LOCATION_POLICY.publicCoordinateDecimals);
 
   const initialZoom = zoom ?? (isApproximate ? 11 : 14);
+
+  // The whole sentence is one message, so the measurement reaches it as a
+  // formatted value rather than as an English phrase. See ./precision.ts.
+  const precision = t('precision', precisionParts(decimals));
+
+  // Strings MapLibre is given once at construction. They are listed in the
+  // effect's dependencies and compared by value, so the same language rebuilds
+  // nothing; `name` is no longer a dependency in its own right because it only
+  // ever reached the map through this title.
+  const mapTitle = t('static.title', { name });
+  const zoomInLabel = t('canvas.zoomIn');
+  const zoomOutLabel = t('canvas.zoomOut');
 
   useEffect(() => {
     const container = containerRef.current;
@@ -87,8 +102,13 @@ export function StaticLocationMap({
         attributionControl: { customAttribution: attribution ?? undefined },
         // MapLibre labels its own canvas, which is the element that takes focus,
         // so the name belongs here rather than on the wrapper: labelling both
-        // would announce one map as two nested regions.
-        locale: { 'Map.Title': `Map showing ${name}` },
+        // would announce one map as two nested regions. The zoom buttons added
+        // below read their accessible names from this same table.
+        locale: {
+          'Map.Title': mapTitle,
+          'NavigationControl.ZoomIn': zoomInLabel,
+          'NavigationControl.ZoomOut': zoomOutLabel,
+        },
         maxZoom: isApproximate ? 13 : 17,
         // Reference, not exploration: the zoom buttons are the whole interface.
         dragPan: false,
@@ -134,17 +154,28 @@ export function StaticLocationMap({
       disposed = true;
       created?.remove();
     };
-  }, [attribution, initialZoom, isApproximate, latitude, longitude, name, styleUrl]);
+  }, [
+    attribution,
+    initialZoom,
+    isApproximate,
+    latitude,
+    longitude,
+    mapTitle,
+    styleUrl,
+    zoomInLabel,
+    zoomOutLabel,
+  ]);
 
   if (!isMapConfigured()) return <MapUnavailable className={className} />;
 
   return (
     <div className={cn('relative', className)}>
       <p className="sr-only">
-        {name} on a map at {formatCoordinates(latitude, longitude, decimals)}.
-        {isApproximate
-          ? ` This position is deliberately approximate, accurate to ${precisionLabel(decimals)}.`
-          : null}
+        {t('static.description', {
+          name,
+          coordinates: formatCoordinates(latitude, longitude, decimals),
+        })}
+        {isApproximate ? <> {t('static.approximateSr', { precision })}</> : null}
       </p>
 
       <div
@@ -163,17 +194,19 @@ export function StaticLocationMap({
       {isApproximate ? (
         <p className="mt-2 flex items-start gap-2 text-meta leading-relaxed text-muted">
           <CircleDashed aria-hidden className="mt-0.5 size-3 shrink-0" />
-          <span>
-            Approximate position, accurate to {precisionLabel(decimals)}. The exact point is
-            withheld because this place is privacy-sensitive.
-          </span>
+          <span>{t('static.approximateNote', { precision })}</span>
         </p>
       ) : null}
 
       {attribution ? null : (
+        // The provider's own credit line is passed through untouched above (it
+        // is a licence condition); this is FRAME's own sentence about its
+        // absence, so it is translated. The variable name is not.
         <p className="mt-2 text-meta text-muted">
-          No map attribution is configured. Most providers require a credit line: set{' '}
-          <code className="font-mono font-semibold">{MAP_ATTRIBUTION_ENV_VAR}</code>.
+          {t.rich('attribution.missing', {
+            variable: MAP_ATTRIBUTION_ENV_VAR,
+            code: (chunks) => <code className="font-mono font-semibold">{chunks}</code>,
+          })}
         </p>
       )}
     </div>

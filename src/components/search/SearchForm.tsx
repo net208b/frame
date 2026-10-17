@@ -1,12 +1,12 @@
 'use client';
 
 import { Search } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useTransition, type FormEvent } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
+import { Link, useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -30,6 +30,9 @@ export function SearchForm({
   className?: string;
 }) {
   const router = useRouter();
+  const locale = useLocale();
+  const t = useTranslations('search');
+  const common = useTranslations('common');
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -46,7 +49,8 @@ export function SearchForm({
     <div className={cn('max-w-2xl', className)}>
       <form
         role="search"
-        action="/search"
+        // A real address for the no-JavaScript submit, so it carries the locale.
+        action={`/${locale}/search`}
         method="get"
         onSubmit={handleSubmit}
         className="flex items-start gap-2.5"
@@ -57,12 +61,12 @@ export function SearchForm({
             className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-soft"
           />
           <TextField
-            label="Search FRAME"
+            label={t('form.label')}
             hideLabel
             name="q"
             type="search"
             defaultValue={initialQuery}
-            placeholder="A city, a place or a photographer"
+            placeholder={t('form.placeholder')}
             maxLength={MAX_QUERY_LENGTH}
             autoComplete="off"
             enterKeyHint="search"
@@ -71,14 +75,14 @@ export function SearchForm({
         </div>
 
         <Button type="submit" size="lg" loading={pending}>
-          Search
+          {common('search')}
         </Button>
       </form>
 
       <div className="mt-2.5 flex min-h-5 flex-wrap items-baseline gap-x-5 gap-y-1">
         {/* Always in the DOM, so the change is announced rather than the region appearing. */}
         <p aria-live="polite" className="text-meta text-muted">
-          {pending ? 'Searching' : ''}
+          {pending ? t('form.searching') : ''}
         </p>
 
         {initialQuery ? (
@@ -86,7 +90,7 @@ export function SearchForm({
             href="/search"
             className="text-meta font-semibold text-ink-soft underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink"
           >
-            Clear this search
+            {t('form.clear')}
           </Link>
         ) : null}
       </div>
