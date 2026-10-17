@@ -1014,17 +1014,30 @@ of RLS tests run as a real `set role authenticated` session with JWT claims,
 because RLS bugs do not show up as the `postgres` role. The `.env`-free demo mode
 makes a smoke test of every route cheap.
 
-### There is no CI, and nothing audits dependencies
+### CI runs the checks but does not audit dependencies
 
-**What.** No `.github/`, no pipeline, no `npm audit` in a script, no secret
-scanning.
+**What.** `.github/workflows/ci.yml` runs on every pull request and every push to
+`main`. One job installs with `npm ci` and runs the lint, typecheck and build; a
+second applies all seven migrations to a `postgis/postgis:17-3.5` service
+container and runs the 38 assertions in `supabase/tests`, then asserts that
+`locations.geog` really is `geography(Point,4326)` so a run can never pass
+against the local PostGIS shim and look equivalent.
 
-**What could go wrong.** A vulnerable transitive dependency, a committed key or a
-failing typecheck reaches `main` unnoticed.
+What is still absent: `npm audit` in the pipeline, Dependabot, and secret
+scanning. Nothing stops a vulnerable dependency reaching `main`.
 
-**The fix.** A workflow running `npm ci`, `npm run lint`, `npm run typecheck`,
-`npm run build` and `npm audit --audit-level=high` on every push, plus Dependabot
-and a secret scanner.
+**What could go wrong.** Exactly that, and it already has: `maplibre-gl` 5.24.0
+carries GHSA-jrc7-96c5-q579, a critical XSS sanitizer bypass, and nothing in the
+repository reports it. Member-submitted location names are rendered into map
+popups, so that is a live path rather than a theoretical one.
+
+**The fix.** Add `npm audit --audit-level=high --omit=dev` as a job. Scoped to
+production dependencies on purpose: the dev-only advisories npm currently reports
+come from `eslint-config-next`, and npm's suggested remedy for them is a
+*downgrade* to 14.2.35, which is worse than the current state. Note that adding
+the step will fail the build until `maplibre-gl` is upgraded — which is the point
+of the step, but means the upgrade has to land first or at the same time. Then
+Dependabot for the version bumps and a secret scanner for the keys.
 
 ### `console.error` is the whole of the logging story
 
@@ -1146,7 +1159,7 @@ Ordered by whether they block a first real member account.
 | 10 | **Fix `capabilities().uploads` for the `r2` case**, so the capability notice is trustworthy | `src/lib/config.ts` |
 | 11 | **Choose a licence** | a new `LICENSE` |
 | 12 | **Tests for the pure functions, and a handful of RLS tests** under a real `authenticated` session | a new test directory |
-| 13 | **CI running lint, typecheck, build and audit** | a new workflow |
+| 13 | **`npm audit`, Dependabot and secret scanning in CI** (lint, typecheck, build and the database suite already run) | `.github/workflows/ci.yml` |
 | 14 | **Correct the two stale doc statements** | `README.md`, `supabase/README.md` |
 
 ### Can wait

@@ -213,6 +213,29 @@ why the project deliberately ships no default.
 | `npm run lint:fix` | `eslint . --fix` | The same rules, applying every fix that can be applied safely. |
 | `npm run typecheck` | `tsc --noEmit` | Strict, with `noUncheckedIndexedAccess`. Faster than a build for a quick check, and not a substitute for one. |
 
+There is one more check that is not an npm script, because it needs a database
+rather than Node:
+
+```bash
+supabase/tests/run.sh
+```
+
+It applies all seven migrations to a throwaway PostgreSQL cluster and asserts the
+38 guarantees in `supabase/tests/constraints.sql` — one appreciation per member,
+a sourced location restriction, a published photograph that carries a rights
+confirmation, and the rest. It exits non-zero on failure and never touches a
+database holding real data. `supabase/tests/README.md` says what a green run does
+and does not prove.
+
+**All four run in CI.** `.github/workflows/ci.yml` runs the lint, typecheck and
+build in one job and the database suite in another, on every pull request and
+every push to `main`. The database job uses a PostGIS service container, so the
+migrations apply unmodified rather than through the local shim, and a final step
+asserts that `locations.geog` really is `geography(Point,4326)` — a run that
+silently fell back to the shim would otherwise look identical to one that did
+not. Node 24 is used there; `engines` in `package.json` records the floor,
+because Node 20 is past end of life and `@supabase/supabase-js` warns on it.
+
 ---
 
 ## From demo mode to a real database
