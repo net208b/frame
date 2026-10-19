@@ -1,17 +1,17 @@
 'use client';
 
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { CheckboxField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
+import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
-import { precisionLabel } from '@/lib/geo';
-import { formatCoordinates, formatDate, formatFileSize } from '@/lib/utils';
-import { CATEGORY_LABELS } from '@/types/domain';
+import { formatCoordinates } from '@/lib/utils';
 
-import { STEP_META, type StepId, type UploadDraft } from './use-upload-draft';
+import { useUploadFormat } from './format';
+import { stepNumber, type StepId, type UploadDraft } from './use-upload-draft';
 
 /**
  * Step 6 — review, then the rights declaration.
@@ -26,6 +26,12 @@ import { STEP_META, type StepId, type UploadDraft } from './use-upload-draft';
  * it is never pre-ticked by anything, and `publishPhotograph` checks it again
  * on the server and stamps the moment it was given — so a tick in this browser
  * is a statement by the member, not the thing that authorises publication.
+ *
+ * Its four clauses say the same four things in both languages: the member is
+ * the photographer or holds permission, they keep their copyright, FRAME is
+ * granted only the licence it needs to display and promote the work here, and
+ * commercial or advertising use needs separate permission each time. That is
+ * what a member is agreeing to, so no clause is compressed in translation.
  */
 
 function Section({
@@ -39,15 +45,21 @@ function Section({
   onEdit: (step: StepId) => void;
   children: ReactNode;
 }) {
-  const meta = STEP_META[step];
+  const t = useTranslations('upload');
 
   return (
     <section className="border-t border-line py-6 first:border-t-0 first:pt-0">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2">
         <h3 className="text-title font-semibold tracking-tight">{title}</h3>
         <Button variant="ghost" size="sm" onClick={() => onEdit(step)}>
-          Change
-          <span className="sr-only">{` ${title.toLowerCase()} — back to step ${meta.number}, ${meta.title}`}</span>
+          {t('review.change')}
+          <span className="sr-only">
+            {t('review.changeSr', {
+              section: title,
+              number: stepNumber(step),
+              step: t(`steps.${step}.title`),
+            })}
+          </span>
         </Button>
       </div>
       <dl className="mt-4 grid gap-x-8 gap-y-3.5 sm:grid-cols-[11rem_1fr]">{children}</dl>
@@ -57,19 +69,23 @@ function Section({
 
 /** One reviewed value. A blank one says so rather than rendering an empty cell. */
 function Row({ label, value }: { label: string; value: ReactNode }) {
+  const t = useTranslations('upload');
   const given = value !== null && value !== undefined && value !== '';
 
   return (
     <>
       <dt className="text-meta font-bold text-muted uppercase sm:pt-px">{label}</dt>
       <dd className={given ? 'text-body text-ink' : 'text-body text-muted-soft'}>
-        {given ? value : 'Not given'}
+        {given ? value : t('review.notGiven')}
       </dd>
     </>
   );
 }
 
 export function StepReview({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
+  const taxonomy = useTranslations('taxonomy');
+  const format = useUploadFormat();
   const { state, errors } = draft;
   const { capture, editing, proposal } = state;
 
@@ -85,28 +101,28 @@ export function StepReview({ draft }: { draft: UploadDraft }) {
       ? formatCoordinates(latitude, longitude, 5)
       : '';
 
-  const capturedLabel = state.publishCapturedAt ? formatDate(state.exif?.capturedAt) : null;
+  const capturedLabel = state.publishCapturedAt ? format.date(state.exif?.capturedAt) : null;
 
   return (
     <div>
-      <h2 className="text-section font-bold">Check it over</h2>
-      <p className="mt-2 max-w-prose text-body text-muted">
-        This is everything FRAME is about to store. Nothing has been uploaded yet, so a change here
-        costs you nothing.
-      </p>
+      <h2 className="text-section font-bold">{t('review.heading')}</h2>
+      <p className="mt-2 max-w-prose text-body text-muted">{t('review.lead')}</p>
 
       <div className="mt-8">
-        <Section title="Photograph" step="file" onEdit={draft.goTo}>
-          <Row label="File" value={state.file?.name ?? ''} />
+        <Section title={t('review.sectionPhotograph')} step="file" onEdit={draft.goTo}>
+          <Row label={t('review.rowFile')} value={state.file?.name ?? ''} />
           <Row
-            label="Size"
-            value={state.file ? formatFileSize(state.file.size) : ''}
+            label={t('review.rowSize')}
+            value={state.file ? format.fileSize(state.file.size) : ''}
           />
           <Row
-            label="Dimensions"
+            label={t('review.rowDimensions')}
             value={
               state.exif?.width && state.exif.height
-                ? `${state.exif.width} × ${state.exif.height} pixels, as the file reports them`
+                ? t('review.valueDimensions', {
+                    width: format.plain(state.exif.width),
+                    height: format.plain(state.exif.height),
+                  })
                 : ''
             }
           />
@@ -122,95 +138,102 @@ export function StepReview({ draft }: { draft: UploadDraft }) {
               alt={
                 state.altText.trim().length > 0
                   ? state.altText
-                  : 'The photograph you have chosen. You have not written alt text for it yet.'
+                  : t('review.previewAltFallback')
               }
               className="max-h-72 w-auto rounded-media border border-line object-contain"
             />
           </div>
         ) : null}
 
-        <Section title="Description" step="describe" onEdit={draft.goTo}>
-          <Row label="Title" value={state.title} />
+        <Section title={t('review.sectionDescription')} step="describe" onEdit={draft.goTo}>
+          <Row label={t('review.rowTitle')} value={state.title} />
           <Row
-            label="Category"
-            value={state.category === '' ? '' : CATEGORY_LABELS[state.category]}
+            label={t('review.rowCategory')}
+            value={state.category === '' ? '' : taxonomy(`category.${state.category}`)}
           />
-          <Row label="Alt text" value={state.altText} />
-          <Row label="Description" value={state.description} />
+          <Row label={t('review.rowAltText')} value={state.altText} />
+          <Row label={t('review.rowDescription')} value={state.description} />
         </Section>
 
-        <Section title="Place" step="place" onEdit={draft.goTo}>
+        <Section title={t('review.sectionPlace')} step="place" onEdit={draft.goTo}>
           {state.placeMode === 'existing' ? (
             <>
-              <Row label="Approved place" value={state.location?.name ?? ''} />
+              <Row label={t('review.rowApprovedPlace')} value={state.location?.name ?? ''} />
               <Row
-                label="Where"
-                value={
-                  state.location ? `${state.location.city}, ${state.location.country}` : ''
-                }
+                label={t('review.rowWhere')}
+                value={state.location ? `${state.location.city}, ${state.location.country}` : ''}
               />
             </>
           ) : state.placeMode === 'propose' ? (
             <>
-              <Row label="Proposed place" value={proposal.proposedName} />
+              <Row label={t('review.rowProposedPlace')} value={proposal.proposedName} />
               <Row
-                label="Where"
+                label={t('review.rowWhere')}
                 value={
                   [proposal.city, proposal.country, proposal.countryCode.toUpperCase()]
                     .filter((part) => part.trim().length > 0)
                     .join(', ') || ''
                 }
               />
-              <Row label="Point" value={proposedPoint} />
-              <Row label="Note for the moderator" value={proposal.note} />
-              <Row
-                label="Status"
-                value="Queued for a moderator. Your photograph publishes now; the place appears once it is approved."
-              />
+              <Row label={t('review.rowPoint')} value={proposedPoint} />
+              <Row label={t('review.rowModeratorNote')} value={proposal.note} />
+              <Row label={t('review.rowStatus')} value={t('review.valueProposalStatus')} />
             </>
           ) : (
-            <Row
-              label="Place"
-              value="None. The photograph publishes without a location, and you can add one later without re-uploading."
-            />
+            <Row label={t('review.sectionPlace')} value={t('review.valueNoPlace')} />
           )}
         </Section>
 
-        <Section title="Camera" step="gear" onEdit={draft.goTo}>
-          <Row label="Camera" value={[capture.cameraBrand, capture.cameraModel].filter(Boolean).join(' ')} />
-          <Row label="Lens" value={[capture.lensBrand, capture.lensModel].filter(Boolean).join(' ')} />
+        <Section title={t('review.sectionCamera')} step="gear" onEdit={draft.goTo}>
+          <Row
+            label={t('review.rowCamera')}
+            value={[capture.cameraBrand, capture.cameraModel].filter(Boolean).join(' ')}
+          />
+          <Row
+            label={t('review.rowLens')}
+            value={[capture.lensBrand, capture.lensModel].filter(Boolean).join(' ')}
+          />
         </Section>
 
-        <Section title="Settings" step="settings" onEdit={draft.goTo}>
+        <Section title={t('review.sectionSettings')} step="settings" onEdit={draft.goTo}>
           <Row
-            label="Focal length"
-            value={capture.focalLengthMm === '' ? '' : `${capture.focalLengthMm} mm`}
+            label={t('review.rowFocalLength')}
+            value={
+              capture.focalLengthMm === ''
+                ? ''
+                : t('review.valueFocalLength', { value: capture.focalLengthMm })
+            }
           />
-          <Row label="Aperture" value={capture.aperture === '' ? '' : `f/${capture.aperture}`} />
-          <Row label="Shutter speed" value={capture.shutterSpeed} />
-          <Row label="ISO" value={capture.iso} />
-          <Row label="Editing software" value={editing.software} />
-          <Row label="Editing notes" value={editing.notes} />
           <Row
-            label="Capture date"
+            label={t('review.rowAperture')}
+            value={
+              capture.aperture === ''
+                ? ''
+                : t('review.valueAperture', { value: capture.aperture })
+            }
+          />
+          <Row label={t('review.rowShutterSpeed')} value={capture.shutterSpeed} />
+          <Row label={t('review.rowIso')} value={capture.iso} />
+          <Row label={t('review.rowEditingSoftware')} value={editing.software} />
+          <Row label={t('review.rowEditingNotes')} value={editing.notes} />
+          <Row
+            label={t('review.rowCaptureDate')}
             value={
               capturedLabel ??
-              (state.exif?.capturedAt
-                ? 'Withheld. The file records a date and you chose not to publish it.'
-                : '')
+              (state.exif?.capturedAt ? t('review.valueCaptureDateWithheld') : '')
             }
           />
         </Section>
 
-        <Section title="Position in the file" step="place" onEdit={draft.goTo}>
+        <Section title={t('review.sectionExifPosition')} step="place" onEdit={draft.goTo}>
           <Row
-            label="Camera GPS"
+            label={t('review.rowCameraGps')}
             value={
               state.exif?.gps
                 ? state.gpsChoice === 'used'
-                  ? 'The file records a position and you used it to start your proposal. It is stored with your consent recorded against it, and it is never published as an exact point.'
-                  : 'The file records a position. You chose to leave it out, so it is not stored.'
-                : 'The file records no position.'
+                  ? t('review.valueGpsUsed')
+                  : t('review.valueGpsDeclined')
+                : t('review.valueGpsNone')
             }
           />
         </Section>
@@ -221,41 +244,36 @@ export function StepReview({ draft }: { draft: UploadDraft }) {
         className="mt-4 rounded-panel border border-line-strong bg-surface p-6"
       >
         <h3 id="rights-declaration" className="text-title font-semibold tracking-tight">
-          Rights declaration
+          {t('review.rightsHeading')}
         </h3>
         <p className="mt-2 max-w-prose text-caption leading-relaxed text-muted">
-          FRAME publishes photographs on the strength of this one statement, so it is worth reading
-          rather than skipping.
+          {t('review.rightsIntro')}
         </p>
 
         <ul className="mt-4 max-w-prose space-y-2.5 text-caption leading-relaxed text-ink-soft">
-          <li className="flex gap-2.5">
-            <span aria-hidden className="mt-2 size-1 shrink-0 rounded-pill bg-line-strong" />
-            You are the photographer, or you hold written permission from the photographer to
-            publish this work.
-          </li>
-          <li className="flex gap-2.5">
-            <span aria-hidden className="mt-2 size-1 shrink-0 rounded-pill bg-line-strong" />
-            You keep your copyright. Publishing here transfers nothing.
-          </li>
-          <li className="flex gap-2.5">
-            <span aria-hidden className="mt-2 size-1 shrink-0 rounded-pill bg-line-strong" />
-            You grant FRAME only the licence it needs to display the work on the platform and to
-            promote the platform with it — nothing wider.
-          </li>
-          <li className="flex gap-2.5">
-            <span aria-hidden className="mt-2 size-1 shrink-0 rounded-pill bg-line-strong" />
-            Any commercial or advertising use needs separate permission from you, asked for and
-            agreed each time.
-          </li>
+          {(
+            [
+              'review.rightsAuthor',
+              'review.rightsCopyright',
+              'review.rightsLicence',
+              'review.rightsCommercial',
+            ] as const
+          ).map((key) => (
+            <li key={key} className="flex gap-2.5">
+              <span aria-hidden className="mt-2 size-1 shrink-0 rounded-pill bg-line-strong" />
+              {t(key)}
+            </li>
+          ))}
         </ul>
 
         <p className="mt-4 text-caption text-muted">
-          The full terms are at{' '}
-          <Link href="/legal/copyright" className="font-semibold text-ink underline">
-            the copyright policy
-          </Link>
-          .
+          {t.rich('review.rightsTerms', {
+            link: (chunks: ReactNode) => (
+              <Link href="/legal/copyright" className="font-semibold text-ink underline">
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
 
         <CheckboxField
@@ -263,17 +281,17 @@ export function StepReview({ draft }: { draft: UploadDraft }) {
           checked={state.rightsConfirmed}
           onChange={(event) => draft.update({ rightsConfirmed: event.target.checked })}
           error={errors.rightsConfirmed}
-          label="I am the photographer or hold permission to publish this work, and I grant FRAME the licence described above."
-          description="FRAME records the moment you tick this and checks it again on the server before anything is published."
+          label={t('review.rightsConfirm')}
+          description={t('review.rightsConfirmDescription')}
         />
       </section>
 
       {state.placeMode === 'propose' ? (
-        <Notice tone="info" title="Two things are being sent" className="mt-5">
+        <Notice tone="info" title={t('review.twoThingsTitle')} className="mt-5">
           <p>
-            Your photograph, which publishes as soon as it has been processed, and your proposed
-            place, which waits for a moderator. A published point is rounded to{' '}
-            {precisionLabel(LOCATION_POLICY.publicCoordinateDecimals)} rather than shown exactly.
+            {t('review.twoThingsBody', {
+              precision: format.precision(LOCATION_POLICY.publicCoordinateDecimals),
+            })}
           </p>
         </Notice>
       ) : null}

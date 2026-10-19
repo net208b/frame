@@ -1,6 +1,8 @@
 import { Info, OctagonAlert, TriangleAlert } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
+import type { Locale } from '@/i18n/locales';
 import { cn } from '@/lib/utils';
 import type { SubmissionSignal, UploadSignal } from '@/types/domain';
 
@@ -15,27 +17,40 @@ import type { SubmissionSignal, UploadSignal } from '@/types/domain';
  *
  * Rendered as a list item, because signals always arrive as a set and a
  * moderator reading three of them needs them announced as three.
+ *
+ * The *name* of each check is translated here; the *sentence* each check
+ * produced is not. Those sentences are written where the check runs —
+ * `evaluateLocationSubmission` in `lib/geo.ts`, the repository, the upload
+ * action — and carry values from the data ("Within 40 m of an existing
+ * location"). They reach a Thai moderator in English, which is a gap rather
+ * than a decision: dropping them would hide what the check actually found,
+ * which is the one thing a moderator needs.
  */
 
 type Severity = SubmissionSignal['severity'];
 
-/** Keyed by the union, so a new signal kind cannot be added without a name. */
-export const SUBMISSION_SIGNAL_LABELS: Record<SubmissionSignal['kind'], string> = {
-  'possible-duplicate': 'Possible duplicate',
-  'coordinate-country-mismatch': 'Coordinate and country disagree',
-  'coordinate-out-of-range': 'Coordinate out of range',
-  'low-precision': 'Low precision',
-  'rate-limited': 'Rate limited',
-  'sensitive-area': 'Sensitive area',
+/**
+ * Keyed by the union, so a new signal kind cannot be added without a name. The
+ * values are keys into the `moderation` namespace rather than English strings,
+ * which keeps the compiler's exhaustiveness check while the name itself is
+ * translated at the point it is rendered.
+ */
+export const SUBMISSION_SIGNAL_MESSAGE_KEYS: Record<SubmissionSignal['kind'], string> = {
+  'possible-duplicate': 'submissionSignal.possible-duplicate',
+  'coordinate-country-mismatch': 'submissionSignal.coordinate-country-mismatch',
+  'coordinate-out-of-range': 'submissionSignal.coordinate-out-of-range',
+  'low-precision': 'submissionSignal.low-precision',
+  'rate-limited': 'submissionSignal.rate-limited',
+  'sensitive-area': 'submissionSignal.sensitive-area',
 };
 
-export const UPLOAD_SIGNAL_LABELS: Record<UploadSignal['kind'], string> = {
-  'perceptual-hash-match': 'Similar image on file',
-  'exif-missing': 'No EXIF',
-  'exif-conflict': 'EXIF disagrees with the place',
-  'burst-upload': 'Burst upload',
-  'embedded-credit-mismatch': 'Embedded credit differs',
-  'low-resolution': 'Below the minimum size',
+export const UPLOAD_SIGNAL_MESSAGE_KEYS: Record<UploadSignal['kind'], string> = {
+  'perceptual-hash-match': 'uploadSignal.perceptual-hash-match',
+  'exif-missing': 'uploadSignal.exif-missing',
+  'exif-conflict': 'uploadSignal.exif-conflict',
+  'burst-upload': 'uploadSignal.burst-upload',
+  'embedded-credit-mismatch': 'uploadSignal.embedded-credit-mismatch',
+  'low-resolution': 'uploadSignal.low-resolution',
 };
 
 const TONES: Record<Severity, string> = {
@@ -51,19 +66,15 @@ const GLYPHS: Record<Severity, typeof Info> = {
   high: OctagonAlert,
 };
 
-const SEVERITY_WORDS: Record<Severity, string> = {
-  info: 'For information',
-  warn: 'Worth checking',
-  high: 'Needs attention',
-};
-
-export function SignalBadge({
+export async function SignalBadge({
+  locale,
   severity,
   label,
   message,
   children,
   className,
 }: {
+  locale: Locale;
   severity: Severity;
   label: string;
   message?: string;
@@ -71,6 +82,7 @@ export function SignalBadge({
   children?: ReactNode;
   className?: string;
 }) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
   const Glyph = GLYPHS[severity];
 
   return (
@@ -83,7 +95,7 @@ export function SignalBadge({
       >
         <Glyph className="size-3 shrink-0 self-center" aria-hidden />
         {label}
-        <span className="sr-only"> — {SEVERITY_WORDS[severity]}</span>
+        <span className="sr-only"> — {t(`severity.${severity}`)}</span>
       </span>
       {message ? <span className="text-meta text-ink-soft">{message}</span> : null}
       {children}

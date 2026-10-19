@@ -1,10 +1,12 @@
 import { ArrowUpRight } from 'lucide-react';
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { MapCanvas } from '@/components/map/MapCanvas';
 import { MapUnavailable } from '@/components/map/MapUnavailable';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
+import type { Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { isMapConfigured } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
 import { cn, formatCount } from '@/lib/utils';
@@ -20,16 +22,19 @@ import { cn, formatCount } from '@/lib/utils';
  */
 const MAP_HEIGHT = 'h-full min-h-[300px]';
 
-export function MapTeaser({
+export async function MapTeaser({
   pins,
   totalPinCount,
+  locale,
   className,
 }: {
   /** A sample for the teaser. The full set lives on /map. */
   pins: MapPin[];
   totalPinCount: number;
+  locale: Locale;
   className?: string;
 }) {
+  const t = await getTranslations({ locale, namespace: 'home' });
   const mapReady = isMapConfigured();
   const showsSample = pins.length > 0 && pins.length < totalPinCount;
 
@@ -42,34 +47,46 @@ export function MapTeaser({
       )}
     >
       <div className="flex flex-col items-start justify-center p-7 min-[650px]:p-10">
-        <Eyebrow onInk>Explore by place</Eyebrow>
+        <Eyebrow onInk>{t('map.eyebrow')}</Eyebrow>
 
-        <h2 className="mt-4 text-[clamp(2rem,4vw,3.0625rem)] leading-[0.98] font-bold tracking-[-0.075em]">
-          Every pin is somewhere to stand.
+        {/* This heading sets its own size, leading and tracking rather than
+            taking a size token, so the Thai overrides in globals.css — which
+            key off the tokens and the two fluid utilities — cannot reach it.
+            Negative tracking on Thai collides the tone marks with their
+            neighbours, so the pair is chosen here instead: Latin keeps the
+            display tracking the prototype specified, Thai resets it and takes
+            the same leading as the Thai display size. */}
+        <h2
+          className={cn(
+            'mt-4 text-[clamp(2rem,4vw,3.0625rem)] font-bold',
+            locale === 'th' ? 'leading-[1.18] tracking-normal' : 'leading-[0.98] tracking-[-0.075em]',
+          )}
+        >
+          {t('map.title')}
         </h2>
 
-        <p className="mt-3 max-w-[310px] text-caption text-on-ink-muted">
-          Each pin is a place a member submitted and a moderator approved, with the photographs made
-          there and any access notes on file.
-        </p>
+        <p className="mt-3 max-w-[310px] text-caption text-on-ink-muted">{t('map.description')}</p>
 
         <Button asChild variant="accent" className="mt-6">
           <Link href="/map">
-            Open the map
+            {t('map.open')}
             <ArrowUpRight aria-hidden className="size-3.5" />
           </Link>
         </Button>
 
-        <p className="mt-4 text-meta text-on-ink-muted">
-          {totalPinCount > 0 ? (
-            <>
-              <span className="tabular-nums">{formatCount(totalPinCount)}</span>{' '}
-              {totalPinCount === 1 ? 'approved place is' : 'approved places are'} pinned on the full
-              map.
-            </>
-          ) : (
-            'No places have been approved yet, so the map has nothing to show.'
-          )}
+        {/* `tabular-nums` sits on the whole sentence rather than on a span
+            around the number. It only affects digits, so the words are
+            unchanged — and it means the count does not have to be spliced into
+            the middle of the sentence as separate markup, which Thai cannot
+            take. `count` selects the English plural; `formatted` carries the
+            compact figure the rest of the product uses for counts. */}
+        <p className="mt-4 text-meta text-on-ink-muted tabular-nums">
+          {totalPinCount > 0
+            ? t('map.pinCount', {
+                count: totalPinCount,
+                formatted: formatCount(totalPinCount, locale),
+              })
+            : t('map.noPins')}
         </p>
       </div>
 
@@ -85,12 +102,15 @@ export function MapTeaser({
               className="[&>p]:text-on-ink-muted"
             />
             {showsSample ? (
-              <p className="pointer-events-none absolute top-5 left-5 z-10 rounded-field bg-surface px-3 py-2.5 text-eyebrow text-ink uppercase shadow-popover">
-                A sample of <span className="tabular-nums">{pins.length}</span> places
+              <p className="pointer-events-none absolute top-5 left-5 z-10 rounded-field bg-surface px-3 py-2.5 text-eyebrow text-ink uppercase tabular-nums shadow-popover">
+                {t('map.sample', { count: pins.length })}
               </p>
             ) : null}
           </>
         ) : (
+          /* The provider-unavailable copy lives inside MapUnavailable, which is
+             shared with /map and is not translated here — see the note in the
+             handover. It takes no copy props, so this block cannot supply it. */
           <MapUnavailable heightClassName={MAP_HEIGHT} className="rounded-none border-0" />
         )}
       </div>

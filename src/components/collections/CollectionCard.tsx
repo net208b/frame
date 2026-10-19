@@ -1,8 +1,10 @@
 import { Images, Lock } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
-import Link from 'next/link';
 
 import { PhotographerByline } from '@/components/photographer/PhotographerByline';
+import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { IMAGE_SIZES } from '@/lib/images/variants';
 import { cn, formatCount, formatDate, truncate } from '@/lib/utils';
 import type { Collection, CollectionVisibility } from '@/types/domain';
@@ -16,7 +18,23 @@ import type { Collection, CollectionVisibility } from '@/types/domain';
  * not an anchor: the title carries the link and stretches a transparent
  * overlay across the card, which keeps the byline a real sibling link rather
  * than an anchor nested inside one.
+ *
+ * The title and the description are the member's own words, so they are
+ * rendered as stored whatever language the page is in. Everything FRAME says
+ * around them — the badge, the counts, the date — follows the active locale.
  */
+
+/**
+ * The BCP 47 tag `Intl` should format this page's numbers and dates with.
+ *
+ * `useLocale()` returns the URL segment, which is not always a formatting
+ * locale: bare `en` would give American date order where this design has
+ * always printed "12 March 2024", and bare `th` would give the Buddhist era.
+ * `INTL_LOCALES` is the mapping that pins both.
+ */
+function intlLocaleOf(locale: string): string {
+  return INTL_LOCALES[isLocale(locale) ? locale : DEFAULT_LOCALE];
+}
 
 /**
  * The visibility label.
@@ -35,6 +53,8 @@ export function VisibilityBadge({
   onImage?: boolean;
   className?: string;
 }) {
+  const t = useTranslations('collections');
+
   const shell = cn(
     'inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-eyebrow uppercase',
     onImage ? 'bg-surface/90 text-ink' : 'border border-line text-muted',
@@ -44,7 +64,7 @@ export function VisibilityBadge({
   return (
     <span className={shell}>
       {visibility === 'private' ? <Lock aria-hidden className="size-2.5" /> : null}
-      {visibility === 'private' ? 'Private' : 'Public'}
+      {visibility === 'private' ? t('visibility.private') : t('visibility.public')}
     </span>
   );
 }
@@ -63,8 +83,12 @@ export function CollectionCard({
   showVisibility?: boolean;
   className?: string;
 }) {
+  const locale = useLocale();
+  const t = useTranslations('collections');
+
+  const intl = intlLocaleOf(locale);
   const href = `/collections/${collection.slug}`;
-  const updated = formatDate(collection.updatedAt);
+  const updated = formatDate(collection.updatedAt, intl);
   const badged = showVisibility || collection.visibility === 'private';
 
   return (
@@ -84,7 +108,7 @@ export function CollectionCard({
         ) : (
           <div className="grid h-full place-items-center">
             <Images aria-hidden className="size-6 text-muted-soft" />
-            <span className="sr-only">This collection has no cover image yet</span>
+            <span className="sr-only">{t('card.noCover')}</span>
           </div>
         )}
 
@@ -112,16 +136,27 @@ export function CollectionCard({
       {/* "Entries" rather than a split of photographs and places: the index
           read carries one total per collection, and inventing a breakdown from
           it would be a number nobody counted. The split is on the collection's
-          own page, where the entries themselves are in hand. */}
+          own page, where the entries themselves are in hand.
+
+          The compact number is formatted before the message rather than by it,
+          because ICU has no compact notation of its own and "1.2k entries" is
+          the house style for a count. `count` is still passed, so English can
+          pick its plural form from the real number while Thai — which does not
+          inflect — names the unit once. */}
       <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-meta text-muted-soft">
         <span className="tabular-nums">
-          {formatCount(collection.itemCount)}{' '}
-          {collection.itemCount === 1 ? 'entry' : 'entries'}
+          {t('card.entryCount', {
+            count: collection.itemCount,
+            formatted: formatCount(collection.itemCount, intl),
+          })}
         </span>
         {updated ? <span aria-hidden>·</span> : null}
         {updated ? (
           <span>
-            Updated <time dateTime={collection.updatedAt}>{updated}</time>
+            {t.rich('updated', {
+              date: updated,
+              time: (chunks) => <time dateTime={collection.updatedAt}>{chunks}</time>,
+            })}
           </span>
         ) : null}
       </p>

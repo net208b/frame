@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { localeFromRequest, withLocalePrefix } from '@/i18n/locales';
 import { sameOriginUrl } from '@/lib/safe-redirect';
 import { signOut } from '@/server/actions/auth';
 
@@ -42,9 +43,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   // header already shows a visitor rather than a member.
   const failed = !result.ok && result.code !== 'not_configured';
 
+  // The form was submitted from a page, so its Referer names the language the
+  // member was reading: signing out does not change it.
+  const locale = localeFromRequest(request);
+
   // 303 so the browser follows with GET instead of repeating the POST.
   return NextResponse.redirect(
-    sameOriginUrl(request, failed ? '/login?error=signout_failed' : '/'),
+    sameOriginUrl(
+      request,
+      withLocalePrefix(failed ? '/login?error=signout_failed' : '/', locale),
+    ),
     303,
   );
 }

@@ -1,15 +1,16 @@
 'use client';
 
 import { ArrowRight, Check, TriangleAlert } from 'lucide-react';
-import Link from 'next/link';
-import { useCallback, useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useCallback, useState, type ReactNode } from 'react';
 
 import { useToast } from '@/components/system/Toast';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/Dialog';
 import { Notice } from '@/components/ui/states';
+import { Link } from '@/i18n/navigation';
 import type { ActionCode } from '@/lib/action-result';
-import { cn, formatFileSize } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { submitLocation } from '@/server/actions/locations';
 import {
   attachVariants,
@@ -19,6 +20,7 @@ import {
 } from '@/server/actions/upload';
 import type { PublicationStatus, UploadSignal } from '@/types/domain';
 
+import { useUploadFormat } from './format';
 import {
   draftPayload,
   proposalPayload,
@@ -39,6 +41,14 @@ import {
  * or stops the sequence with the server's own message and something to do
  * about it, and a photograph held for review says so in those words rather
  * than being dressed up as published.
+ *
+ * Two kinds of sentence appear in this step and they are not interchangeable.
+ * The ones this page writes — the stages, what to do about each kind of
+ * refusal, what happened in the end — come from the message catalogue and are
+ * in the language the page is in. The ones a server action or image storage
+ * wrote come back as strings on the result and are shown as they arrived: a
+ * refusal is evidence of what happened, and paraphrasing it into another
+ * language here would be this page inventing a reason it was not given.
  */
 
 /* ------------------------------------------------------------------------ */
@@ -48,36 +58,18 @@ import {
 const STAGES = ['draft', 'grant', 'upload', 'process', 'publish', 'place'] as const;
 type Stage = (typeof STAGES)[number];
 
-const STAGE_COPY: Record<Stage, { title: string; detail: string }> = {
-  draft: {
-    title: 'Reserve the record',
-    detail: 'FRAME creates the draft that will own the file, under your account.',
-  },
-  grant: {
-    title: 'Authorise the upload',
-    detail:
-      'The server works out where the file goes and issues a grant for that one object, that one format and that one size. Nothing about the destination is chosen by this browser.',
-  },
-  upload: {
-    title: 'Send the file',
-    detail: 'The bytes go straight to storage rather than through FRAME.',
-  },
-  process: {
-    title: 'Check and resize',
-    detail:
-      'The server decodes the file that actually arrived, refuses anything that is not a photograph it can publish, then builds the sizes the site serves and strips every tag from each of them.',
-  },
-  publish: {
-    title: 'Publish',
-    detail: 'Your declaration is recorded and the photograph is written to the gallery.',
-  },
-  place: {
-    title: 'Queue the proposed place',
-    detail: 'Your proposal goes to a moderator. Your photograph does not wait for it.',
-  },
+/** Message keys, relative to the `upload` namespace. */
+const STAGE_KEYS: Record<Stage, { title: string; detail: string }> = {
+  draft: { title: 'submit.stageDraftTitle', detail: 'submit.stageDraftDetail' },
+  grant: { title: 'submit.stageGrantTitle', detail: 'submit.stageGrantDetail' },
+  upload: { title: 'submit.stageUploadTitle', detail: 'submit.stageUploadDetail' },
+  process: { title: 'submit.stageProcessTitle', detail: 'submit.stageProcessDetail' },
+  publish: { title: 'submit.stagePublishTitle', detail: 'submit.stagePublishDetail' },
+  place: { title: 'submit.stagePlaceTitle', detail: 'submit.stagePlaceDetail' },
 };
 
 interface Failure {
+  /** Already in the reader's language, or the server's own words verbatim. */
   message: string;
   code: ActionCode;
   stage: Stage;
@@ -92,22 +84,15 @@ interface Outcome {
 }
 
 /** What a member can do about each kind of refusal. */
-const GUIDANCE: Record<ActionCode, string> = {
-  not_configured:
-    'Nothing was uploaded and nothing was saved. This is a configuration gap in the deployment, not something your file did wrong.',
-  unauthenticated:
-    'Your session has ended. Sign in again in another tab and press submit here — everything you have entered is still on this page, as long as you do not reload it.',
-  forbidden: 'The reason is above. Nothing was uploaded.',
-  rate_limited:
-    'Wait for the time given above and submit again. Nothing was lost, and nothing was partly published.',
-  validation:
-    'Step back to the field named above, correct it, and return here. Nothing has been published.',
-  conflict:
-    'This upload is no longer in the state FRAME expected. Reload the page to see where it actually stands before trying again.',
-  not_found:
-    'FRAME cannot find this upload under your account any more. Reload the page and start it again.',
-  unknown:
-    'Nothing was published. Submitting again is safe — it reuses the same record rather than making a second one.',
+const GUIDANCE_KEYS: Record<ActionCode, string> = {
+  not_configured: 'submit.guidanceNotConfigured',
+  unauthenticated: 'submit.guidanceUnauthenticated',
+  forbidden: 'submit.guidanceForbidden',
+  rate_limited: 'submit.guidanceRateLimited',
+  validation: 'submit.guidanceValidation',
+  conflict: 'submit.guidanceConflict',
+  not_found: 'submit.guidanceNotFound',
+  unknown: 'submit.guidanceUnknown',
 };
 
 /* ------------------------------------------------------------------------ */
@@ -149,9 +134,20 @@ function parseGrant(payload: unknown): Grant | null {
   return { url, method, headers, fields };
 }
 
-type GrantResult =
-  | { ok: true; grant: Grant }
-  | { ok: false; error: string; code: ActionCode };
+/**
+ * Why a grant was not issued, as a case rather than as a sentence.
+ *
+ * `requestGrant` runs outside React and has no translator, so it names what
+ * went wrong and the component says it. `refused` is the one case that carries
+ * a sentence, because that sentence is the server's own.
+ */
+type GrantRefusal =
+  | { reason: 'unreachable' }
+  | { reason: 'refused'; message: string; code: ActionCode }
+  | { reason: 'no-reason'; status: number; code: ActionCode }
+  | { reason: 'unreadable' };
+
+type GrantResult = { ok: true; grant: Grant } | { ok: false; refusal: GrantRefusal };
 
 /** Codes the sign route returns, kept to the ones `ActionCode` already names. */
 function asActionCode(value: unknown): ActionCode {
@@ -181,11 +177,7 @@ async function requestGrant(input: {
       body: JSON.stringify({ ...input, target: 'original' }),
     });
   } catch {
-    return {
-      ok: false,
-      error: 'FRAME could not be reached to authorise the upload, so nothing was sent.',
-      code: 'unknown',
-    };
+    return { ok: false, refusal: { reason: 'unreachable' } };
   }
 
   let payload: unknown = null;
@@ -198,24 +190,18 @@ async function requestGrant(input: {
   if (!response.ok) {
     const body = asRecord(payload);
     const error = typeof body?.error === 'string' ? body.error : null;
+    const code = asActionCode(body?.code);
     return {
       ok: false,
-      error:
-        error ??
-        `FRAME refused to authorise this upload (HTTP ${response.status}) and gave no reason that can be shown here.`,
-      code: asActionCode(body?.code),
+      refusal:
+        error === null
+          ? { reason: 'no-reason', status: response.status, code }
+          : { reason: 'refused', message: error, code },
     };
   }
 
   const grant = parseGrant(payload);
-  if (!grant) {
-    return {
-      ok: false,
-      error:
-        'FRAME returned an upload grant this page could not read, so nothing was sent. Reload and try again.',
-      code: 'unknown',
-    };
-  }
+  if (!grant) return { ok: false, refusal: { reason: 'unreadable' } };
 
   return { ok: true, grant };
 }
@@ -223,6 +209,13 @@ async function requestGrant(input: {
 /* ------------------------------------------------------------------------ */
 /* The upload itself                                                         */
 /* ------------------------------------------------------------------------ */
+
+type SendFailure =
+  | { reason: 'refused'; status: number }
+  | { reason: 'dropped' }
+  | { reason: 'timeout' };
+
+type SendResult = { ok: true } | { ok: false; failure: SendFailure };
 
 /**
  * Send the file with `XMLHttpRequest` rather than `fetch`.
@@ -235,7 +228,7 @@ function sendFile(
   grant: Grant,
   file: File,
   onProgress: (percent: number) => void,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+): Promise<SendResult> {
   return new Promise((resolve) => {
     const request = new XMLHttpRequest();
     request.open(grant.method, grant.url, true);
@@ -261,22 +254,15 @@ function sendFile(
         resolve({ ok: true });
         return;
       }
-      resolve({
-        ok: false,
-        error: `Image storage refused the file with HTTP ${request.status}. Nothing was published. If the grant had expired, submitting again issues a fresh one.`,
-      });
+      resolve({ ok: false, failure: { reason: 'refused', status: request.status } });
     });
 
     request.addEventListener('error', () => {
-      resolve({
-        ok: false,
-        error:
-          'The connection to image storage dropped before the file finished, so nothing was published. Submitting again starts the transfer from the beginning.',
-      });
+      resolve({ ok: false, failure: { reason: 'dropped' } });
     });
 
     request.addEventListener('timeout', () => {
-      resolve({ ok: false, error: 'The upload timed out before it finished, so nothing was published.' });
+      resolve({ ok: false, failure: { reason: 'timeout' } });
     });
 
     if (grant.fields === undefined) {
@@ -298,6 +284,13 @@ function sendFile(
 
 type StageState = 'pending' | 'active' | 'done' | 'failed';
 
+const STATE_KEYS: Record<StageState, string> = {
+  done: 'submit.stateDone',
+  active: 'submit.stateActive',
+  failed: 'submit.stateFailed',
+  pending: 'submit.statePending',
+};
+
 function StageRow({
   stage,
   stageState,
@@ -307,7 +300,9 @@ function StageRow({
   stageState: StageState;
   percent: number;
 }) {
-  const copy = STAGE_COPY[stage];
+  const t = useTranslations('upload');
+  const format = useUploadFormat();
+  const keys = STAGE_KEYS[stage];
   const showBar = stage === 'upload' && (stageState === 'active' || stageState === 'done');
 
   return (
@@ -329,7 +324,7 @@ function StageRow({
         ) : stageState === 'failed' ? (
           <TriangleAlert className="size-3" />
         ) : (
-          STAGES.indexOf(stage) + 1
+          format.plain(STAGES.indexOf(stage) + 1)
         )}
       </span>
 
@@ -340,18 +335,10 @@ function StageRow({
             stageState === 'pending' ? 'text-muted' : 'font-bold text-ink',
           )}
         >
-          {copy.title}
-          <span className="ml-2 font-normal text-muted">
-            {stageState === 'done'
-              ? 'done'
-              : stageState === 'active'
-                ? 'in progress'
-                : stageState === 'failed'
-                  ? 'stopped here'
-                  : 'not started'}
-          </span>
+          {t(keys.title)}
+          <span className="ml-2 font-normal text-muted">{t(STATE_KEYS[stageState])}</span>
         </p>
-        <p className="mt-1 text-meta leading-relaxed text-muted">{copy.detail}</p>
+        <p className="mt-1 text-meta leading-relaxed text-muted">{t(keys.detail)}</p>
 
         {showBar ? (
           <div className="mt-2.5 flex items-center gap-3">
@@ -360,11 +347,11 @@ function StageRow({
                 reach, and the ARIA role carries the same information. */}
             <div
               role="progressbar"
-              aria-label="File upload progress"
+              aria-label={t('submit.progressLabel')}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={percent}
-              aria-valuetext={`${percent} per cent sent`}
+              aria-valuetext={t('submit.progressValueText', { percent })}
               className="h-1.5 w-full max-w-xs overflow-hidden rounded-pill bg-surface-sunken"
             >
               <div
@@ -372,7 +359,9 @@ function StageRow({
                 style={{ width: `${percent}%` }}
               />
             </div>
-            <span className="text-meta font-bold tabular-nums text-ink">{percent}%</span>
+            <span className="text-meta font-bold tabular-nums text-ink">
+              {format.plain(percent)}%
+            </span>
           </div>
         ) : null}
       </div>
@@ -390,6 +379,12 @@ const SIGNAL_TONE: Record<UploadSignal['severity'], string> = {
   high: 'text-danger',
 };
 
+const SIGNAL_KEYS: Record<UploadSignal['severity'], string> = {
+  info: 'submit.signalInfo',
+  warn: 'submit.signalWarn',
+  high: 'submit.signalHigh',
+};
+
 export function StepSubmit({
   draft,
   uploadsConfigured,
@@ -397,6 +392,9 @@ export function StepSubmit({
   draft: UploadDraft;
   uploadsConfigured: boolean;
 }) {
+  const t = useTranslations('upload');
+  const common = useTranslations('common');
+  const format = useUploadFormat();
   const { state } = draft;
   const toast = useToast();
 
@@ -428,7 +426,7 @@ export function StepSubmit({
     const payload = draftPayload(state);
     if (!file || !payload) {
       setFailure({
-        message: 'No file is attached to this upload any more. Go back to step one and choose it again.',
+        message: t('submit.noFileAttached'),
         code: 'validation',
         stage: 'draft',
       });
@@ -481,7 +479,18 @@ export function StepSubmit({
       byteSize: file.size,
     });
     if (!granted.ok) {
-      stop('grant', granted.error, granted.code);
+      const { refusal } = granted;
+      const message =
+        refusal.reason === 'refused'
+          ? refusal.message
+          : refusal.reason === 'no-reason'
+            ? t('submit.grantNoReason', { status: refusal.status })
+            : refusal.reason === 'unreachable'
+              ? t('submit.grantUnreachable')
+              : t('submit.grantUnreadable');
+      const code =
+        refusal.reason === 'refused' || refusal.reason === 'no-reason' ? refusal.code : 'unknown';
+      stop('grant', message, code);
       return;
     }
     finish('grant');
@@ -490,7 +499,16 @@ export function StepSubmit({
     setActive('upload');
     const sent = await sendFile(granted.grant, file, setPercent);
     if (!sent.ok) {
-      stop('upload', sent.error, 'unknown');
+      const { failure: sendFailure } = sent;
+      stop(
+        'upload',
+        sendFailure.reason === 'refused'
+          ? t('submit.sendRefused', { status: sendFailure.status })
+          : sendFailure.reason === 'dropped'
+            ? t('submit.sendDropped')
+            : t('submit.sendTimedOut'),
+        'unknown',
+      );
       return;
     }
     finish('upload');
@@ -523,12 +541,7 @@ export function StepSubmit({
       const queued = await submitLocation(proposal);
       setPlaceNote(
         queued.ok
-          ? {
-              ok: true,
-              message:
-                queued.message ??
-                'Your proposed place is queued for a moderator and will appear once it is approved.',
-            }
+          ? { ok: true, message: queued.message ?? t('submit.placeQueued') }
           : { ok: false, message: queued.error },
       );
       finish('place');
@@ -539,11 +552,11 @@ export function StepSubmit({
     draft.markSubmitted();
     toast.show(
       published.data.status === 'published'
-        ? 'Your photograph is published.'
-        : 'Your photograph is with a moderator.',
+        ? t('submit.toastPublished')
+        : t('submit.toastUnderReview'),
       'success',
     );
-  }, [draft, state, toast]);
+  }, [draft, state, t, toast]);
 
   const discard = useCallback(async () => {
     const photographId = state.photographId;
@@ -560,7 +573,7 @@ export function StepSubmit({
       return;
     }
 
-    toast.show('That upload has been discarded.', 'success');
+    toast.show(t('submit.toastDiscarded'), 'success');
     setRunning(false);
     setFailure(null);
     setOutcome(null);
@@ -568,31 +581,35 @@ export function StepSubmit({
     setDone([]);
     setPercent(0);
     draft.reset();
-  }, [draft, state.photographId, toast]);
+  }, [draft, state.photographId, t, toast]);
 
   const published = outcome !== null;
 
   return (
     <div>
-      <h2 className="text-section font-bold">Send it</h2>
+      <h2 className="text-section font-bold">{t('submit.heading')}</h2>
       <p className="mt-2 max-w-prose text-body text-muted">
         {state.file
-          ? `${state.file.name}, ${formatFileSize(state.file.size)}, going to storage and then through the server's own checks.`
-          : 'No file is attached to this upload.'}
+          ? t('submit.lead', {
+              fileName: state.file.name,
+              size: format.fileSize(state.file.size),
+            })
+          : t('submit.noFile')}
       </p>
 
       {!uploadsConfigured ? (
-        <Notice tone="warning" title="Nothing will be uploaded from this deployment" className="mt-6">
-          <p>
-            This copy of FRAME cannot accept a photograph: it has no database, or the storage
-            provider it was pointed at is missing its credentials. The notice at the top of this
-            page names exactly what is absent. Either way there is nowhere for the file to go, so
-            the wizard is here in full only as a design review.
-          </p>
+        <Notice
+          tone="warning"
+          title={t('submit.notConfiguredTitle')}
+          className="mt-6"
+        >
+          <p>{t('submit.notConfiguredBody')}</p>
           <p className="mt-2">
-            Submitting will refuse and repeat that explanation rather than show you a success that
-            did not happen. The variables that turn uploads on are listed in{' '}
-            <code className="font-mono text-[0.95em] font-semibold">docs/ENVIRONMENT.md</code>.
+            {t.rich('submit.notConfiguredDocs', {
+              code: (chunks: ReactNode) => (
+                <code className="font-mono text-[0.95em] font-semibold">{chunks}</code>
+              ),
+            })}
           </p>
         </Notice>
       ) : null}
@@ -610,18 +627,20 @@ export function StepSubmit({
 
       <p aria-live="polite" role="status" className="mt-4 text-caption text-ink-soft">
         {running && active !== null
-          ? `${STAGE_COPY[active].title}${active === 'upload' ? ` — ${percent}% sent` : '…'}`
+          ? active === 'upload'
+            ? t('submit.statusUploading', { stage: t(STAGE_KEYS[active].title), percent })
+            : t('submit.statusActive', { stage: t(STAGE_KEYS[active].title) })
           : failure !== null
-            ? `Stopped at: ${STAGE_COPY[failure.stage].title}.`
+            ? t('submit.statusStopped', { stage: t(STAGE_KEYS[failure.stage].title) })
             : outcome !== null
               ? outcome.status === 'published'
-                ? 'Published.'
-                : 'Uploaded and waiting on a moderator.'
-              : 'Not started.'}
+                ? t('submit.statusPublished')
+                : t('submit.statusUnderReview')
+              : t('submit.statusIdle')}
       </p>
 
       {failure !== null ? (
-        <Notice tone="danger" title="This upload stopped" className="mt-5">
+        <Notice tone="danger" title={t('submit.failureTitle')} className="mt-5">
           <p>{failure.message}</p>
           {failure.fieldErrors !== undefined &&
           Object.keys(failure.fieldErrors).length > 0 ? (
@@ -633,47 +652,49 @@ export function StepSubmit({
               ))}
             </ul>
           ) : null}
-          <p className="mt-2">{GUIDANCE[failure.code]}</p>
+          <p className="mt-2">{t(GUIDANCE_KEYS[failure.code])}</p>
         </Notice>
       ) : null}
 
       {outcome !== null ? (
-        <section aria-label="What happened to this upload" className="mt-6">
+        <section aria-label={t('submit.outcomeLabel')} className="mt-6">
           <Notice
             tone={outcome.status === 'published' ? 'success' : 'info'}
             title={
               outcome.status === 'published'
-                ? 'Published'
-                : 'Uploaded, and with a moderator before it appears'
+                ? t('submit.outcomePublishedTitle')
+                : t('submit.outcomeReviewTitle')
             }
           >
             <p>
               {outcome.status === 'published'
-                ? 'Your photograph is live, the sizes FRAME serves have been generated from it, and every tag has been stripped from each of them. The original is kept privately as the source for re-processing.'
-                : 'Your photograph has been stored and processed, and one of the automated checks asked for a person to look at it. A moderator reads it, usually within a day, and you will see it in your portfolio either way — published, or with the reason it was not.'}
+                ? t('submit.outcomePublishedBody')
+                : t('submit.outcomeReviewBody')}
             </p>
           </Notice>
 
           {outcome.signals.length > 0 ? (
             <div className="mt-4 rounded-card border border-line bg-surface p-4">
-              <h3 className="text-eyebrow text-muted uppercase">What the checks noticed</h3>
+              <h3 className="text-eyebrow text-muted uppercase">{t('submit.signalsHeading')}</h3>
               <ul className="mt-3 space-y-2.5">
                 {outcome.signals.map((signal, index) => (
-                  <li key={`${signal.kind}-${index}`} className="text-meta leading-relaxed text-ink-soft">
+                  <li
+                    key={`${signal.kind}-${index}`}
+                    className="text-meta leading-relaxed text-ink-soft"
+                  >
                     <span className={cn('font-bold', SIGNAL_TONE[signal.severity])}>
-                      {signal.severity === 'high'
-                        ? 'Held for review'
-                        : signal.severity === 'warn'
-                          ? 'Worth knowing'
-                          : 'For information'}
-                      .
+                      {t(SIGNAL_KEYS[signal.severity])}.
                     </span>{' '}
+                    {/* The server wrote this sentence, with the figures only it
+                        has — how far the file's position sits from the credited
+                        place, what the image was stored at. It is shown as it
+                        arrived rather than paraphrased. */}
                     {signal.message}
                   </li>
                 ))}
               </ul>
               <p className="mt-3 text-meta leading-relaxed text-muted">
-                These are checks with an opinion, not verdicts. A moderator sees the same list.
+                {t('submit.signalsNote')}
               </p>
             </div>
           ) : null}
@@ -682,9 +703,7 @@ export function StepSubmit({
             <Notice tone={placeNote.ok ? 'info' : 'warning'} className="mt-4">
               <p>
                 {placeNote.message}
-                {placeNote.ok
-                  ? ''
-                  : ' Your photograph published normally. You can propose the place again from the location index without re-uploading.'}
+                {placeNote.ok ? '' : ` ${t('submit.placeFailedNote')}`}
               </p>
             </Notice>
           ) : null}
@@ -692,11 +711,11 @@ export function StepSubmit({
           <div className="mt-6 flex flex-wrap gap-2.5">
             {outcome.status === 'published' ? (
               <Button asChild iconRight={<ArrowRight className="size-3.5" aria-hidden />}>
-                <Link href={`/photographs/${outcome.slug}`}>See the photograph</Link>
+                <Link href={`/photographs/${outcome.slug}`}>{t('submit.seePhotograph')}</Link>
               </Button>
             ) : null}
             <Button variant="secondary" onClick={draft.reset}>
-              Upload another photograph
+              {t('submit.uploadAnother')}
             </Button>
           </div>
         </section>
@@ -704,12 +723,8 @@ export function StepSubmit({
 
       {!published ? (
         <div className="mt-7 flex flex-wrap items-center gap-2.5">
-          <Button
-            variant="secondary"
-            onClick={draft.back}
-            disabled={running}
-          >
-            Back to review
+          <Button variant="secondary" onClick={draft.back} disabled={running}>
+            {t('submit.backToReview')}
           </Button>
 
           <Button
@@ -720,12 +735,12 @@ export function StepSubmit({
               void submit();
             }}
           >
-            {failure === null ? 'Upload and publish' : 'Try again'}
+            {failure === null ? t('submit.uploadAndPublish') : common('retry')}
           </Button>
 
           {state.photographId !== null && !running ? (
             <Button variant="ghost" onClick={() => setConfirmDiscard(true)}>
-              Discard this upload
+              {t('submit.discard')}
             </Button>
           ) : null}
         </div>
@@ -733,19 +748,16 @@ export function StepSubmit({
 
       {!published ? (
         <p className="mt-4 max-w-prose text-meta leading-relaxed text-muted">
-          Submitting again after a failure reuses the same record rather than starting a second
-          one, so a retry cannot leave a half-finished upload behind. Nothing is kept in this
-          browser between visits: leaving the page loses what you have typed, which is why FRAME
-          asks before you go.
+          {t('submit.retryNote')}
         </p>
       ) : null}
 
       <ConfirmDialog
         open={confirmDiscard}
         onOpenChange={setConfirmDiscard}
-        title="Discard this upload?"
-        body="The draft record and any file already stored for it are deleted, and the form here is cleared. This cannot be undone."
-        confirmLabel="Discard"
+        title={t('submit.discardDialogTitle')}
+        body={t('submit.discardDialogBody')}
+        confirmLabel={t('submit.discardDialogConfirm')}
         pending={discarding}
         onConfirm={() => {
           void discard();

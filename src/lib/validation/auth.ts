@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
-import { consent, requiredText } from './fields';
+import { validationCode } from './codes';
+import { consent } from './fields';
 
 /**
  * Account schemas.
@@ -10,6 +11,16 @@ import { consent, requiredText } from './fields';
  * check the first member to register `moderation` would shadow a real page, and
  * a member registering `admin` would be able to imply an authority they do not
  * have.
+ *
+ * MESSAGES. Every `error` here is a key, not a sentence: `validation.email.invalid`
+ * rather than "Enter an email address…". The copy for each key lives under
+ * `auth.validation` in `src/messages/{en,th}.json`, and the form resolves it
+ * with its own translator — see `src/lib/validation/codes.ts` for why this
+ * module emits codes rather than taking a translator, and for the pattern the
+ * other validation modules follow. Nothing in the parsing path changed: these
+ * strings travel through `parseForm` into `fieldErrors` exactly as sentences
+ * did, and `useFieldErrors` in `src/components/auth/AuthStatus.tsx` turns them
+ * into copy at the point of render.
  */
 
 /**
@@ -49,24 +60,24 @@ export const RESERVED_USERNAMES = [
 const reserved = new Set<string>(RESERVED_USERNAMES);
 
 export const usernameSchema = z
-  .string({ error: 'A username is required.' })
+  .string({ error: validationCode('username.required') })
   .trim()
   .toLowerCase()
-  .min(3, { error: 'A username needs at least 3 characters.' })
-  .max(24, { error: 'A username must be 24 characters or fewer.' })
+  .min(3, { error: validationCode('username.min') })
+  .max(24, { error: validationCode('username.max') })
   .regex(/^[a-z0-9_]+$/, {
-    error: 'A username may only use lowercase letters, numbers and underscores.',
+    error: validationCode('username.charset'),
   })
   .refine((value) => !reserved.has(value), {
-    error: 'That username is reserved by FRAME. Please choose another.',
+    error: validationCode('username.reserved'),
   });
 
 export const emailSchema = z
-  .string({ error: 'An email address is required.' })
+  .string({ error: validationCode('email.required') })
   .trim()
   .toLowerCase()
-  .max(254, { error: 'That email address is too long to be valid.' })
-  .pipe(z.email({ error: 'Enter an email address in the form you@example.com.' }));
+  .max(254, { error: validationCode('email.tooLong') })
+  .pipe(z.email({ error: validationCode('email.invalid') }));
 
 /**
  * Supabase hashes with bcrypt, which ignores anything past 72 bytes and rejects
@@ -74,20 +85,30 @@ export const emailSchema = z
  * after the form is submitted.
  */
 export const passwordSchema = z
-  .string({ error: 'A password is required.' })
-  .min(10, { error: 'A password needs at least 10 characters.' })
-  .max(72, { error: 'A password must be 72 characters or fewer.' });
+  .string({ error: validationCode('password.required') })
+  .min(10, { error: validationCode('password.min') })
+  .max(72, { error: validationCode('password.max') });
 
-export const displayNameSchema = requiredText({ label: 'Display name', max: 60 });
+/**
+ * Written out rather than built with `requiredText` from `./fields`, because
+ * that helper composes its messages from an English label ("Display name is
+ * required."). The primitives in `./fields` will take the same codes once their
+ * owner converts them; until then a schema that needs a translated message
+ * states its own rules. The behaviour is identical to
+ * `requiredText({ label: 'Display name', max: 60 })`.
+ */
+export const displayNameSchema = z
+  .string({ error: validationCode('displayName.required') })
+  .trim()
+  .min(1, { error: validationCode('displayName.required') })
+  .max(60, { error: validationCode('displayName.max') });
 
 export const signUpSchema = z.object({
   email: emailSchema,
   username: usernameSchema,
   displayName: displayNameSchema,
   password: passwordSchema,
-  acceptedTerms: consent(
-    'Please confirm you accept the terms and the community guidelines before joining.',
-  ),
+  acceptedTerms: consent(validationCode('terms.required')),
 });
 
 /**
@@ -97,8 +118,8 @@ export const signUpSchema = z.object({
 export const signInSchema = z.object({
   email: emailSchema,
   password: z
-    .string({ error: 'Enter your password.' })
-    .min(1, { error: 'Enter your password.' }),
+    .string({ error: validationCode('password.enter') })
+    .min(1, { error: validationCode('password.enter') }),
 });
 
 export const requestPasswordResetSchema = z.object({ email: emailSchema });
@@ -109,11 +130,11 @@ export const resetPasswordSchema = z
   .object({
     password: passwordSchema,
     confirmPassword: z
-      .string({ error: 'Repeat the new password.' })
-      .min(1, { error: 'Repeat the new password.' }),
+      .string({ error: validationCode('password.repeat') })
+      .min(1, { error: validationCode('password.repeat') }),
   })
   .refine((value) => value.password === value.confirmPassword, {
-    error: 'The two passwords do not match.',
+    error: validationCode('password.mismatch'),
     path: ['confirmPassword'],
   });
 

@@ -1,7 +1,8 @@
 import { ArrowUpRight } from 'lucide-react';
-import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { Link } from '@/i18n/navigation';
 import { buildDiscoverHref } from '@/lib/discover-query';
 import { cn } from '@/lib/utils';
 import type { PhotographDetail } from '@/types/domain';
@@ -16,6 +17,10 @@ import type { PhotographDetail } from '@/types/domain';
  * that has something behind it. A line like "Ricoh GR IIIx" from a member who
  * has published no Ricoh frames stays plain text instead of becoming a link to
  * an empty gallery.
+ *
+ * The gear lines themselves are member-written and are never translated. Nor
+ * are the brand names: "Leica" and "f/1.4" are what a Thai photographer writes
+ * too. Only the furniture around them changes language.
  */
 
 export interface GearBrandIndex {
@@ -96,7 +101,7 @@ function gearFilter(entry: string, brands: GearBrandIndex): GearFilter | null {
   return null;
 }
 
-export function GearList({
+export async function GearList({
   gear,
   brands,
   className,
@@ -111,12 +116,15 @@ export function GearList({
   // not fill the field in", so the whole block goes instead.
   if (entries.length === 0) return null;
 
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: 'profile' });
+
   const index = brands ?? { cameras: [], lenses: [] };
 
   return (
     <section className={cn(className)}>
       <h2>
-        <Eyebrow>Usual gear</Eyebrow>
+        <Eyebrow>{t('gear.eyebrow')}</Eyebrow>
       </h2>
 
       <ul className="mt-4 divide-y divide-line border-y border-line">
@@ -133,12 +141,22 @@ export function GearList({
               {filter ? (
                 <Link
                   href={filter.href}
+                  /*
+                   * The whole phrase is one message rather than the visible
+                   * brand plus a screen-reader-only suffix: "Leica" + " lenses
+                   * on Discover" reads correctly only in a language that puts
+                   * the noun last, and Thai puts it first (เลนส์ Leica). Both
+                   * translations still contain the visible brand, so the
+                   * accessible name matches what is on screen.
+                   */
+                  aria-label={
+                    filter.kind === 'lens'
+                      ? t('gear.lensFilter', { brand: filter.brand })
+                      : t('gear.cameraFilter', { brand: filter.brand })
+                  }
                   className="inline-flex shrink-0 items-center gap-1 text-meta font-semibold text-muted transition-colors duration-150 hover:text-ink"
                 >
                   {filter.brand}
-                  <span className="sr-only">
-                    {filter.kind === 'lens' ? ' lenses' : ' cameras'} on Discover
-                  </span>
                   <ArrowUpRight aria-hidden className="size-3" />
                 </Link>
               ) : null}
@@ -147,9 +165,7 @@ export function GearList({
         })}
       </ul>
 
-      <p className="mt-3 text-meta text-muted">
-        Written by the member. FRAME does not check gear against a photograph’s metadata.
-      </p>
+      <p className="mt-3 text-meta text-muted">{t('gear.note')}</p>
     </section>
   );
 }

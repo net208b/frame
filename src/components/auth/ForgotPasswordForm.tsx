@@ -1,9 +1,10 @@
 'use client';
 
 import { MailCheck } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 
-import { fieldError, FormStatus, FormSuccess } from '@/components/auth/AuthStatus';
+import { FormStatus, FormSuccess, useFieldErrors } from '@/components/auth/AuthStatus';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
 import { requestPasswordReset } from '@/server/actions/auth';
@@ -15,6 +16,10 @@ import { requestPasswordReset } from '@/server/actions/auth';
  * likely reason nothing arrives is a mistyped address and hiding the form
  * would leave no way to correct it. The limiter in the action is what stops
  * that becoming a way to fill somebody else's inbox.
+ *
+ * The outcome sentence comes from the action and is the same one in both
+ * languages whether or not the address has an account — see `resetRequested`
+ * in the catalogue. Nothing here may add a word that narrows it.
  */
 
 /** Derived from the action, so the form and the server cannot drift apart. */
@@ -25,38 +30,37 @@ export function ForgotPasswordForm() {
     requestPasswordReset,
     null,
   );
+  const t = useTranslations('auth');
+  const errorFor = useFieldErrors(state);
 
   return (
     <form action={formAction} className="space-y-5">
       <FormStatus state={state}>
         {state?.ok ? (
           <FormSuccess
-            title="Reset link requested"
+            title={t('forgot.successTitle')}
             icon={<MailCheck className="size-4 shrink-0" aria-hidden />}
           >
             <p>{state.message}</p>
-            <p className="mt-2">
-              The link is valid for one hour and can be used once. Open it in this browser if you
-              can — a link opened elsewhere still works, it simply has to be confirmed again.
-            </p>
+            <p className="mt-2">{t('forgot.successDetail')}</p>
           </FormSuccess>
         ) : null}
       </FormStatus>
 
       <TextField
-        label="Email address"
+        label={t('fields.email')}
         name="email"
         type="email"
         autoComplete="email"
         autoCapitalize="none"
         spellCheck={false}
         required
-        hint="The address the account was created with. FRAME cannot tell you which address that was."
-        error={fieldError(state, 'email')}
+        hint={t('forgot.emailHint')}
+        error={errorFor('email')}
       />
 
       <Button type="submit" size="lg" loading={pending} className="w-full">
-        {pending ? 'Sending the link' : 'Send a reset link'}
+        {pending ? t('forgot.submitPending') : t('forgot.submit')}
       </Button>
     </form>
   );

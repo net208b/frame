@@ -1,13 +1,20 @@
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
-import { DecisionForm, type DecisionOption } from '@/components/moderation/DecisionForm';
-import { SignalBadge, SUBMISSION_SIGNAL_LABELS } from '@/components/moderation/SignalBadge';
-import { Avatar } from '@/components/photographer/Avatar';
+import {
+  DecisionForm,
+  type DecisionOption,
+} from '@/components/moderation/DecisionForm';
 import { QueueCapNote } from '@/components/moderation/QueueTabs';
+import {
+  SignalBadge,
+  SUBMISSION_SIGNAL_MESSAGE_KEYS,
+} from '@/components/moderation/SignalBadge';
+import { Avatar } from '@/components/photographer/Avatar';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
+import { INTL_LOCALES, type Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
-import { precisionLabel } from '@/lib/geo';
 import { formatCoordinates, formatDate, formatRelative } from '@/lib/utils';
 import type { LocationSubmission } from '@/types/domain';
 
@@ -22,35 +29,45 @@ import type { LocationSubmission } from '@/types/domain';
  * inside the decision rather than somewhere a moderator might not look.
  */
 
-const OPTIONS: readonly DecisionOption[] = [
-  {
-    value: 'approve',
-    label: 'Approve',
-    effect:
-      'Publishes the place, credits the member, and puts it on the map at the precision chosen below. An approval records no reason.',
-    reasonRequired: false,
-    // approve_location_submission() writes its own audit row with a null
-    // reason, so a sentence typed here would go nowhere at all.
-    reasonAudience: 'none',
-  },
-  {
-    value: 'request_changes',
-    label: 'Ask for changes',
-    effect:
-      'Leaves the place unpublished and shows the member your reason, so they can send a corrected proposal.',
-    reasonRequired: true,
-    // Stored on the submission row, which its submitter can read.
-    reasonAudience: 'member',
-  },
-  {
-    value: 'reject',
-    label: 'Reject',
-    effect: 'Closes the proposal for good. The member reads your reason.',
-    reasonRequired: true,
-    reasonAudience: 'member',
-    destructive: true,
-  },
-];
+type Translator = Awaited<ReturnType<typeof getTranslations>>;
+
+/**
+ * The three decisions, written where the prose is.
+ *
+ * Built per render from the translator rather than held as a module constant,
+ * because what each decision does is a sentence and sentences have a language.
+ * `DecisionForm` receives them already translated and never has to know which
+ * queue it is standing in.
+ */
+function optionsFor(t: Translator): readonly DecisionOption[] {
+  return [
+    {
+      value: 'approve',
+      label: t('submissions.options.approve.label'),
+      effect: t('submissions.options.approve.effect'),
+      reasonRequired: false,
+      // approve_location_submission() writes its own audit row with a null
+      // reason, so a sentence typed here would go nowhere at all.
+      reasonAudience: 'none',
+    },
+    {
+      value: 'request_changes',
+      label: t('submissions.options.requestChanges.label'),
+      effect: t('submissions.options.requestChanges.effect'),
+      reasonRequired: true,
+      // Stored on the submission row, which its submitter can read.
+      reasonAudience: 'member',
+    },
+    {
+      value: 'reject',
+      label: t('submissions.options.reject.label'),
+      effect: t('submissions.options.reject.effect'),
+      reasonRequired: true,
+      reasonAudience: 'member',
+      destructive: true,
+    },
+  ];
+}
 
 /**
  * Approved places keyed by id.
@@ -61,33 +78,38 @@ const OPTIONS: readonly DecisionOption[] = [
  */
 export type LocationSlugLookup = Readonly<Record<string, string>>;
 
-export function SubmissionQueue({
+export async function SubmissionQueue({
+  locale,
   submissions,
   locationSlugById,
 }: {
+  locale: Locale;
   submissions: readonly LocationSubmission[];
   locationSlugById?: LocationSlugLookup;
 }) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+
   return (
     <section aria-labelledby="queue-submissions">
       <SectionHead
-        eyebrow="Queue"
-        title={<span id="queue-submissions">Pending places</span>}
-        description="Oldest first. A place is only ever published by a person, never by a check."
+        eyebrow={t('submissions.eyebrow')}
+        title={<span id="queue-submissions">{t('submissions.title')}</span>}
+        description={t('submissions.description')}
       />
 
-      <QueueCapNote shown={submissions.length} />
+      <QueueCapNote locale={locale} shown={submissions.length} />
 
       {submissions.length === 0 ? (
         <EmptyState
-          title="No places are waiting"
-          description="Every proposal has been decided. New submissions arrive here oldest first."
+          title={t('submissions.emptyTitle')}
+          description={t('submissions.emptyDescription')}
         />
       ) : (
         <ul className="border-t border-line">
           {submissions.map((submission) => (
             <SubmissionRow
               key={submission.id}
+              locale={locale}
               submission={submission}
               locationSlugById={locationSlugById}
             />
@@ -98,15 +120,39 @@ export function SubmissionQueue({
   );
 }
 
-function SubmissionRow({
+/**
+ * Metres per degree of latitude, the figure `precisionLabel` in `lib/geo.ts`
+ * uses. It is repeated here because that helper returns a finished English
+ * phrase ("about 11 m") and this row needs the number so the words can come
+ * from the catalogue. The duplication disappears when `lib/geo.ts` takes a
+ * locale; until then it is one constant, stated on both sides.
+ */
+const METRES_PER_DEGREE = 111_320;
+
+async function SubmissionRow({
+  locale,
   submission,
   locationSlugById,
 }: {
+  locale: Locale;
   submission: LocationSubmission;
   locationSlugById?: LocationSlugLookup;
 }) {
-  const submittedOn = formatDate(submission.createdAt);
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+  const intlLocale = INTL_LOCALES[locale];
+
+  const submittedOn = formatDate(submission.createdAt, intlLocale);
   const place = [submission.city, submission.country].filter(Boolean).join(', ');
+
+  const precisionMetres = METRES_PER_DEGREE / 10 ** LOCATION_POLICY.publicCoordinateDecimals;
+  const precision =
+    precisionMetres >= 1000
+      ? t('submissions.precisionKilometres', {
+          kilometres: new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 1 }).format(
+            precisionMetres / 1000,
+          ),
+        })
+      : t('submissions.precisionMetres', { metres: Math.round(precisionMetres) });
 
   return (
     <li className="border-b border-line py-7 last:border-b-0">
@@ -116,30 +162,28 @@ function SubmissionRow({
 
           <dl className="mt-2.5 flex flex-wrap items-baseline gap-x-5 gap-y-1 text-meta text-muted">
             <div className="flex items-baseline gap-1.5">
-              <dt className="sr-only">Place</dt>
+              <dt className="sr-only">{t('submissions.placeLabel')}</dt>
               <dd className="text-ink-soft">
-                {place || 'No city or country given'}
+                {place || t('submissions.noPlaceGiven')}
                 {submission.countryCode ? ` (${submission.countryCode})` : ''}
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <dt className="sr-only">Submitted coordinates</dt>
+              <dt className="sr-only">{t('submissions.coordinatesLabel')}</dt>
               <dd className="font-mono tabular-nums text-ink-soft">
                 {formatCoordinates(
                   submission.latitude,
                   submission.longitude,
                   LOCATION_POLICY.publicCoordinateDecimals,
                 )}
-                <span className="ml-1.5 font-sans text-muted">
-                  ({precisionLabel(LOCATION_POLICY.publicCoordinateDecimals)})
-                </span>
+                <span className="ml-1.5 font-sans text-muted">({precision})</span>
               </dd>
             </div>
             <div className="flex items-baseline gap-1.5">
-              <dt className="sr-only">Waiting</dt>
+              <dt className="sr-only">{t('submissions.waitingLabel')}</dt>
               <dd>
                 <time dateTime={submission.createdAt} title={submittedOn ?? undefined}>
-                  {formatRelative(submission.createdAt)}
+                  {formatRelative(submission.createdAt, new Date(), intlLocale)}
                 </time>
               </dd>
             </div>
@@ -153,13 +197,17 @@ function SubmissionRow({
               decorative
             />
             <span>
-              Proposed by{' '}
-              <Link
-                href={`/photographers/${submission.submittedBy.username}`}
-                className="font-semibold text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink"
-              >
-                {submission.submittedBy.displayName}
-              </Link>
+              {t.rich('submissions.proposedBy', {
+                name: submission.submittedBy.displayName,
+                link: (chunks) => (
+                  <Link
+                    href={`/photographers/${submission.submittedBy.username}`}
+                    className="font-semibold text-ink underline decoration-line-strong underline-offset-2 hover:decoration-ink"
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </span>
           </p>
 
@@ -176,12 +224,14 @@ function SubmissionRow({
                   // Signals are a derived list with no ids of their own, so the
                   // kind plus its position is the only stable key available.
                   key={`${signal.kind}-${index}`}
+                  locale={locale}
                   severity={signal.severity}
-                  label={SUBMISSION_SIGNAL_LABELS[signal.kind]}
+                  label={t(SUBMISSION_SIGNAL_MESSAGE_KEYS[signal.kind])}
                   message={signal.message}
                 >
                   {signal.kind === 'possible-duplicate' && signal.relatedLabel ? (
                     <DuplicateSignalLink
+                      locale={locale}
                       label={signal.relatedLabel}
                       slug={
                         signal.relatedId === undefined
@@ -195,17 +245,19 @@ function SubmissionRow({
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-meta text-muted">
-              No automated check flagged this proposal, which is not the same as it being right.
-            </p>
+            <p className="mt-4 text-meta text-muted">{t('submissions.noSignals')}</p>
           )}
         </div>
 
         <div className="min-w-0 lg:border-l lg:border-line lg:pl-7">
           <DecisionForm
             target={{ kind: 'submission', submissionId: submission.id }}
-            subjectLabel={`${submission.proposedName}${place ? `, ${place}` : ''}`}
-            options={OPTIONS}
+            subjectLabel={
+              place
+                ? t('submissions.subjectWithPlace', { name: submission.proposedName, place })
+                : submission.proposedName
+            }
+            options={optionsFor(t)}
           />
         </div>
       </div>
@@ -224,22 +276,31 @@ const LINK_CLASSES =
  * is not in the lookup — it falls back to a search for the label and says so,
  * rather than guessing a URL that would 404.
  */
-function DuplicateSignalLink({
+async function DuplicateSignalLink({
+  locale,
   label,
   slug,
   distanceMetres,
 }: {
+  locale: Locale;
   label: string;
   slug: string | undefined;
   distanceMetres: number | undefined;
 }) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+
   return (
     <span className="text-meta text-muted">
-      <Link href={slug ? `/locations/${slug}` : `/search?q=${encodeURIComponent(label)}`} className={LINK_CLASSES}>
+      <Link
+        href={slug ? `/locations/${slug}` : `/search?q=${encodeURIComponent(label)}`}
+        className={LINK_CLASSES}
+      >
         {label}
       </Link>
-      {slug ? null : <span> (by search — this place publishes no map point)</span>}
-      {distanceMetres === undefined ? null : ` · ${distanceMetres} m away`}
+      {slug ? null : <span> {t('submissions.duplicateBySearch')}</span>}
+      {distanceMetres === undefined
+        ? null
+        : ` · ${t('submissions.duplicateDistance', { metres: distanceMetres })}`}
     </span>
   );
 }

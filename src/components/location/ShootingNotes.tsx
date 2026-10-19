@@ -1,3 +1,6 @@
+import { getTranslations } from 'next-intl/server';
+
+import type { Locale } from '@/i18n/locales';
 import { cn } from '@/lib/utils';
 
 /**
@@ -8,28 +11,39 @@ import { cn } from '@/lib/utils';
  * not a statement from whoever runs the place, and a reader deciding whether
  * to carry a tripod across a city needs to know which of the two they are
  * reading.
+ *
+ * The notes themselves are member-written content in whatever language their
+ * author used, so they are rendered exactly as stored. Only the heading and the
+ * provenance line are translated: machine-translating somebody's account of a
+ * place at render time would put words in their mouth.
  */
-export function ShootingNotes({
+export async function ShootingNotes({
   notes,
+  locale,
   className,
 }: {
   notes: readonly string[];
+  locale: Locale;
   className?: string;
 }) {
+  const t = await getTranslations({ locale, namespace: 'location' });
+
   return (
     <section aria-labelledby="shooting-notes" className={cn('min-w-0', className)}>
-      <h2 id="shooting-notes" className="text-title font-bold tracking-[-0.045em]">
-        Shooting notes
+      {/* The size token carries the tracking, which `:root[lang='th']` resets
+          for Thai; an arbitrary `tracking-[…]` would survive that reset and
+          collide the marks stacked above and below each Thai glyph. */}
+      <h2 id="shooting-notes" className="text-title font-bold">
+        {t('notes.title')}
       </h2>
 
       <p className="mt-2 max-w-[52ch] text-caption leading-relaxed text-muted">
-        Written by members who have photographed here and reviewed by a moderator before
-        publication. They are not official guidance from whoever manages the place.
+        {t('notes.provenance')}
       </p>
 
       {notes.length === 0 ? (
         <p className="mt-6 rounded-card border border-dashed border-line px-5 py-6 text-caption leading-relaxed text-muted">
-          Nobody has contributed shooting notes for this place yet.
+          {t('notes.empty')}
         </p>
       ) : (
         <ol className="mt-6 space-y-5">

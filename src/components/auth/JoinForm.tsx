@@ -1,13 +1,14 @@
 'use client';
 
 import { ArrowRight, MailCheck } from 'lucide-react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 
-import { fieldError, FormStatus, FormSuccess } from '@/components/auth/AuthStatus';
+import { FormStatus, FormSuccess, useFieldErrors } from '@/components/auth/AuthStatus';
 import { PasswordField } from '@/components/auth/PasswordField';
 import { Button } from '@/components/ui/Button';
 import { CheckboxField, TextField } from '@/components/ui/Field';
+import { Link } from '@/i18n/navigation';
 import { signUp } from '@/server/actions/auth';
 
 /**
@@ -15,7 +16,9 @@ import { signUp } from '@/server/actions/auth';
  *
  * The rules are stated beside the fields rather than sprung afterwards: the
  * password length, the username charset, and the fact that the username
- * becomes a public address this build cannot change.
+ * becomes a public address this build cannot change. Each hint says so in one
+ * message, including the numbers — the bounds are constants of the schema, so
+ * writing "10" into both catalogues states the rule rather than guessing it.
  *
  * Joining does not sign anybody in. The account exists once the address is
  * confirmed, so the panel below reports what was actually sent rather than
@@ -27,6 +30,8 @@ type FormState = Awaited<ReturnType<typeof signUp>> | null;
 
 export function JoinForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(signUp, null);
+  const t = useTranslations('auth');
+  const errorFor = useFieldErrors(state);
   const joined = state?.ok === true;
 
   return (
@@ -34,21 +39,27 @@ export function JoinForm() {
       <FormStatus state={state}>
         {state?.ok ? (
           <FormSuccess
-            title={state.data.emailConfirmationRequired ? 'Confirmation sent' : 'Account ready'}
+            title={
+              state.data.emailConfirmationRequired
+                ? t('join.confirmationSentTitle')
+                : t('join.accountReadyTitle')
+            }
             icon={<MailCheck className="size-4 shrink-0" aria-hidden />}
           >
             <p>{state.message}</p>
 
             {state.data.emailConfirmationRequired ? (
               <p className="mt-3">
-                Nothing arrived?{' '}
-                <Link
-                  href="/verify-email"
-                  className="font-semibold text-ink underline underline-offset-2"
-                >
-                  Ask for another link
-                </Link>
-                .
+                {t.rich('join.nothingArrived', {
+                  resend: (chunks) => (
+                    <Link
+                      href="/verify-email"
+                      className="font-semibold text-ink underline underline-offset-2"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </p>
             ) : (
               <p className="mt-3">
@@ -56,7 +67,7 @@ export function JoinForm() {
                   href="/discover"
                   className="inline-flex items-center gap-1.5 font-semibold text-ink underline underline-offset-2"
                 >
-                  Start exploring
+                  {t('join.startExploring')}
                   <ArrowRight className="size-3.5 shrink-0" aria-hidden />
                 </Link>
               </p>
@@ -68,19 +79,19 @@ export function JoinForm() {
       {joined ? null : (
         <>
           <TextField
-            label="Email address"
+            label={t('fields.email')}
             name="email"
             type="email"
             autoComplete="email"
             autoCapitalize="none"
             spellCheck={false}
             required
-            hint="Used for the confirmation link and for account notices. It is never shown on your profile."
-            error={fieldError(state, 'email')}
+            hint={t('join.emailHint')}
+            error={errorFor('email')}
           />
 
           <TextField
-            label="Username"
+            label={t('fields.username')}
             name="username"
             autoComplete="username"
             autoCapitalize="none"
@@ -90,67 +101,66 @@ export function JoinForm() {
             maxLength={24}
             pattern="[A-Za-z0-9_]+"
             required
-            hint="Three to 24 characters: lowercase letters, numbers and underscores. This is public — it becomes the address of your profile — and FRAME has no way to change it yet, so choose one you will still want next year."
-            error={fieldError(state, 'username')}
+            hint={t('join.usernameHint')}
+            error={errorFor('username')}
           />
 
           <TextField
-            label="Display name"
+            label={t('fields.displayName')}
             name="displayName"
             autoComplete="name"
             maxLength={60}
             required
-            hint="The name shown beside your photographs."
-            error={fieldError(state, 'displayName')}
+            hint={t('join.displayNameHint')}
+            error={errorFor('displayName')}
           />
 
           <PasswordField
-            label="Password"
+            label={t('fields.password')}
             name="password"
             autoComplete="new-password"
             minLength={10}
             required
-            hint="At least 10 characters. Three or four unrelated words are easier to remember and harder to guess than one word with symbols in it."
-            error={fieldError(state, 'password')}
+            hint={t('join.passwordHint')}
+            error={errorFor('password')}
           />
 
           <CheckboxField
             name="acceptedTerms"
             required
-            label={
-              <>
-                I accept the{' '}
-                <Link href="/legal/terms" className="font-semibold text-ink underline underline-offset-2">
-                  terms
-                </Link>{' '}
-                and the{' '}
+            label={t.rich('join.termsLabel', {
+              terms: (chunks) => (
+                <Link
+                  href="/legal/terms"
+                  className="font-semibold text-ink underline underline-offset-2"
+                >
+                  {chunks}
+                </Link>
+              ),
+              guidelines: (chunks) => (
                 <Link
                   href="/legal/guidelines"
                   className="font-semibold text-ink underline underline-offset-2"
                 >
-                  community guidelines
+                  {chunks}
                 </Link>
-                .
-              </>
-            }
-            description={
-              <>
-                The{' '}
+              ),
+            })}
+            description={t.rich('join.termsDescription', {
+              privacy: (chunks) => (
                 <Link
                   href="/legal/privacy"
                   className="font-semibold text-ink underline underline-offset-2"
                 >
-                  privacy notice
-                </Link>{' '}
-                explains what FRAME stores and what it never publishes without asking — including the
-                location data inside your photographs.
-              </>
-            }
-            error={fieldError(state, 'acceptedTerms')}
+                  {chunks}
+                </Link>
+              ),
+            })}
+            error={errorFor('acceptedTerms')}
           />
 
           <Button type="submit" size="lg" loading={pending} className="w-full">
-            {pending ? 'Creating your account' : 'Create account'}
+            {pending ? t('join.submitPending') : t('join.submit')}
           </Button>
         </>
       )}

@@ -1,11 +1,13 @@
 import { ChevronLeft } from 'lucide-react';
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { CoordinateDisclosure } from '@/components/location/CoordinateDisclosure';
 import { StaticLocationMap } from '@/components/map/StaticLocationMap';
 import { CategoryTag } from '@/components/photo/CategoryTag';
 import { Avatar } from '@/components/photographer/Avatar';
 import { ReportDialog } from '@/components/system/ReportDialog';
+import { INTL_LOCALES, type Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { cn, formatCount, formatDate } from '@/lib/utils';
 import type { LocationDetail } from '@/types/domain';
 
@@ -16,15 +18,26 @@ import type { LocationDetail } from '@/types/domain';
  * The map and the coordinate disclosure sit together on purpose. A pin on its
  * own invites a reader to assume it is exact, so the sentence that says how
  * exact it actually is belongs directly beneath it.
+ *
+ * `name`, `city`, `country`, `description` and `bestTimeOfDay` are stored
+ * records, so they appear in both languages exactly as a moderator approved
+ * them.
  */
-export function LocationHeader({
+export async function LocationHeader({
   location,
+  locale,
   className,
 }: {
   location: LocationDetail;
+  locale: Locale;
   className?: string;
 }) {
-  const approved = formatDate(location.approvedAt);
+  const [t, tCommon] = await Promise.all([
+    getTranslations({ locale, namespace: 'location' }),
+    getTranslations({ locale, namespace: 'common' }),
+  ]);
+
+  const approved = formatDate(location.approvedAt, INTL_LOCALES[locale]);
   const submitter = location.submittedBy;
 
   return (
@@ -35,7 +48,7 @@ export function LocationHeader({
         className="inline-flex items-center gap-1.5 text-meta font-semibold text-muted transition-colors duration-150 hover:text-ink"
       >
         <ChevronLeft aria-hidden className="size-3.5" />
-        All locations
+        {t('header.allLocations')}
       </Link>
 
       <h1 className="text-display-fluid mt-5 max-w-[22ch]">{location.name}</h1>
@@ -45,8 +58,13 @@ export function LocationHeader({
           {location.city}, {location.country}
         </span>
         <span className="rounded-pill border border-line px-2 py-1 text-eyebrow text-ink-soft uppercase">
-          {location.countryCode}
-          <span className="sr-only"> is the ISO country code</span>
+          {/* The code is shown; the sentence that explains what it is belongs to
+              assistive technology, and it is one whole sentence so it can be
+              worded naturally in either language. */}
+          <span aria-hidden>{location.countryCode}</span>
+          <span className="sr-only">
+            {t('header.isoCountryCode', { code: location.countryCode })}
+          </span>
         </span>
       </p>
 
@@ -58,21 +76,21 @@ export function LocationHeader({
             </p>
           ) : (
             <p className="max-w-[56ch] text-lead leading-relaxed text-muted">
-              No description has been written for this place yet.
+              {t('header.noDescription')}
             </p>
           )}
 
           <dl className="mt-9 flex flex-wrap gap-x-12 gap-y-6 border-t border-line pt-7">
             <div>
-              <dt className="text-eyebrow text-muted uppercase">Photographs</dt>
+              <dt className="text-eyebrow text-muted uppercase">{tCommon('photographs')}</dt>
               <dd className="mt-2 text-title font-bold tabular-nums">
-                {formatCount(location.photographCount)}
+                {formatCount(location.photographCount, INTL_LOCALES[locale])}
               </dd>
             </div>
 
             {location.bestTimeOfDay ? (
               <div className="max-w-[26ch]">
-                <dt className="text-eyebrow text-muted uppercase">Best time of day</dt>
+                <dt className="text-eyebrow text-muted uppercase">{t('header.bestTimeOfDay')}</dt>
                 <dd className="mt-2 text-body font-semibold text-ink">{location.bestTimeOfDay}</dd>
               </div>
             ) : null}
@@ -81,7 +99,7 @@ export function LocationHeader({
           {location.categories.length > 0 ? (
             <div className="mt-8">
               <p id="location-categories" className="text-eyebrow text-muted uppercase">
-                Good for
+                {t('header.goodFor')}
               </p>
               <ul
                 aria-labelledby="location-categories"
@@ -102,20 +120,24 @@ export function LocationHeader({
                 <Avatar src={submitter.avatarUrl} name={submitter.displayName} size={28} decorative />
               ) : null}
               <p className="text-meta leading-relaxed text-muted">
-                {submitter ? (
-                  <>
-                    Submitted by{' '}
-                    <Link
-                      href={`/photographers/${submitter.username}`}
-                      className="font-semibold text-ink-soft"
-                    >
-                      {submitter.displayName}
-                    </Link>
-                  </>
-                ) : (
-                  'Submitter not on record'
-                )}
-                {approved ? ` · Approved by a moderator on ${approved}` : ' · Approval date not recorded'}
+                {submitter
+                  ? // One message, with the link as a tag inside it: Thai puts
+                    // the credit before the name and has no space to splice.
+                    t.rich('header.submittedBy', {
+                      name: submitter.displayName,
+                      photographer: (chunks) => (
+                        <Link
+                          href={`/photographers/${submitter.username}`}
+                          className="font-semibold text-ink-soft"
+                        >
+                          {chunks}
+                        </Link>
+                      ),
+                    })
+                  : t('header.submitterUnknown')}
+                {approved
+                  ? ` · ${t('header.approvedOn', { date: approved })}`
+                  : ` · ${t('header.approvalDateUnknown')}`}
               </p>
             </div>
 
@@ -123,7 +145,7 @@ export function LocationHeader({
               subjectType="location"
               subjectId={location.id}
               subjectLabel={`${location.name}, ${location.city}`}
-              triggerLabel="Report an incorrect location"
+              triggerLabel={t('header.report')}
               triggerVariant="ghost"
             />
           </div>
@@ -142,7 +164,11 @@ export function LocationHeader({
             />
           ) : null}
 
-          <CoordinateDisclosure coordinates={location.coordinates} locationName={location.name} />
+          <CoordinateDisclosure
+            coordinates={location.coordinates}
+            locationName={location.name}
+            locale={locale}
+          />
         </div>
       </div>
     </header>

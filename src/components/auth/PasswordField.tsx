@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, EyeOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useState, type InputHTMLAttributes, type ReactNode } from 'react';
 
 import { Field } from '@/components/ui/Field';
@@ -16,6 +17,14 @@ import { cn } from '@/lib/utils';
  * announced twice and read as contradictory. Revealing the characters is the
  * single most effective way to stop somebody mistyping a password they cannot
  * see, so it is offered everywhere a password is typed.
+ *
+ * The accessible name is one whole message, not the visible word plus a hidden
+ * noun. English can glue "Show" and " password" together with a space; Thai
+ * writes ซ่อนรหัสผ่าน with no space anywhere in it, and a message split in two
+ * cannot be put back together in both languages. So the short word on screen
+ * and the full name read by a screen reader are two separate messages, and the
+ * visible one is hidden from assistive technology to keep the name from being
+ * announced twice.
  *
  * The input markup is written out here rather than reusing `TextField`,
  * because the toggle has to sit inside the control's box. The classes below
@@ -46,6 +55,7 @@ export function PasswordField({
   ...props
 }: PasswordFieldProps) {
   const [visible, setVisible] = useState(false);
+  const t = useTranslations('auth');
 
   return (
     <Field label={label} hint={hint} error={error} required={required}>
@@ -79,10 +89,14 @@ export function PasswordField({
               <Eye className="size-3.5 shrink-0" aria-hidden />
             )}
             {/* The visible word carries the state, so the icon is never the
-                only signal and the button's accessible name says what the next
-                press will do. */}
-            {visible ? 'Hide' : 'Show'}
-            <span className="sr-only"> password</span>
+                only signal; the sr-only sentence beside it is the whole
+                accessible name, which says what the next press will do. */}
+            <span aria-hidden>
+              {visible ? t('passwordToggle.hide') : t('passwordToggle.show')}
+            </span>
+            <span className="sr-only">
+              {visible ? t('passwordToggle.hidePassword') : t('passwordToggle.showPassword')}
+            </span>
           </button>
         </div>
       )}

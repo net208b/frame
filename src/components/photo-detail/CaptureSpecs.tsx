@@ -1,7 +1,8 @@
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { CaptureSettings } from '@/types/domain';
 
@@ -17,6 +18,11 @@ import type { CaptureSettings } from '@/types/domain';
  * Every field is nullable, and a missing field is omitted rather than printed
  * as a dash: an em dash beside "Aperture" looks like a value that is known to
  * be nothing, when the truth is that nobody recorded it.
+ *
+ * The values are not translated, and that is the point. `f/1.4`, `1/250`,
+ * `3200` and `35 mm` are written the same way by a photographer in Bangkok as
+ * by one in Copenhagen; only the words naming them change. ISO keeps its name
+ * in Thai because that is what Thai photographers say and write.
  */
 
 /** Discover reads its filters from the query string; see DiscoverQuery. */
@@ -69,13 +75,15 @@ function formatAperture(aperture: number): string {
   return `f/${Number.isInteger(aperture) ? aperture : aperture.toFixed(1)}`;
 }
 
-export function CaptureSpecs({
+export async function CaptureSpecs({
   capture,
   className,
 }: {
   capture: CaptureSettings;
   className?: string;
 }) {
+  const t = await getTranslations('photo');
+
   const { cameraBrand, cameraModel, lensBrand, lensModel, focalLengthMm, aperture, shutterSpeed, iso } =
     capture;
 
@@ -84,50 +92,49 @@ export function CaptureSpecs({
 
   return (
     <section className={cn('min-w-0', className)}>
-      <Eyebrow>In the camera</Eyebrow>
-      <h2 className="mt-2 text-title font-bold">Capture settings</h2>
+      <Eyebrow>{t('capture.eyebrow')}</Eyebrow>
+      <h2 className="mt-2 text-title font-bold">{t('capture.title')}</h2>
 
       {!hasGear && !hasExposure ? (
-        <p className="mt-3 text-caption leading-relaxed text-muted">
-          The photographer did not record the settings for this frame, so there is nothing to
-          show here. Settings are optional on upload and are never inferred from the file.
-        </p>
+        <p className="mt-3 text-caption leading-relaxed text-muted">{t('capture.none')}</p>
       ) : null}
 
       {hasExposure ? (
         <dl className="mt-4 flex flex-wrap gap-2">
           {aperture !== null ? (
-            <ExposureCell term="Aperture" value={formatAperture(aperture)} />
+            <ExposureCell term={t('capture.aperture')} value={formatAperture(aperture)} />
           ) : null}
           {shutterSpeed !== null ? (
-            <ExposureCell term="Shutter" value={shutterSpeed} />
+            <ExposureCell term={t('capture.shutter')} value={shutterSpeed} />
           ) : null}
-          {iso !== null ? <ExposureCell term="ISO" value={String(iso)} /> : null}
+          {iso !== null ? (
+            <ExposureCell term={t('capture.iso')} value={String(iso)} />
+          ) : null}
         </dl>
       ) : null}
 
       {hasGear ? (
         <dl className={cn('text-caption', hasExposure ? 'mt-5' : 'mt-4')}>
           {cameraBrand ? (
-            <Row term="Camera brand">
+            <Row term={t('capture.cameraBrand')}>
               <FilterLink filter="cameraBrand" value={cameraBrand} />
             </Row>
           ) : null}
           {cameraModel ? (
-            <Row term="Camera">
+            <Row term={t('capture.camera')}>
               <FilterLink filter="cameraModel" value={cameraModel} />
             </Row>
           ) : null}
           {lensBrand ? (
-            <Row term="Lens brand">
+            <Row term={t('capture.lensBrand')}>
               <FilterLink filter="lensBrand" value={lensBrand} />
             </Row>
           ) : null}
           {/* Lens models are not a Discover facet, so this one is plain text
               rather than a link that would filter on nothing. */}
-          {lensModel ? <Row term="Lens">{lensModel}</Row> : null}
+          {lensModel ? <Row term={t('capture.lens')}>{lensModel}</Row> : null}
           {focalLengthMm !== null ? (
-            <Row term="Focal length">
+            <Row term={t('capture.focalLength')}>
               <span className="tabular-nums">{focalLengthMm} mm</span>
             </Row>
           ) : null}

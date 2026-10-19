@@ -1,3 +1,5 @@
+import createNextIntlPlugin from 'next-intl/plugin';
+
 /** @type {import('next').NextConfig} */
 
 // Hosts we are allowed to render optimised images from.
@@ -58,4 +60,8 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+// Points next-intl at the per-request configuration in src/i18n/request.ts and
+// nothing else. The config above is unchanged.
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
+
+export default withNextIntl(nextConfig);

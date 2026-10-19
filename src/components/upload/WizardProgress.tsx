@@ -1,8 +1,12 @@
+'use client';
+
 import { Check } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { cn } from '@/lib/utils';
 
-import { STEP_IDS, STEP_META, type StepId } from './use-upload-draft';
+import { useUploadFormat } from './format';
+import { STEP_COUNT, STEP_IDS, type StepId } from './use-upload-draft';
 
 /**
  * The seven-step rail.
@@ -12,6 +16,10 @@ import { STEP_IDS, STEP_META, type StepId } from './use-upload-draft';
  * the sequence is never signalled by colour alone. A step the member has
  * already reached is a real button; one they have not is plain text marked
  * unavailable rather than a button that silently does nothing.
+ *
+ * `'use client'` is explicit although only a client component renders this: the
+ * step names are read from the message catalogue with `useTranslations`, which
+ * a server render of this file would have no provider for.
  */
 export function WizardProgress({
   current,
@@ -27,16 +35,19 @@ export function WizardProgress({
   locked?: boolean;
   className?: string;
 }) {
+  const t = useTranslations('upload');
+  const format = useUploadFormat();
   const currentIndex = STEP_IDS.indexOf(current);
 
   return (
-    <nav aria-label="Upload steps" className={className}>
+    <nav aria-label={t('progress.railLabel')} className={className}>
       <ol className="flex flex-wrap gap-x-1 gap-y-2 md:flex-nowrap md:gap-x-2">
         {STEP_IDS.map((step, index) => {
-          const meta = STEP_META[step];
+          const number = index + 1;
           const isCurrent = step === current;
           const isDone = index < currentIndex;
           const reachable = !locked && index <= furthestIndex;
+          const counters = { number, total: STEP_COUNT };
 
           const label = (
             <span className="flex items-center gap-2">
@@ -54,9 +65,9 @@ export function WizardProgress({
                       : 'border border-line text-muted',
                 )}
               >
-                {isDone ? <Check className="size-3" /> : meta.number}
+                {isDone ? <Check className="size-3" /> : format.plain(number)}
               </span>
-              <span className="whitespace-nowrap">{meta.title}</span>
+              <span className="whitespace-nowrap">{t(`steps.${step}.title`)}</span>
             </span>
           );
 
@@ -78,9 +89,7 @@ export function WizardProgress({
                   className={cn(shared, 'w-full text-left hover:text-ink')}
                 >
                   {label}
-                  <span className="sr-only">
-                    {` — step ${meta.number} of ${STEP_IDS.length}, go back to it`}
-                  </span>
+                  <span className="sr-only">{t('progress.srGoBack', counters)}</span>
                 </button>
               ) : (
                 <span
@@ -91,10 +100,10 @@ export function WizardProgress({
                   {label}
                   <span className="sr-only">
                     {isCurrent
-                      ? ` — current step, ${meta.number} of ${STEP_IDS.length}`
+                      ? t('progress.srCurrent', counters)
                       : locked
-                        ? ` — step ${meta.number} of ${STEP_IDS.length}, finished and no longer editable`
-                        : ` — step ${meta.number} of ${STEP_IDS.length}, not reached yet`}
+                        ? t('progress.srLocked', counters)
+                        : t('progress.srNotReached', counters)}
                   </span>
                 </span>
               )}

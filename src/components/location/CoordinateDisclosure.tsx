@@ -1,9 +1,10 @@
 'use client';
 
 import { Check, Copy, MapPinOff } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 
-import { precisionLabel } from '@/lib/geo';
+import { INTL_LOCALES, type Locale } from '@/i18n/locales';
 import { cn, formatCoordinates } from '@/lib/utils';
 import type { Coordinates } from '@/types/domain';
 
@@ -21,15 +22,50 @@ import type { Coordinates } from '@/types/domain';
  * clipboard is unavailable, it says so instead of reporting a copy that did
  * not happen.
  */
+
+/**
+ * Ground resolution of a decimal precision, in metres.
+ *
+ * `precisionLabel` in `lib/geo.ts` does the same arithmetic but returns an
+ * English sentence fragment ("about 300 m"), which cannot be translated at the
+ * point of use. The rounding below is deliberately identical to it, so the two
+ * never disagree about the same coordinate; only the wording moves into the
+ * message catalogue, where "about" belongs to the sentence around it.
+ */
+const METRES_PER_DEGREE = 111_320;
+
+function precisionDistance(decimals: number, intlLocale: string): string {
+  const metres = METRES_PER_DEGREE / 10 ** decimals;
+
+  if (metres >= 1000) {
+    return new Intl.NumberFormat(intlLocale, {
+      style: 'unit',
+      unit: 'kilometer',
+      unitDisplay: 'short',
+      maximumFractionDigits: 1,
+    }).format(Math.round(metres / 100) / 10);
+  }
+
+  return new Intl.NumberFormat(intlLocale, {
+    style: 'unit',
+    unit: 'meter',
+    unitDisplay: 'short',
+    maximumFractionDigits: 0,
+  }).format(Math.round(metres));
+}
+
 export function CoordinateDisclosure({
   coordinates,
   locationName,
+  locale,
   className,
 }: {
   coordinates: Coordinates | null;
   locationName: string;
+  locale: Locale;
   className?: string;
 }) {
+  const t = useTranslations('location');
   const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const headingId = useId();
 
@@ -43,15 +79,13 @@ export function CoordinateDisclosure({
           className="flex items-center gap-2 text-eyebrow text-muted uppercase"
         >
           <MapPinOff aria-hidden className="size-3.5" />
-          Position withheld
+          {t('coordinates.withheldTitle')}
         </h2>
         <p className="mt-2.5 text-body leading-relaxed text-ink-soft">
-          No coordinate is published for {locationName}. FRAME withholds a point when a place is
-          somebody’s home or workplace, when publishing its position would expose the people who
-          use it, or when a moderator could not verify the point well enough to stand behind it.
+          {t('coordinates.withheldBody', { name: locationName })}
         </p>
         <p className="mt-2 text-caption leading-relaxed text-muted">
-          The place itself is real and has been approved. Only its position is held back.
+          {t('coordinates.withheldNote')}
         </p>
       </section>
     );
@@ -62,6 +96,7 @@ export function CoordinateDisclosure({
   // Decimal degrees at the published precision: the form a map accepts, and the
   // only form that cannot imply more precision than was published.
   const copyable = `${latitude.toFixed(precisionDecimals)}, ${longitude.toFixed(precisionDecimals)}`;
+  const distance = precisionDistance(precisionDecimals, INTL_LOCALES[locale]);
 
   async function copyCoordinates() {
     try {
@@ -75,7 +110,7 @@ export function CoordinateDisclosure({
   return (
     <section aria-labelledby={headingId} className={shell}>
       <h2 id={headingId} className="text-eyebrow text-muted uppercase">
-        {isApproximate ? 'Approximate position' : 'Position'}
+        {isApproximate ? t('coordinates.approximateTitle') : t('coordinates.exactTitle')}
       </h2>
 
       <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -83,7 +118,7 @@ export function CoordinateDisclosure({
         <button
           type="button"
           onClick={copyCoordinates}
-          aria-label={`Copy the coordinates for ${locationName} as decimal degrees`}
+          aria-label={t('coordinates.copyLabel', { name: locationName })}
           className={cn(
             'inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5',
             'text-meta font-semibold text-ink-soft',
@@ -95,34 +130,29 @@ export function CoordinateDisclosure({
           ) : (
             <Copy aria-hidden className="size-3.5" />
           )}
-          {status === 'copied' ? 'Copied' : 'Copy'}
+          {status === 'copied' ? t('coordinates.copied') : t('coordinates.copy')}
         </button>
       </div>
 
       <p aria-live="polite" className="mt-1.5 min-h-4 text-meta text-muted">
-        {status === 'copied' ? `Copied ${copyable} to the clipboard.` : null}
-        {status === 'failed'
-          ? 'The clipboard is not available here. Select the coordinates above and copy them by hand.'
+        {status === 'copied'
+          ? t('coordinates.copiedStatus', { coordinates: copyable })
           : null}
+        {status === 'failed' ? t('coordinates.copyFailed') : null}
       </p>
 
       {isApproximate ? (
         <>
           <p className="mt-2 text-caption leading-relaxed text-ink-soft">
-            This point is deliberately coarse. It is published to {precisionDecimals} decimal
-            places, which places you within {precisionLabel(precisionDecimals)} of the spot rather
-            than at a doorway.
+            {t('coordinates.approximateBody', { decimals: precisionDecimals, distance })}
           </p>
           <p className="mt-2 text-caption leading-relaxed text-muted">
-            FRAME reduces precision for places where an exact position could expose the people who
-            live, work or shelter there. The finer point is never published, here or anywhere else
-            on the site.
+            {t('coordinates.approximateNote')}
           </p>
         </>
       ) : (
         <p className="mt-2 text-caption leading-relaxed text-muted">
-          Published to {precisionDecimals} decimal places, which is accurate to{' '}
-          {precisionLabel(precisionDecimals)}. Copied as decimal degrees, latitude first.
+          {t('coordinates.exactBody', { decimals: precisionDecimals, distance })}
         </p>
       )}
     </section>

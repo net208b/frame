@@ -1,6 +1,7 @@
 'use client';
 
 import { FileDigit } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
 import { TextField } from '@/components/ui/Field';
@@ -27,6 +28,11 @@ import type { CaptureFields, UploadDraft } from './use-upload-draft';
  * only two places in the app that prefill from a camera, and a marker that
  * reads differently on the two halves of the same readout would be worse than
  * one import between neighbours.
+ *
+ * The dash between the marker and the field's own hint stays in the markup
+ * rather than going into a message: it joins two labels, and a translator given
+ * "{marker} — {hint}" would have to keep punctuation they cannot see the use
+ * of. Both halves are messages in their own right.
  */
 export function PrefilledHint({
   prefilled,
@@ -35,13 +41,15 @@ export function PrefilledHint({
   prefilled: boolean;
   children?: ReactNode;
 }): ReactNode {
+  const t = useTranslations('upload');
+
   if (!prefilled) return children ?? null;
 
   return (
     <>
       <span className="inline-flex items-center gap-1 font-bold text-ink-soft">
         <FileDigit className="size-3" aria-hidden />
-        Read from the file
+        {t('prefilled.label')}
       </span>
       {children ? <> — {children}</> : null}
     </>
@@ -50,41 +58,54 @@ export function PrefilledHint({
 
 interface GearInput {
   field: keyof CaptureFields;
-  label: string;
-  placeholder: string;
-  hint?: string;
+  /** Message keys, relative to the `upload` namespace. */
+  labelKey: string;
+  placeholderKey: string;
+  hintKey?: string;
   maxLength: number;
 }
 
 const INPUTS: GearInput[] = [
-  { field: 'cameraBrand', label: 'Camera brand', placeholder: 'Fujifilm', maxLength: 60 },
-  { field: 'cameraModel', label: 'Camera model', placeholder: 'X100V', maxLength: 80 },
   {
-    field: 'lensBrand',
-    label: 'Lens brand',
-    placeholder: 'Voigtländer',
-    hint: 'Leave blank for a fixed lens, or if it is the same as the camera.',
+    field: 'cameraBrand',
+    labelKey: 'gear.cameraBrandLabel',
+    placeholderKey: 'gear.cameraBrandPlaceholder',
     maxLength: 60,
   },
-  { field: 'lensModel', label: 'Lens model', placeholder: '35mm f/1.4 Nokton', maxLength: 80 },
+  {
+    field: 'cameraModel',
+    labelKey: 'gear.cameraModelLabel',
+    placeholderKey: 'gear.cameraModelPlaceholder',
+    maxLength: 80,
+  },
+  {
+    field: 'lensBrand',
+    labelKey: 'gear.lensBrandLabel',
+    placeholderKey: 'gear.lensBrandPlaceholder',
+    hintKey: 'gear.lensBrandHint',
+    maxLength: 60,
+  },
+  {
+    field: 'lensModel',
+    labelKey: 'gear.lensModelLabel',
+    placeholderKey: 'gear.lensModelPlaceholder',
+    maxLength: 80,
+  },
 ];
 
 export function StepGear({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
   const { state, errors } = draft;
   const anyPrefilled = INPUTS.some((input) => draft.isPrefilled(input.field));
 
   return (
     <div>
-      <h2 className="text-section font-bold">Camera and lens</h2>
-      <p className="mt-2 max-w-prose text-body text-muted">
-        All optional. Filling it in is what makes the gear filters on Discover useful to somebody
-        deciding what to carry.
-      </p>
+      <h2 className="text-section font-bold">{t('gear.heading')}</h2>
+      <p className="mt-2 max-w-prose text-body text-muted">{t('gear.lead')}</p>
 
       {state.exifStatus === 'read' && !anyPrefilled ? (
         <Notice tone="info" className="mt-5">
-          This file recorded no camera or lens, so nothing has been filled in. Type what you used,
-          or leave it blank.
+          {t('gear.noneRead')}
         </Notice>
       ) : null}
 
@@ -92,24 +113,23 @@ export function StepGear({ draft }: { draft: UploadDraft }) {
         {INPUTS.map((input) => (
           <TextField
             key={input.field}
-            label={input.label}
+            label={t(input.labelKey)}
             value={state.capture[input.field]}
             maxLength={input.maxLength}
             onChange={(event) => draft.updateCapture({ [input.field]: event.target.value })}
             error={errors[input.field]}
-            placeholder={input.placeholder}
+            placeholder={t(input.placeholderKey)}
             autoComplete="off"
             hint={
-              <PrefilledHint prefilled={draft.isPrefilled(input.field)}>{input.hint}</PrefilledHint>
+              <PrefilledHint prefilled={draft.isPrefilled(input.field)}>
+                {input.hintKey ? t(input.hintKey) : undefined}
+              </PrefilledHint>
             }
           />
         ))}
       </div>
 
-      <p className="mt-6 max-w-prose text-meta leading-relaxed text-muted">
-        If your camera is not one FRAME already lists, what you type is kept exactly as you wrote
-        it. Nobody is asked to pretend they shot something else.
-      </p>
+      <p className="mt-6 max-w-prose text-meta leading-relaxed text-muted">{t('gear.note')}</p>
     </div>
   );
 }

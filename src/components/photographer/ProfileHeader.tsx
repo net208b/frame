@@ -1,4 +1,5 @@
 import { ArrowUpRight } from 'lucide-react';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { Avatar } from '@/components/photographer/Avatar';
 import { ReportDialog } from '@/components/system/ReportDialog';
@@ -14,14 +15,11 @@ import type { PhotographerProfile } from '@/types/domain';
  * count and no location beyond the `basedIn` line the member wrote themselves —
  * none of which this type holds, which is the point: the shape of the data is
  * the privacy decision, so the component cannot leak what it never receives.
+ *
+ * Three strings on this page are member-written and stay in whatever language
+ * the member chose: the display name, the `basedIn` line and the biography.
+ * Translating a person's own words would be a lie about who wrote them.
  */
-
-/** Only roles that change what a member can do are worth announcing. */
-const ROLE_LABELS: Record<PhotographerProfile['role'], string | null> = {
-  member: null,
-  moderator: 'Community moderator',
-  admin: 'Administrator',
-};
 
 /**
  * A member-supplied URL ends up in an `href`, so the scheme is checked first:
@@ -50,15 +48,31 @@ function paragraphs(biography: string): string[] {
     .filter(Boolean);
 }
 
-export function ProfileHeader({
+export async function ProfileHeader({
   photographer,
   className,
 }: {
   photographer: PhotographerProfile;
   className?: string;
 }) {
-  const role = ROLE_LABELS[photographer.role];
-  const memberSince = formatMonthYear(photographer.memberSince);
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: 'profile' });
+  const common = await getTranslations({ locale, namespace: 'common' });
+
+  /*
+   * Only roles that change what a member can do are worth announcing, and the
+   * three cases are written out rather than looked up by key so the compiler
+   * can still tell that `member` has no label.
+   */
+  const role =
+    photographer.role === 'moderator'
+      ? t('role.moderator')
+      : photographer.role === 'admin'
+        ? t('role.admin')
+        : null;
+
+  // Month precision, in the reader's language: "March 2024" / "มีนาคม 2024".
+  const memberSince = formatMonthYear(photographer.memberSince, locale);
   const website = photographer.website ? externalWebsite(photographer.website) : null;
   const biography = photographer.biography ? paragraphs(photographer.biography) : [];
 
@@ -73,7 +87,7 @@ export function ProfileHeader({
         />
 
         <div className="min-w-0 flex-1">
-          <Eyebrow>Photographer</Eyebrow>
+          <Eyebrow>{common('photographer')}</Eyebrow>
 
           <h1 className="mt-3 text-section-fluid font-bold break-words">
             {photographer.displayName}
@@ -84,6 +98,7 @@ export function ProfileHeader({
             {photographer.basedIn ? (
               <>
                 <span aria-hidden>·</span>
+                {/* Member-written, so it is shown as they wrote it. */}
                 <span>{photographer.basedIn}</span>
               </>
             ) : null}
@@ -91,7 +106,7 @@ export function ProfileHeader({
               <>
                 <span aria-hidden>·</span>
                 {/* Month precision only — the exact signup day is not public. */}
-                <span>Member since {memberSince}</span>
+                <span>{t('memberSince', { month: memberSince })}</span>
               </>
             ) : null}
             {role ? (
@@ -121,9 +136,7 @@ export function ProfileHeader({
                   <span className="truncate">{website.label}</span>
                   <ArrowUpRight aria-hidden className="size-3.5 shrink-0" />
                 </a>
-                <p className="mt-1 text-meta text-muted-soft">
-                  Member-supplied link. FRAME has not checked where it leads.
-                </p>
+                <p className="mt-1 text-meta text-muted-soft">{t('websiteNote')}</p>
               </div>
             ) : null}
 
@@ -131,7 +144,7 @@ export function ProfileHeader({
               subjectType="profile"
               subjectId={photographer.id}
               subjectLabel={`@${photographer.username}`}
-              triggerLabel="Report this account"
+              triggerLabel={t('reportAccount')}
               triggerVariant="ghost"
               className="md:ml-auto"
             />

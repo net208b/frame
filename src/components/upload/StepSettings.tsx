@@ -1,9 +1,11 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 import { CheckboxField, TextAreaField, TextField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
-import { formatDate } from '@/lib/utils';
 
+import { useUploadFormat } from './format';
 import { PrefilledHint } from './StepGear';
 import type { CaptureFields, UploadDraft } from './use-upload-draft';
 
@@ -20,43 +22,49 @@ import type { CaptureFields, UploadDraft } from './use-upload-draft';
  * question, not a camera setting. A file recording when it was taken is not
  * consent to tell the world, so the box starts unticked and the date is
  * dropped unless the member ticks it.
+ *
+ * The exposure terms stay as photographers write them in both languages: the
+ * aperture is an f-number, the shutter speed is 1/250, and ISO is ISO. The
+ * copy around them is translated; the notation is not, because inventing Thai
+ * notation for f/1.4 would make the field harder to fill in, not easier.
  */
 
 interface ExposureInput {
   field: keyof CaptureFields;
-  label: string;
-  placeholder: string;
-  hint: string;
+  /** Message keys, relative to the `upload` namespace. */
+  labelKey: string;
+  placeholderKey: string;
+  hintKey: string;
   inputMode: 'decimal' | 'numeric';
 }
 
 const INPUTS: ExposureInput[] = [
   {
     field: 'focalLengthMm',
-    label: 'Focal length',
-    placeholder: '35',
-    hint: 'In millimetres, as written on the lens.',
+    labelKey: 'settings.focalLengthLabel',
+    placeholderKey: 'settings.focalLengthPlaceholder',
+    hintKey: 'settings.focalLengthHint',
     inputMode: 'numeric',
   },
   {
     field: 'aperture',
-    label: 'Aperture',
-    placeholder: '2',
-    hint: 'The f-number alone — 2 for f/2, 5.6 for f/5.6.',
+    labelKey: 'settings.apertureLabel',
+    placeholderKey: 'settings.aperturePlaceholder',
+    hintKey: 'settings.apertureHint',
     inputMode: 'decimal',
   },
   {
     field: 'shutterSpeed',
-    label: 'Shutter speed',
-    placeholder: '1/250',
-    hint: 'Write it as 1/250 below a second, or as 4s at or above one.',
+    labelKey: 'settings.shutterSpeedLabel',
+    placeholderKey: 'settings.shutterSpeedPlaceholder',
+    hintKey: 'settings.shutterSpeedHint',
     inputMode: 'decimal',
   },
   {
     field: 'iso',
-    label: 'ISO',
-    placeholder: '800',
-    hint: 'The sensitivity the camera was set to.',
+    labelKey: 'settings.isoLabel',
+    placeholderKey: 'settings.isoPlaceholder',
+    hintKey: 'settings.isoHint',
     inputMode: 'numeric',
   },
 ];
@@ -65,23 +73,21 @@ const SOFTWARE_MAX = 80;
 const NOTES_MAX = 1_200;
 
 export function StepSettings({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
+  const format = useUploadFormat();
   const { state, errors } = draft;
   const anyPrefilled = INPUTS.some((input) => draft.isPrefilled(input.field));
   const capturedAt = state.exif?.capturedAt ?? null;
-  const capturedLabel = formatDate(capturedAt);
+  const capturedLabel = format.date(capturedAt);
 
   return (
     <div>
-      <h2 className="text-section font-bold">Exposure and editing</h2>
-      <p className="mt-2 max-w-prose text-body text-muted">
-        How the frame was exposed, and what you did to it afterwards. All optional, and all of it
-        useful to somebody trying to work out how a photograph was made.
-      </p>
+      <h2 className="text-section font-bold">{t('settings.heading')}</h2>
+      <p className="mt-2 max-w-prose text-body text-muted">{t('settings.lead')}</p>
 
       {state.exifStatus === 'read' && !anyPrefilled ? (
         <Notice tone="info" className="mt-5">
-          This file recorded no exposure settings, so nothing has been filled in. Type what you
-          remember, or leave it blank — a guess written as a fact is worse than a gap.
+          {t('settings.noneRead')}
         </Notice>
       ) : null}
 
@@ -89,15 +95,17 @@ export function StepSettings({ draft }: { draft: UploadDraft }) {
         {INPUTS.map((input) => (
           <TextField
             key={input.field}
-            label={input.label}
+            label={t(input.labelKey)}
             value={state.capture[input.field]}
             inputMode={input.inputMode}
             onChange={(event) => draft.updateCapture({ [input.field]: event.target.value })}
             error={errors[input.field]}
-            placeholder={input.placeholder}
+            placeholder={t(input.placeholderKey)}
             autoComplete="off"
             hint={
-              <PrefilledHint prefilled={draft.isPrefilled(input.field)}>{input.hint}</PrefilledHint>
+              <PrefilledHint prefilled={draft.isPrefilled(input.field)}>
+                {t(input.hintKey)}
+              </PrefilledHint>
             }
           />
         ))}
@@ -105,25 +113,25 @@ export function StepSettings({ draft }: { draft: UploadDraft }) {
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
         <TextField
-          label="Editing software"
+          label={t('settings.editingSoftwareLabel')}
           value={state.editing.software}
           maxLength={SOFTWARE_MAX}
           onChange={(event) => draft.updateEditing({ software: event.target.value })}
           error={errors.editingSoftware}
-          hint="Lightroom, Capture One, Darktable, the camera's own film simulation — whatever you used."
-          placeholder="Capture One 23"
+          hint={t('settings.editingSoftwareHint')}
+          placeholder={t('settings.editingSoftwarePlaceholder')}
           autoComplete="off"
         />
 
         <TextAreaField
-          label="Editing notes"
+          label={t('settings.editingNotesLabel')}
           rows={4}
           maxLength={NOTES_MAX}
           value={state.editing.notes}
           onChange={(event) => draft.updateEditing({ notes: event.target.value })}
           error={errors.editingNotes}
-          hint="What you changed and why. This is the part other photographers read most closely."
-          placeholder="Lifted the shadows about a stop, pulled the greens out of the fluorescent light, no crop."
+          hint={t('settings.editingNotesHint')}
+          placeholder={t('settings.editingNotesPlaceholder')}
         />
       </div>
 
@@ -132,27 +140,24 @@ export function StepSettings({ draft }: { draft: UploadDraft }) {
         className="mt-8 rounded-panel border border-line bg-surface p-5"
       >
         <h3 id="capture-date" className="text-title font-semibold tracking-tight">
-          The date in the file
+          {t('settings.captureDateHeading')}
         </h3>
 
         {capturedAt === null || capturedLabel === null ? (
           <p className="mt-2 max-w-prose text-caption leading-relaxed text-muted">
-            This file does not say when it was taken, so there is no date to publish or withhold.
-            The date FRAME shows on the photograph is the day you published it.
+            {t('settings.captureDateNone')}
           </p>
         ) : (
           <>
             <p className="mt-2 max-w-prose text-caption leading-relaxed text-muted">
-              Your camera recorded this frame as taken on {capturedLabel}. A capture date can place
-              a person somewhere on a particular evening, so FRAME leaves it out unless you ask for
-              it. The camera carries no time zone, so the date is read as your camera’s own clock.
+              {t('settings.captureDateBody', { date: capturedLabel })}
             </p>
             <CheckboxField
               className="mt-4"
               checked={state.publishCapturedAt}
               onChange={(event) => draft.update({ publishCapturedAt: event.target.checked })}
-              label={`Publish the capture date, ${capturedLabel}`}
-              description="Leave this unticked and the date stays off the photograph and out of its record."
+              label={t('settings.captureDatePublish', { date: capturedLabel })}
+              description={t('settings.captureDateDescription')}
             />
           </>
         )}

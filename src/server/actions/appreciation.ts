@@ -1,6 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import {
@@ -13,6 +12,7 @@ import {
 import { getViewer } from '@/lib/auth';
 import { APPRECIATION_POLICY, isDemoMode } from '@/lib/config';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 
 /**
@@ -80,9 +80,9 @@ async function readPhotographRow(
 }
 
 function revalidate(slug: string | null, ownerUsername: string | null): void {
-  if (slug) revalidatePath(`/photographs/${slug}`);
-  if (ownerUsername) revalidatePath(`/photographers/${ownerUsername}`);
-  revalidatePath('/discover');
+  if (slug) revalidateLocalisedPath(`/photographs/${slug}`);
+  if (ownerUsername) revalidateLocalisedPath(`/photographers/${ownerUsername}`);
+  revalidateLocalisedPath('/discover');
 }
 
 export async function toggleAppreciation(

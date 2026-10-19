@@ -1,7 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-
 import {
   fail,
   NOT_CONFIGURED_MESSAGE,
@@ -13,6 +11,7 @@ import { isDemoMode, LOCATION_POLICY } from '@/lib/config';
 import { getLocations } from '@/lib/data/repository';
 import { boundingBoxAround, evaluateLocationSubmission } from '@/lib/geo';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { parseForm } from '@/lib/validation';
 import { locationSubmissionSchema } from '@/lib/validation/location';
@@ -178,7 +177,7 @@ export async function submitLocation(input: unknown): Promise<ActionResult<{ sub
   const submissionId = (data as { id: string }).id;
 
   // The moderation queue is the only surface a pending submission appears on.
-  revalidatePath('/moderation');
+  revalidateLocalisedPath('/moderation');
 
   return ok(
     { submissionId },

@@ -1,7 +1,9 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { UPLOAD_POLICY } from '@/lib/config';
 import { readExif, type ExifReadout } from '@/lib/images/exif';
 import { locationSubmissionSchema } from '@/lib/validation/location';
 import {
@@ -12,6 +14,8 @@ import {
   uploadDraftSchema,
 } from '@/lib/validation/upload';
 import type { LocationSummary, PhotoCategory } from '@/types/domain';
+
+import { fileSizeParts } from './limits';
 
 /**
  * The wizard's state, in one place.
@@ -42,22 +46,21 @@ export const STEP_IDS = [
 
 export type StepId = (typeof STEP_IDS)[number];
 
-export interface StepMeta {
-  /** 1-based, as the member counts them. */
-  number: number;
-  title: string;
-  summary: string;
-}
+/** How many steps there are, which every "step N of seven" sentence needs. */
+export const STEP_COUNT = STEP_IDS.length;
 
-export const STEP_META: Record<StepId, StepMeta> = {
-  file: { number: 1, title: 'Photograph', summary: 'Choose the image file.' },
-  describe: { number: 2, title: 'Description', summary: 'Title, category and alt text.' },
-  place: { number: 3, title: 'Place', summary: 'Where the frame was made.' },
-  gear: { number: 4, title: 'Camera', summary: 'Body and lens.' },
-  settings: { number: 5, title: 'Settings', summary: 'Exposure and editing.' },
-  review: { number: 6, title: 'Review', summary: 'Check everything, confirm the rights.' },
-  submit: { number: 7, title: 'Submit', summary: 'Upload and publish.' },
-};
+/**
+ * The number a step wears, 1-based, as the member counts them.
+ *
+ * The title and one-line summary that used to sit beside it here now live at
+ * `upload.steps.<id>` in the message catalogues. A step's name is copy, and
+ * copy a module holds as a string literal cannot be translated; the number is
+ * not copy but the step's position in the sequence, so it stays in code — and
+ * it is formatted through the active locale wherever it is read out.
+ */
+export function stepNumber(step: StepId): number {
+  return STEP_IDS.indexOf(step) + 1;
+}
 
 export type PlaceMode = 'none' | 'existing' | 'propose';
 
@@ -169,6 +172,32 @@ const INITIAL_STATE: UploadDraftState = {
 /* Validation                                                               */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * One thing wrong with one field, named rather than written out.
+ *
+ * The rules still come from the zod schemas the server uses — the wizard and
+ * the server cannot disagree about what a valid aperture is, because they parse
+ * with the same schema. What a second language changed is that a schema's own
+ * message is no longer what the member reads: those messages are built in
+ * `lib/validation/fields.ts` from an English label and an English template, and
+ * they run on the server as well as here, so there is no locale to build them
+ * in. An issue is therefore reduced to a key in the `upload.validation`
+ * namespace plus the bound that caused it, and the component renders it in the
+ * language the page is in.
+ *
+ * The bound is read off the issue rather than restated here, so a limit raised
+ * in the schema changes the sentence with it.
+ */
+export interface FieldIssue {
+  /** A message key relative to the `upload` namespace. */
+  key: string;
+  values?: Record<string, string | number>;
+}
+
+/** The issues for one step, keyed by the name the control uses. */
+export type FieldIssues = Record<string, FieldIssue>;
+
+/** The same, resolved into the active locale, as a control wants them. */
 export type FieldErrors = Record<string, string>;
 
 /**
@@ -179,9 +208,217 @@ export type FieldErrors = Record<string, string>;
  */
 const GPS_DECIMALS = 6;
 
+/**
+ * The parts of a zod issue this module reads.
+ *
+ * Structural rather than imported from zod so the shape of what is relied on is
+ * visible: the issue's `code`, and the bound it carries when there is one. Every
+ * field is optional except the two every issue has, which means an issue kind
+ * this file has not met falls into a field's catch-all message instead of
+ * throwing.
+ */
 interface IssueLike {
   path: ReadonlyArray<PropertyKey>;
   message: string;
+  code?: string;
+  /** `invalid_type` carries what it wanted — "int" is the one that matters. */
+  expected?: string;
+  minimum?: number | bigint;
+  maximum?: number | bigint;
+}
+
+function boundOf(value: number | bigint | undefined): number | null {
+  if (typeof value === 'bigint') return Number(value);
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  return null;
+}
+
+/** The accepted extensions as the member reads them: ".jpg, .jpeg, .png, …". */
+const ACCEPTED_EXTENSIONS = UPLOAD_POLICY.acceptedExtensions.join(', ');
+
+/**
+ * Which message an issue on a given control asks for.
+ *
+ * `field` is the name the *control* uses, not always the schema path: the
+ * editing fields are renamed on the way in (see `collect`) so that the message
+ * names the control a member can actually see. A field lists only the rules its
+ * schema can break, and anything unrecognised falls through to a sentence that
+ * says the answer needs another look — which is weaker copy than a named rule,
+ * and is why the named rules are enumerated rather than inferred.
+ */
+function describeIssue(field: string, issue: IssueLike): FieldIssue {
+  const code = issue.code ?? '';
+  const min = boundOf(issue.minimum);
+  const max = boundOf(issue.maximum);
+  const notWhole = code === 'invalid_type' && issue.expected === 'int';
+
+  switch (field) {
+    case 'title':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.titleMax', values: { max } };
+      }
+      return { key: 'validation.titleRequired' };
+
+    case 'category':
+      return { key: 'validation.categoryRequired' };
+
+    case 'altText':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.altTextMax', values: { max } };
+      }
+      if (code === 'too_small' && min !== null) {
+        return { key: 'validation.altTextMin', values: { min } };
+      }
+      // `requiredText` reports a missing value as a type error, and the member
+      // fixes that the same way they fix a short one.
+      return { key: 'validation.altTextMin', values: { min: 10 } };
+
+    case 'description':
+      return { key: 'validation.descriptionMax', values: { max: max ?? 2_000 } };
+
+    case 'proposedName':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.proposedNameMax', values: { max } };
+      }
+      return { key: 'validation.proposedNameMin', values: { min: min ?? 2 } };
+
+    case 'city':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.cityMax', values: { max } };
+      }
+      return { key: 'validation.cityRequired' };
+
+    case 'country':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.countryMax', values: { max } };
+      }
+      return { key: 'validation.countryRequired' };
+
+    case 'countryCode':
+      return { key: 'validation.countryCodeFormat' };
+
+    case 'latitude':
+      return { key: 'validation.latitudeInvalid' };
+
+    case 'longitude':
+      return { key: 'validation.longitudeInvalid' };
+
+    case 'note':
+      return { key: 'validation.noteMax', values: { max: max ?? 600 } };
+
+    case 'cameraBrand':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.cameraBrandMax', values: { max } };
+      }
+      return { key: 'validation.cameraBrandInvalid' };
+
+    case 'cameraModel':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.cameraModelMax', values: { max } };
+      }
+      return { key: 'validation.cameraModelInvalid' };
+
+    case 'lensBrand':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.lensBrandMax', values: { max } };
+      }
+      return { key: 'validation.lensBrandInvalid' };
+
+    case 'lensModel':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.lensModelMax', values: { max } };
+      }
+      return { key: 'validation.lensModelInvalid' };
+
+    case 'focalLengthMm':
+      if (code === 'too_small' && min !== null) {
+        return { key: 'validation.focalLengthMin', values: { min } };
+      }
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.focalLengthMax', values: { max } };
+      }
+      if (notWhole) return { key: 'validation.focalLengthWhole' };
+      return { key: 'validation.focalLengthNumber' };
+
+    case 'aperture':
+      if (code === 'too_small' && min !== null) {
+        return { key: 'validation.apertureMin', values: { min } };
+      }
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.apertureMax', values: { max } };
+      }
+      return { key: 'validation.apertureNumber' };
+
+    case 'shutterSpeed':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.shutterSpeedMax', values: { max } };
+      }
+      return { key: 'validation.shutterSpeedFormat' };
+
+    case 'iso':
+      if (code === 'too_small' && min !== null) {
+        return { key: 'validation.isoMin', values: { min } };
+      }
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.isoMax', values: { max } };
+      }
+      if (notWhole) return { key: 'validation.isoWhole' };
+      return { key: 'validation.isoNumber' };
+
+    case 'editingSoftware':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.editingSoftwareMax', values: { max } };
+      }
+      return { key: 'validation.editingSoftwareInvalid' };
+
+    case 'editingNotes':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.editingNotesMax', values: { max } };
+      }
+      return { key: 'validation.editingNotesInvalid' };
+
+    default:
+      return { key: 'validation.generic' };
+  }
+}
+
+/**
+ * The one message for step 1, where three schema paths describe one control.
+ *
+ * The member chose a file, not a name, a type and a size, so all three report
+ * against the drop zone — and which of the three failed decides what the
+ * sentence says.
+ */
+function describeFileIssue(issue: IssueLike): FieldIssue {
+  const code = issue.code ?? '';
+  const path = String(issue.path[0] ?? '');
+  const max = boundOf(issue.maximum);
+
+  if (path === 'fileName') {
+    // The extension check is a `refine`, which reports as a custom issue.
+    if (code === 'custom') {
+      return { key: 'validation.fileExtension', values: { extensions: ACCEPTED_EXTENSIONS } };
+    }
+    if (code === 'too_big' && max !== null) {
+      return { key: 'validation.fileNameTooLong', values: { max } };
+    }
+    return { key: 'validation.fileNameMissing' };
+  }
+
+  if (path === 'byteSize') {
+    if (code === 'too_big') {
+      return {
+        key: 'validation.fileTooLarge',
+        values: fileSizeParts(UPLOAD_POLICY.maxFileBytes),
+      };
+    }
+    if (code === 'too_small') return { key: 'validation.fileEmpty' };
+    return { key: 'validation.fileSizeUnknown' };
+  }
+
+  // `contentType`, and anything the schema grows later: the accepted formats
+  // are the only thing worth saying about a file FRAME cannot read.
+  return { key: 'validation.fileType' };
 }
 
 /**
@@ -189,17 +426,19 @@ interface IssueLike {
  *
  * `rename` maps a schema path onto the name the control actually uses, so the
  * editing fields can live in their own schema and still report against
- * `editingSoftware` and `editingNotes` in the form.
+ * `editingSoftware` and `editingNotes` in the form. The renamed name is also
+ * what picks the message, so the sentence names the control rather than the
+ * schema property behind it.
  */
 function collect(
   issues: readonly IssueLike[],
-  into: FieldErrors,
+  into: FieldIssues,
   rename: Record<string, string> = {},
 ): void {
   for (const issue of issues) {
     const path = issue.path.map((segment) => String(segment)).join('.');
     const key = rename[path] ?? (path.length > 0 ? path : '_form');
-    if (into[key] === undefined) into[key] = issue.message;
+    if (into[key] === undefined) into[key] = describeIssue(key, issue);
   }
 }
 
@@ -230,13 +469,13 @@ const exposureSchema = captureSettingsSchema.pick({
   iso: true,
 });
 
-/** The per-step rules. Returns one message per field, keyed by control name. */
-export function validateStep(step: StepId, state: UploadDraftState): FieldErrors {
-  const errors: FieldErrors = {};
+/** The per-step rules. Returns one issue per field, keyed by control name. */
+export function validateStep(step: StepId, state: UploadDraftState): FieldIssues {
+  const errors: FieldIssues = {};
 
   if (step === 'file') {
     if (!state.file) {
-      errors.file = 'Choose a photograph to upload.';
+      errors.file = { key: 'validation.fileMissing' };
       return errors;
     }
     const parsed = fileFactsSchema.safeParse({
@@ -245,11 +484,8 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldErrors
       byteSize: state.file.size,
     });
     if (!parsed.success) {
-      collect(parsed.error.issues, errors, {
-        fileName: 'file',
-        contentType: 'file',
-        byteSize: 'file',
-      });
+      const first = parsed.error.issues[0];
+      if (first !== undefined) errors.file = describeFileIssue(first);
     }
     return errors;
   }
@@ -267,7 +503,7 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldErrors
 
   if (step === 'place') {
     if (state.placeMode === 'existing' && !state.location) {
-      errors.location = 'Choose a place from the results, or propose a new one.';
+      errors.location = { key: 'validation.locationRequired' };
     }
     if (state.placeMode === 'propose') {
       const parsed = locationSubmissionSchema.safeParse(state.proposal);
@@ -298,8 +534,7 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldErrors
 
   if (step === 'review') {
     if (!state.rightsConfirmed) {
-      errors.rightsConfirmed =
-        'Confirm the declaration below: FRAME cannot publish a photograph without it.';
+      errors.rightsConfirmed = { key: 'validation.rightsConfirmedRequired' };
     }
     return errors;
   }
@@ -381,6 +616,15 @@ export interface UploadDraft {
   stepIndex: number;
   /** Errors for the step the member is on, shown only once they have tried. */
   errors: FieldErrors;
+  /**
+   * The same errors, without waiting for an attempt.
+   *
+   * Step 1 uses this for the drop zone: choosing a file is itself the attempt,
+   * and the answer is already known, so holding the message back until the
+   * member presses continue would be withholding it. Everything else waits, so
+   * an untouched form does not open covered in red.
+   */
+  immediateErrors: FieldErrors;
   dirty: boolean;
   /**
    * True once the photograph has actually been published or sent for review.
@@ -427,7 +671,11 @@ function prefillFrom(exif: ExifReadout): { capture: CaptureFields; filled: Prefi
   return { capture, filled };
 }
 
+/** Nothing wrong, as a value, so the memo below has a stable empty result. */
+const NO_ERRORS: FieldErrors = {};
+
 export function useUploadDraft(): UploadDraft {
+  const t = useTranslations('upload');
   const [state, setState] = useState<UploadDraftState>(INITIAL_STATE);
   const [stepIndex, setStepIndex] = useState(0);
   const [furthestIndex, setFurthestIndex] = useState(0);
@@ -643,10 +891,16 @@ export function useUploadDraft(): UploadDraft {
     return () => window.removeEventListener('beforeunload', warn);
   }, [dirty, submitted]);
 
-  const errors = useMemo(
-    () => (attempted[step] ? validateStep(step, state) : {}),
-    [attempted, step, state],
-  );
+  const immediateErrors = useMemo(() => {
+    const issues = validateStep(step, state);
+    const messages: FieldErrors = {};
+    for (const [field, issue] of Object.entries(issues)) {
+      messages[field] = t(issue.key, issue.values);
+    }
+    return messages;
+  }, [step, state, t]);
+
+  const errors = attempted[step] ? immediateErrors : NO_ERRORS;
 
   const isPrefilled = useCallback(
     (field: PrefilledField) => state.prefilled.includes(field),
@@ -658,6 +912,7 @@ export function useUploadDraft(): UploadDraft {
     step,
     stepIndex,
     errors,
+    immediateErrors,
     dirty,
     submitted,
     furthestIndex,

@@ -1,10 +1,12 @@
-import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 import { QueueCapNote } from '@/components/moderation/QueueTabs';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
-import { MODERATION_DECISION_LABELS } from '@/lib/validation/moderation';
+import { INTL_LOCALES, type Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { cn, formatDate, formatRelative } from '@/lib/utils';
+import { MODERATION_DECISION_MESSAGE_KEYS } from '@/lib/validation/moderation';
 import type { ModerationAction } from '@/types/domain';
 
 /**
@@ -15,15 +17,11 @@ import type { ModerationAction } from '@/types/domain';
  * here and no control that pretends otherwise. A decision that turns out to be
  * wrong is corrected by recording the new one, which is why the trail is read
  * as a sequence rather than a current state.
+ *
+ * The reason column shows what a moderator wrote, in the language they wrote it
+ * in. It is their words on the record, so it is never run through a translator
+ * — the decision beside it is the part this app names, and that is translated.
  */
-
-const SUBJECT_LABELS: Record<ModerationAction['subjectType'], string> = {
-  photograph: 'Photograph',
-  location: 'Place',
-  profile: 'Account',
-  collection: 'Collection',
-  location_submission: 'Proposed place',
-};
 
 /** A quiet tone per outcome. The decision is spelled out either way. */
 const DECISION_TONES: Record<ModerationAction['decision'], string> = {
@@ -35,44 +33,51 @@ const DECISION_TONES: Record<ModerationAction['decision'], string> = {
   suspend_account: 'text-danger',
 };
 
-export function RecentActions({ actions }: { actions: readonly ModerationAction[] }) {
+export async function RecentActions({
+  locale,
+  actions,
+}: {
+  locale: Locale;
+  actions: readonly ModerationAction[];
+}) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+  const intlLocale = INTL_LOCALES[locale];
+
   return (
     <section aria-labelledby="queue-actions">
       <SectionHead
-        eyebrow="Record"
-        title={<span id="queue-actions">Recent decisions</span>}
-        description="Newest first. The trail is append-only, so nothing here can be edited or removed."
+        eyebrow={t('actions.eyebrow')}
+        title={<span id="queue-actions">{t('actions.title')}</span>}
+        description={t('actions.description')}
       />
 
-      <QueueCapNote shown={actions.length} />
+      <QueueCapNote locale={locale} shown={actions.length} />
 
       {actions.length === 0 ? (
         <EmptyState
-          title="No decisions recorded yet"
-          description="Every decision taken in this dashboard is written here with the moderator who took it."
+          title={t('actions.emptyTitle')}
+          description={t('actions.emptyDescription')}
         />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[46rem] border-collapse text-left">
-            <caption className="sr-only">
-              Moderation decisions, newest first, with the moderator who recorded each one.
-            </caption>
+            <caption className="sr-only">{t('actions.caption')}</caption>
             <thead>
               <tr className="border-y border-line">
                 <th scope="col" className="py-2.5 pr-4 text-eyebrow text-muted uppercase">
-                  Decision
+                  {t('actions.columns.decision')}
                 </th>
                 <th scope="col" className="py-2.5 pr-4 text-eyebrow text-muted uppercase">
-                  Subject
+                  {t('actions.columns.subject')}
                 </th>
                 <th scope="col" className="py-2.5 pr-4 text-eyebrow text-muted uppercase">
-                  Reason
+                  {t('actions.columns.reason')}
                 </th>
                 <th scope="col" className="py-2.5 pr-4 text-eyebrow text-muted uppercase">
-                  Moderator
+                  {t('actions.columns.moderator')}
                 </th>
                 <th scope="col" className="py-2.5 text-eyebrow text-muted uppercase">
-                  When
+                  {t('actions.columns.when')}
                 </th>
               </tr>
             </thead>
@@ -86,10 +91,10 @@ export function RecentActions({ actions }: { actions: readonly ModerationAction[
                       DECISION_TONES[action.decision],
                     )}
                   >
-                    {MODERATION_DECISION_LABELS[action.decision]}
+                    {t(MODERATION_DECISION_MESSAGE_KEYS[action.decision])}
                   </th>
                   <td className="py-3.5 pr-4 text-caption text-ink-soft">
-                    {SUBJECT_LABELS[action.subjectType]}{' '}
+                    {t(`actions.subject.${action.subjectType}`)}{' '}
                     <span className="font-mono text-meta text-muted" title={action.subjectId}>
                       {action.subjectId.slice(0, 8)}
                     </span>
@@ -98,8 +103,8 @@ export function RecentActions({ actions }: { actions: readonly ModerationAction[
                     {action.reason ?? (
                       <span className="text-muted">
                         {action.decision === 'approve' || action.decision === 'dismiss'
-                          ? 'None needed'
-                          : 'None recorded'}
+                          ? t('actions.noneNeeded')
+                          : t('actions.noneRecorded')}
                       </span>
                     )}
                   </td>
@@ -114,9 +119,9 @@ export function RecentActions({ actions }: { actions: readonly ModerationAction[
                   <td className="py-3.5 text-caption whitespace-nowrap text-muted">
                     <time
                       dateTime={action.createdAt}
-                      title={formatDate(action.createdAt) ?? undefined}
+                      title={formatDate(action.createdAt, intlLocale) ?? undefined}
                     >
-                      {formatRelative(action.createdAt)}
+                      {formatRelative(action.createdAt, new Date(), intlLocale)}
                     </time>
                   </td>
                 </tr>

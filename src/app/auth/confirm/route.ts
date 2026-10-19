@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { localeFromRequest, withLocalePrefix } from '@/i18n/locales';
 import { isDemoMode } from '@/lib/config';
 import { safeNextPath, sameOriginUrl } from '@/lib/safe-redirect';
 import { createClient } from '@/lib/supabase/server';
@@ -54,9 +55,18 @@ export async function GET(request: NextRequest): Promise<Response> {
   const params = request.nextUrl.searchParams;
   const tokenHash = params.get('token_hash');
   const type = readType(params.get('type'));
+  // An email link carries no Referer, so a member who asked for it from a Thai
+  // page is recognised by the `locale` parameter the link was built with, or by
+  // the locale cookie if they are still in the same browser. Otherwise they
+  // land in English, which is the same language a stranger following the link
+  // would get.
+  const locale = localeFromRequest(request);
 
   if (isDemoMode()) {
-    return NextResponse.redirect(sameOriginUrl(request, '/login?error=not_configured'), 303);
+    return NextResponse.redirect(
+      sameOriginUrl(request, withLocalePrefix('/login?error=not_configured', locale)),
+      303,
+    );
   }
 
   if (!tokenHash && params.get('code')) {
@@ -66,7 +76,10 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   if (!tokenHash || !type) {
-    return NextResponse.redirect(sameOriginUrl(request, failureDestination(type)), 303);
+    return NextResponse.redirect(
+      sameOriginUrl(request, withLocalePrefix(failureDestination(type), locale)),
+      303,
+    );
   }
 
   const supabase = await createClient();
@@ -74,16 +87,21 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   if (error) {
     console.error(`FRAME auth: an email link could not be verified — ${error.message}`);
-    return NextResponse.redirect(sameOriginUrl(request, failureDestination(type)), 303);
+    return NextResponse.redirect(
+      sameOriginUrl(request, withLocalePrefix(failureDestination(type), locale)),
+      303,
+    );
   }
 
   // Verifying the link signs the member in, so the header changes everywhere.
   revalidatePath('/', 'layout');
 
   const requested = params.get('next');
-  const destination = requested
-    ? safeNextPath(requested, defaultDestination(type))
-    : defaultDestination(type);
+  const fallback = withLocalePrefix(defaultDestination(type), locale);
+  const destination = requested ? safeNextPath(requested, fallback) : fallback;
 
-  return NextResponse.redirect(sameOriginUrl(request, destination), 303);
+  return NextResponse.redirect(
+    sameOriginUrl(request, withLocalePrefix(destination, locale)),
+    303,
+  );
 }

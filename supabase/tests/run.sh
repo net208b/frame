@@ -23,7 +23,12 @@ cleanup() {
   rm -rf "$work"
 }
 
-# ---------------------------------------------------------------- locate psql
+# ----------------------------------------------- locate the PostgreSQL tools
+# The two modes need different things, so they are checked separately. With
+# DATABASE_URL the cluster already exists and only `psql` is required, which is
+# all a CI runner or a container image usually ships. Without it the script
+# builds its own cluster and also needs initdb, pg_ctl, pg_isready and createdb.
+# Demanding the full toolchain in both cases is what stopped this running in CI.
 PGBIN="${PGBIN:-}"
 if [ -z "$PGBIN" ]; then
   if command -v pg_ctl >/dev/null 2>&1; then
@@ -34,19 +39,49 @@ if [ -z "$PGBIN" ]; then
     done
   fi
 fi
-if [ -z "$PGBIN" ] || [ ! -x "$PGBIN/psql" ]; then
-  echo "Could not find a PostgreSQL installation. Set PGBIN to its bin directory." >&2
-  exit 1
+
+if [ -n "${DATABASE_URL:-}" ]; then
+  if [ -n "$PGBIN" ] && [ -x "$PGBIN/psql" ]; then
+    PSQL="$PGBIN/psql"
+  elif command -v psql >/dev/null 2>&1; then
+    PSQL="$(command -v psql)"
+  else
+    echo "Could not find psql. Install the PostgreSQL client, or set PGBIN to a" >&2
+    echo "directory containing it." >&2
+    exit 1
+  fi
+else
+  if [ -z "$PGBIN" ] || [ ! -x "$PGBIN/psql" ] || [ ! -x "$PGBIN/initdb" ]; then
+    echo "Could not find a full PostgreSQL installation, which is what building a" >&2
+    echo "throwaway cluster needs. Either set PGBIN to its bin directory, or point" >&2
+    echo "DATABASE_URL at an empty database — that path needs only psql." >&2
+    exit 1
+  fi
+  PSQL="$PGBIN/psql"
 fi
 
 # ------------------------------------------------------------ pick a database
 if [ -n "${DATABASE_URL:-}" ]; then
   psql_args=("$DATABASE_URL")
-  existing="$("$PGBIN/psql" "${psql_args[@]}" -tAc \
-    "select count(*) from information_schema.tables where table_schema='public'")"
+  # Counts application tables only. An extension brings its own catalogue with
+  # it — PostGIS alone adds spatial_ref_sys plus two views to `public` — and
+  # counting those made this refuse the very PostGIS database CI provisions.
+  # `relkind in ('r','p')` drops the views; the pg_depend check drops anything
+  # an extension owns.
+  existing="$("$PSQL" "${psql_args[@]}" -tAc "
+    select count(*)
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relkind in ('r', 'p')
+       and c.oid not in (
+         select objid from pg_depend
+          where classid = 'pg_class'::regclass
+            and deptype = 'e'
+       )")"
   if [ "$existing" != "0" ]; then
-    echo "Refusing to run: the target database already has $existing tables in public." >&2
-    echo "Point DATABASE_URL at an empty database." >&2
+    echo "Refusing to run: the target database already has $existing application" >&2
+    echo "table(s) in public. Point DATABASE_URL at an empty database." >&2
     exit 1
   fi
   echo "target: the database in DATABASE_URL"
@@ -70,7 +105,7 @@ fi
 
 # client_min_messages=warning hides the "does not exist, skipping" notices from
 # the idempotent `drop ... if exists` guards; a real problem still surfaces.
-run() { "$PGBIN/psql" "${psql_args[@]}" -v ON_ERROR_STOP=1 --no-psqlrc -q \
+run() { "$PSQL" "${psql_args[@]}" -v ON_ERROR_STOP=1 --no-psqlrc -q \
           -c "set client_min_messages = warning" "$@"; }
 
 # ----------------------------------------------------------------- PostGIS?
@@ -112,7 +147,7 @@ run -f "$here/helpers.sql"
 # -tA suppresses the result table around each assertion; the sed strips the
 # "psql:<file>:<line>: NOTICE:" prefix, whose path may contain spaces.
 set +e
-"$PGBIN/psql" "${psql_args[@]}" -tA -v ON_ERROR_STOP=1 --no-psqlrc \
+"$PSQL" "${psql_args[@]}" -tA -v ON_ERROR_STOP=1 --no-psqlrc \
   -f "$here/constraints.sql" 2>&1 \
   | sed -E 's/^psql:.*constraints\.sql:[0-9]+: //' \
   | grep -E 'ok |ERROR|FATAL|BUG|DRIFT|GAP|NOT REJECTED|WRONG|held\.' \

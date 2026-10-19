@@ -1,80 +1,64 @@
 import type { Metadata, Viewport } from 'next';
-import { Instrument_Serif, Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
 
-import { SiteFooter } from '@/components/layout/SiteFooter';
-import { SiteHeader } from '@/components/layout/SiteHeader';
-import { DemoNotice } from '@/components/system/DemoNotice';
-import { ToastProvider } from '@/components/system/Toast';
-import { SITE, siteUrl } from '@/lib/config';
-import { buildMetadata } from '@/lib/seo';
+import { siteUrl } from '@/lib/config';
 
 import './globals.css';
 
 /**
- * Inter carries the whole interface, so it is loaded as a variable font: the
- * editorial display sizes sit at 780 and the wordmark at 900, which a fixed
- * set of static weights could not cover without several extra files.
+ * The root layout, which holds almost nothing — and that is the decision worth
+ * explaining, because the obvious shape for this file is `<html><body>`.
  *
- * Instrument Serif is one accent word inside a display headline and nothing
- * else, so it is pinned to its single weight.
+ * The `lang` attribute has to match the language the page is actually in. Only
+ * `app/[locale]/layout.tsx` knows that, from its own route segment, and only one
+ * layout in a chain may render `<html>`: two would nest one document inside
+ * another. So the element belongs to the locale layout, and this file passes its
+ * children straight through.
+ *
+ * The alternative — keeping `<html>` here and reading the locale with
+ * `getLocale()` — was rejected. Above the `[locale]` segment there is no segment
+ * to read, so next-intl would fall back to the request header it sets in
+ * middleware; reading a header opts the whole application into dynamic
+ * rendering, which would cost every page its static prerender to set one
+ * attribute. Next validates the rendered stream rather than this file, so the
+ * `<html>` and `<body>` the locale layout emits satisfy it.
+ *
+ * What does stay here is what has no language: the stylesheet, so that even a
+ * route rendered outside `[locale]` is styled, and `metadataBase`, so a relative
+ * image path resolves against the right origin wherever metadata is built.
  */
-const inter = Inter({
-  subsets: ['latin'],
-  weight: 'variable',
-  display: 'swap',
-  variable: '--font-inter',
-});
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ['latin'],
-  weight: '400',
-  style: ['normal', 'italic'],
-  display: 'swap',
-  variable: '--font-instrument-serif',
-});
-
-const HOME_TITLE = `${SITE.name} — ${SITE.tagline}`;
 
 export const metadata: Metadata = {
-  ...buildMetadata({ title: HOME_TITLE, description: SITE.description, path: '/' }),
   metadataBase: new URL(siteUrl()),
-  title: {
-    default: HOME_TITLE,
-    template: `%s · ${SITE.name}`,
-  },
-  applicationName: SITE.name,
-  formatDetection: { telephone: false, address: false },
 };
 
 export const viewport: Viewport = {
-  // Matches --color-paper, so the browser chrome does not flash a different
-  // background before the first paint.
-  themeColor: '#f8f8f5',
-  colorScheme: 'light',
+  /*
+   * One entry per system preference, both matching `--color-paper` in the
+   * theme they name, so the browser's own chrome agrees with the page before
+   * the first paint and without any script. The browser uses the first entry
+   * whose media query matches.
+   *
+   * These two hexes and the ones in `global-error.tsx` are the only colours in
+   * the application that are not read from `globals.css`. They cannot be: a
+   * `<meta>` cannot hold a `var()`, and this file is evaluated on the server
+   * where no stylesheet has been resolved. The pair is therefore a copy, and
+   * the copy has to be updated with `--color-paper` — which is why
+   * `ThemeToggle` reads the resolved value out of the document rather than
+   * repeating it a third time.
+   */
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f8f8f5' },
+    { media: '(prefers-color-scheme: dark)', color: '#141610' },
+  ],
+  // The application has both themes, so the browser may paint its own
+  // furniture — scrollbars, form controls, the overscroll canvas — either way.
+  // An explicit choice narrows this to one value through the `color-scheme`
+  // declarations in globals.css, which follow the same `data-theme` attribute
+  // the tokens do.
+  colorScheme: 'light dark',
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang={SITE.locale} className={`${inter.variable} ${instrumentSerif.variable}`}>
-      <body className="flex min-h-dvh flex-col">
-        <a
-          href="#main-content"
-          className="sr-only-focusable bg-ink px-4 py-2.5 text-caption font-bold text-on-ink"
-        >
-          Skip to content
-        </a>
-
-        <ToastProvider>
-          <SiteHeader />
-          {/* Directly under the header, so demo mode is impossible to miss. */}
-          <DemoNotice />
-          <main id="main-content" className="flex-1">
-            {children}
-          </main>
-          <SiteFooter />
-        </ToastProvider>
-      </body>
-    </html>
-  );
+  return children;
 }

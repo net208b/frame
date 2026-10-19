@@ -44,10 +44,71 @@
   --color-info: #2a5d8a;
   --color-info-bg: #eaf1f8;
 
+  /* --- Composite values that have to change with the theme -------------- */
+  /*
+   * Everything below is a colour the interface uses through something other
+   * than a plain `bg-*` or `text-*`: a scrim, a shimmer, a shadow, a label on
+   * a filled control. They are tokens for the same reason the palette is —
+   * the dark theme redefines them rather than any rule that uses them — and
+   * each light value here is exactly the value that was previously written
+   * inline, so the light theme renders as it did before.
+   */
+
+  /* Modal and panel scrims. Two strengths, because the mobile navigation
+     panel and a centred dialog were authored with different ones. */
+  --color-scrim: rgb(23 24 21 / 0.45);
+  --color-scrim-strong: rgb(23 24 21 / 0.55);
+
+  /* The sweep across a skeleton. A 65% white sweep is right on an off-white
+     well and a searchlight on a near-black one. */
+  --color-shimmer: rgb(255 255 255 / 0.65);
+
+  /* Shadow colours, named so the two shadows below can be themed without
+     restating their geometry. */
+  --color-shadow-soft: rgb(23 24 21 / 0.1);
+  --color-shadow-strong: rgb(23 24 21 / 0.22);
+
+  /* The gradient that keeps the credit line readable over a photograph. It is
+     not part of the interface: it darkens an image, so it stays dark in both
+     themes and only gets stronger when the surrounding page is dark. */
+  --color-photo-scrim-strong: rgb(23 24 21 / 0.6);
+  --color-photo-scrim-soft: rgb(23 24 21 / 0.25);
+
+  /*
+   * An "ink fill" is an element painted with `--color-ink` itself: a primary
+   * button, an active chip, the current page in the pagination, a toast. In
+   * the light theme that is a dark stamp carrying light text, so the trio
+   * below is the `on-ink` trio. In the dark theme `--color-ink` becomes
+   * near-white, the stamp becomes a light pill, and its text has to become
+   * dark — while `on-ink` itself must stay light, because the inverted
+   * editorial panels and the captions over photographs still sit on something
+   * dark. One token cannot be both, so the fill has its own trio and the
+   * `.bg-ink` rule further down maps it onto `on-ink` for its own subtree.
+   */
+  --color-ink-fill-text: #f8f8f2;
+  --color-ink-fill-text-muted: #b8b9ae;
+  --color-ink-fill-accent: #d9ff56;
+
+  /* The accent note on something inverted — the tick in a success toast. */
+  --color-on-ink-accent: #d9ff56;
+
+  /* The label on a filled danger control. White on #a62a24 is 7.2:1; the dark
+     theme's lighter red needs a dark label instead. */
+  --color-danger-ink: #ffffff;
+
   /* --- Typography -------------------------------------------------------- */
+  /*
+   * Inter is first, so every Latin glyph in the interface comes from Inter in
+   * both languages and the editorial identity does not change with the
+   * language. Noto Sans Thai sits behind it and is reached only for the
+   * characters Inter has no glyph for, which in practice means Thai. Listing it
+   * in the shared stack rather than swapping the stack per language is what
+   * makes the Thai word in the language switcher render in the same typeface on
+   * an English page as on a Thai one.
+   */
   --font-sans:
-    var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    sans-serif;
+    var(--font-inter), var(--font-noto-thai), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-serif: var(--font-instrument-serif), Georgia, 'Times New Roman', serif;
 
   --text-eyebrow: 0.625rem; /* 10px — uppercase label */
@@ -87,8 +148,8 @@
   --radius-pill: 999px;
 
   /* --- Elevation (overlays only — never on cards) ----------------------- */
-  --shadow-popover: 0 8px 30px rgb(23 24 21 / 0.1);
-  --shadow-modal: 0 20px 80px rgb(23 24 21 / 0.22);
+  --shadow-popover: 0 8px 30px var(--color-shadow-soft);
+  --shadow-modal: 0 20px 80px var(--color-shadow-strong);
 
   /* --- Motion ------------------------------------------------------------ */
   --ease-out-soft: cubic-bezier(0.22, 0.61, 0.36, 1);
@@ -98,6 +159,291 @@
 
   /* --- Layout ------------------------------------------------------------ */
   --container-site: 1440px;
+}
+
+/* =========================================================================
+   Dark theme
+
+   Every colour in this application is a token in the `@theme` block above, so
+   the dark theme is a second set of values for those tokens and not a second
+   stylesheet. No component knows which theme it is in.
+
+   The two switches below are what makes both the system preference and an
+   explicit choice work:
+
+     @media (prefers-color-scheme: dark) + :root:not([data-theme='light'])
+       follow the operating system, unless the viewer has chosen light.
+     :root[data-theme='dark']
+       honour an explicit dark choice on a light system.
+
+   `ThemeScript` sets `data-theme` before first paint when a choice is stored,
+   and removes it when the choice is "system"; with no stored choice, and with
+   JavaScript off, the media query alone is correct.
+
+   THE VALUE BLOCK IS WRITTEN TWICE, IDENTICALLY, ON PURPOSE. CSS cannot share
+   one declaration block between a media query and a selector, and the
+   alternatives — `light-dark()`, or resolving the system preference in
+   JavaScript and relying on `data-theme` alone — either need browsers newer
+   than this project's floor or make the system preference depend on a script.
+   Edit both blocks or neither.
+
+   Ratios quoted in the comments are WCAG 2.1 contrast against this theme's
+   own `--color-paper` (#141610) unless another ground is named.
+   ========================================================================= */
+
+/*
+ * `color-scheme` is what tells the browser how to paint the parts of the page
+ * CSS never reaches: the scrollbars, the native form controls, the canvas
+ * behind an overscroll. It follows the system by default and is pinned by an
+ * explicit choice, exactly like the tokens.
+ */
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    /* --- Surfaces: a gallery wall at night ------------------------------ */
+    /*
+     * Not #000. A photograph with a true black in it has to still read as
+     * black against the page, so the paper keeps a trace of the same olive
+     * warmth as the light theme (green highest, blue lowest) and sits just
+     * above pure black rather than on it.
+     */
+    --color-paper: #141610;
+    --color-surface: #1c1e17;
+    /*
+     * In the light theme `sunken` is a step *darker* than paper. Here it is a
+     * step lighter, because on a near-black ground the only direction with
+     * contrast left in it is up: a skeleton, an inset well and every
+     * `hover:bg-surface-sunken` have to be visible, and a surface darker than
+     * #141610 is indistinguishable from it. It stays one step beyond
+     * `surface` either way, so the three-step ramp survives the flip.
+     */
+    --color-surface-sunken: #22241c;
+    /*
+     * The inverted editorial block — the homepage map teaser, the community
+     * panel, the aside beside the sign-in form. It was the one dark element
+     * in the light theme, so in the dark theme it cannot distinguish itself
+     * by being dark. It is lifted instead: #2a2e22 on #141610 is 1.29:1,
+     * which is a wider step than the 1.06:1 that separates a card from the
+     * page in the light theme, and the panels keep their `rounded-panel`
+     * edge. (A hairline was the other option. An inset ring would have been
+     * painted over along half the teaser's edge by its own full-bleed map
+     * child, which reads as a bug rather than as a rule.)
+     */
+    --color-ink-surface: #2a2e22;
+    --color-ink-surface-soft: #343930;
+
+    /* --- Text ----------------------------------------------------------- */
+    /* 16.2:1 on paper, within a tenth of the light theme's own 16.7:1. */
+    --color-ink: #f2f2ea;
+    --color-ink-soft: #d6d7cc; /* 12.5:1 on paper */
+    --color-muted: #949689; /* 5.8:1 */
+    --color-muted-soft: #85887d; /* 5.0:1 — the light theme's own is 3.0:1 */
+    /*
+     * `on-ink` stays light. It names the text on something dark, and the two
+     * things that are still dark in this theme are the editorial panels above
+     * and a photograph. An ink *fill* is a different surface — see
+     * `--color-ink-fill-text` and the `.bg-ink` rule below.
+     */
+    --color-on-ink: #f4f4ec;
+    --color-on-ink-muted: #b9bbae;
+
+    /* --- Lines ---------------------------------------------------------- */
+    /*
+     * Lighter, and deliberately further from the page than a straight
+     * inversion would put them: 1.40:1 against paper, where the light
+     * theme's hairline is 1.16:1 against its own. Hairlines carry all of this
+     * interface's structure in place of shadows, and on a dark ground a
+     * faithful inversion dissolves them.
+     */
+    --color-line: #32352b;
+    --color-line-strong: #434639; /* 1.89:1 — the hover and divider weight */
+    --color-line-inverse: #4a4e40; /* 1.66:1 on the lifted ink panel */
+
+    /* --- Accent --------------------------------------------------------- */
+    /*
+     * #d9ff56 at full strength on a near-black page is a highlighter. It is
+     * taken down to #c8ea4e, which keeps the hue and the sparing role —
+     * appreciations, map pins, the focus ring on an inverted panel — without
+     * glowing. `accent-ink` is unchanged: the accent is still light, so what
+     * sits on it is still dark (13.0:1).
+     */
+    --color-accent: #c8ea4e;
+    --color-accent-strong: #b7db44;
+
+    /* --- Status --------------------------------------------------------- */
+    /*
+     * Checked as pairs on this ground. Text on its own tint, then the tint
+     * against the page:
+     *   success #5fc98a on #16271c  7.6:1   tint vs paper 1.15:1
+     *   warning #e0b64f on #2b2211  8.2:1   tint vs paper 1.15:1
+     *   danger  #f08a80 on #351a17  6.5:1   tint vs paper 1.13:1
+     *   info    #76b6e6 on #16293a  7.1:1   tint vs paper 1.27:1
+     * Each text colour is also AA on the page itself (7.3:1 to 9.4:1), which
+     * matters because `text-danger` is used for field errors sitting directly
+     * on a form. The tints are quiet by design — the light theme's own are
+     * 1.05:1 — and never carry meaning alone: every status in this app also
+     * has an icon or a word.
+     */
+    --color-success: #5fc98a;
+    --color-success-bg: #16271c;
+    --color-warning: #e0b64f;
+    --color-warning-bg: #2b2211;
+    --color-danger: #f08a80;
+    --color-danger-bg: #351a17;
+    --color-info: #76b6e6;
+    --color-info-bg: #16293a;
+
+    /* --- Composite values ----------------------------------------------- */
+    /* A scrim over a dark page has to be darker, not lighter. */
+    --color-scrim: rgb(0 0 0 / 0.62);
+    --color-scrim-strong: rgb(0 0 0 / 0.7);
+    /* A 65% white sweep here would be a searchlight. */
+    --color-shimmer: rgb(255 255 255 / 0.06);
+    /* An ink shadow is invisible on ink. These lift the popover and the
+       mobile panel off a page they are nearly the same colour as. */
+    --color-shadow-soft: rgb(0 0 0 / 0.55);
+    --color-shadow-strong: rgb(0 0 0 / 0.72);
+    /* Over a photograph, stronger: the page behind gives no help now. */
+    --color-photo-scrim-strong: rgb(0 0 0 / 0.68);
+    --color-photo-scrim-soft: rgb(0 0 0 / 0.3);
+    /* The ink fill is a light pill in this theme, so its label is dark
+       (16.2:1), its secondary text mid (4.9:1) and its accent note a dark
+       green rather than lime (4.5:1 — lime on near-white is 1.2:1). */
+    --color-ink-fill-text: #141610;
+    --color-ink-fill-text-muted: #40433a;
+    --color-ink-fill-accent: #2f7d4f;
+    /* 8.4:1, against 2.5:1 for the white this replaces. */
+    --color-danger-ink: #1a0f0d;
+  }
+}
+
+/* The same values, for a viewer who chose dark on a light system. */
+:root[data-theme='dark'] {
+    /* --- Surfaces: a gallery wall at night ------------------------------ */
+    /*
+     * Not #000. A photograph with a true black in it has to still read as
+     * black against the page, so the paper keeps a trace of the same olive
+     * warmth as the light theme (green highest, blue lowest) and sits just
+     * above pure black rather than on it.
+     */
+    --color-paper: #141610;
+    --color-surface: #1c1e17;
+    /*
+     * In the light theme `sunken` is a step *darker* than paper. Here it is a
+     * step lighter, because on a near-black ground the only direction with
+     * contrast left in it is up: a skeleton, an inset well and every
+     * `hover:bg-surface-sunken` have to be visible, and a surface darker than
+     * #141610 is indistinguishable from it. It stays one step beyond
+     * `surface` either way, so the three-step ramp survives the flip.
+     */
+    --color-surface-sunken: #22241c;
+    /*
+     * The inverted editorial block — the homepage map teaser, the community
+     * panel, the aside beside the sign-in form. It was the one dark element
+     * in the light theme, so in the dark theme it cannot distinguish itself
+     * by being dark. It is lifted instead: #2a2e22 on #141610 is 1.29:1,
+     * which is a wider step than the 1.06:1 that separates a card from the
+     * page in the light theme, and the panels keep their `rounded-panel`
+     * edge. (A hairline was the other option. An inset ring would have been
+     * painted over along half the teaser's edge by its own full-bleed map
+     * child, which reads as a bug rather than as a rule.)
+     */
+    --color-ink-surface: #2a2e22;
+    --color-ink-surface-soft: #343930;
+
+    /* --- Text ----------------------------------------------------------- */
+    /* 16.2:1 on paper, within a tenth of the light theme's own 16.7:1. */
+    --color-ink: #f2f2ea;
+    --color-ink-soft: #d6d7cc; /* 12.5:1 on paper */
+    --color-muted: #949689; /* 5.8:1 */
+    --color-muted-soft: #85887d; /* 5.0:1 — the light theme's own is 3.0:1 */
+    /*
+     * `on-ink` stays light. It names the text on something dark, and the two
+     * things that are still dark in this theme are the editorial panels above
+     * and a photograph. An ink *fill* is a different surface — see
+     * `--color-ink-fill-text` and the `.bg-ink` rule below.
+     */
+    --color-on-ink: #f4f4ec;
+    --color-on-ink-muted: #b9bbae;
+
+    /* --- Lines ---------------------------------------------------------- */
+    /*
+     * Lighter, and deliberately further from the page than a straight
+     * inversion would put them: 1.40:1 against paper, where the light
+     * theme's hairline is 1.16:1 against its own. Hairlines carry all of this
+     * interface's structure in place of shadows, and on a dark ground a
+     * faithful inversion dissolves them.
+     */
+    --color-line: #32352b;
+    --color-line-strong: #434639; /* 1.89:1 — the hover and divider weight */
+    --color-line-inverse: #4a4e40; /* 1.66:1 on the lifted ink panel */
+
+    /* --- Accent --------------------------------------------------------- */
+    /*
+     * #d9ff56 at full strength on a near-black page is a highlighter. It is
+     * taken down to #c8ea4e, which keeps the hue and the sparing role —
+     * appreciations, map pins, the focus ring on an inverted panel — without
+     * glowing. `accent-ink` is unchanged: the accent is still light, so what
+     * sits on it is still dark (13.0:1).
+     */
+    --color-accent: #c8ea4e;
+    --color-accent-strong: #b7db44;
+
+    /* --- Status --------------------------------------------------------- */
+    /*
+     * Checked as pairs on this ground. Text on its own tint, then the tint
+     * against the page:
+     *   success #5fc98a on #16271c  7.6:1   tint vs paper 1.15:1
+     *   warning #e0b64f on #2b2211  8.2:1   tint vs paper 1.15:1
+     *   danger  #f08a80 on #351a17  6.5:1   tint vs paper 1.13:1
+     *   info    #76b6e6 on #16293a  7.1:1   tint vs paper 1.27:1
+     * Each text colour is also AA on the page itself (7.3:1 to 9.4:1), which
+     * matters because `text-danger` is used for field errors sitting directly
+     * on a form. The tints are quiet by design — the light theme's own are
+     * 1.05:1 — and never carry meaning alone: every status in this app also
+     * has an icon or a word.
+     */
+    --color-success: #5fc98a;
+    --color-success-bg: #16271c;
+    --color-warning: #e0b64f;
+    --color-warning-bg: #2b2211;
+    --color-danger: #f08a80;
+    --color-danger-bg: #351a17;
+    --color-info: #76b6e6;
+    --color-info-bg: #16293a;
+
+    /* --- Composite values ----------------------------------------------- */
+    /* A scrim over a dark page has to be darker, not lighter. */
+    --color-scrim: rgb(0 0 0 / 0.62);
+    --color-scrim-strong: rgb(0 0 0 / 0.7);
+    /* A 65% white sweep here would be a searchlight. */
+    --color-shimmer: rgb(255 255 255 / 0.06);
+    /* An ink shadow is invisible on ink. These lift the popover and the
+       mobile panel off a page they are nearly the same colour as. */
+    --color-shadow-soft: rgb(0 0 0 / 0.55);
+    --color-shadow-strong: rgb(0 0 0 / 0.72);
+    /* Over a photograph, stronger: the page behind gives no help now. */
+    --color-photo-scrim-strong: rgb(0 0 0 / 0.68);
+    --color-photo-scrim-soft: rgb(0 0 0 / 0.3);
+    /* The ink fill is a light pill in this theme, so its label is dark
+       (16.2:1), its secondary text mid (4.9:1) and its accent note a dark
+       green rather than lime (4.5:1 — lime on near-white is 1.2:1). */
+    --color-ink-fill-text: #141610;
+    --color-ink-fill-text-muted: #40433a;
+    --color-ink-fill-accent: #2f7d4f;
+    /* 8.4:1, against 2.5:1 for the white this replaces. */
+    --color-danger-ink: #1a0f0d;
 }
 
 @keyframes shimmer {
@@ -226,7 +572,7 @@
   background-image: linear-gradient(
     90deg,
     transparent 0%,
-    rgb(255 255 255 / 0.65) 50%,
+    var(--color-shimmer) 50%,
     transparent 100%
   );
   background-size: 220% 100%;
@@ -277,4 +623,144 @@
     break-inside: avoid;
     margin-bottom: 1.5rem;
   }
+}
+
+/* =========================================================================
+   Theme-aware rules for colours the components do not express as a token
+
+   Four places in the app write a colour in a way a token swap cannot reach on
+   its own: an element painted with `--color-ink` whose contents must flip with
+   it, two scrims written as an opacity on `--color-ink`, the white label on a
+   filled danger button, and the gradient that keeps the hero credit readable.
+   Each rule below routes one of them through a token instead.
+
+   Every one of these is written unconditionally, and every light value is the
+   value that was there before, so none of them changes the light theme. They
+   sit outside `@layer` so they beat the utility they are correcting — the same
+   cascade reason the Thai block below is unlayered.
+
+   Three of the four correct a class written in a file this change does not
+   own. The real fix in each case is one word in that file, and is listed in
+   this work's follow-ups; when those land, the rule here can go.
+   ========================================================================= */
+
+/*
+ * An ink fill: a primary button, an active chip, the current page in the
+ * pagination, a toast pill, the skip link. The element is painted with
+ * `--color-ink` itself, so whatever is written on it has to track that colour
+ * and not the `on-ink` pair, which belongs to the editorial panels and to
+ * captions over photographs. Redefining the three variables on the fill means
+ * every `text-on-ink` inside it resolves correctly with no component change.
+ *
+ * In the light theme the fill trio equals the `on-ink` trio, so this rule has
+ * no effect at all; in the dark theme the fill is a light pill and its text
+ * goes dark.
+ */
+.bg-ink {
+  --color-on-ink: var(--color-ink-fill-text);
+  --color-on-ink-muted: var(--color-ink-fill-text-muted);
+  --color-on-ink-accent: var(--color-ink-fill-accent);
+}
+
+/*
+ * `src/components/ui/Dialog.tsx` scrims with `bg-ink/55`, which follows
+ * `--color-ink` and would therefore become a pale veil over a dark page
+ * instead of a scrim under a dialog. (`MobileNav` is in this change's scope
+ * and uses `bg-scrim` directly.)
+ *   Fix there: `bg-ink/55` -> `bg-scrim-strong`.
+ */
+.bg-ink\/55 {
+  background-color: var(--color-scrim-strong);
+}
+
+/*
+ * `src/components/ui/Button.tsx` (danger variant) and
+ * `src/components/upload/StepSubmit.tsx` (failed stage) hard-code
+ * `text-white`. White on the dark theme's lighter red is 2.5:1.
+ *   Fix there: `text-white` -> `text-danger-ink`.
+ */
+.bg-danger.text-white {
+  color: var(--color-danger-ink);
+}
+
+/*
+ * `src/components/home/Hero.tsx` darkens the bottom of the hero photograph
+ * with `bg-linear-to-t from-ink/60 via-ink/25 to-transparent` so the credit
+ * line stays readable over a bright frame. Both stops follow `--color-ink`,
+ * so in the dark theme the gradient would brighten the photograph under
+ * light text — the exact failure the gradient was added to prevent. The
+ * stops are restated here as a photo scrim, which is dark in both themes.
+ *   Fix there: `from-ink/60 via-ink/25` -> `from-photo-scrim-strong
+ *   via-photo-scrim-soft`, after which this rule should be deleted rather
+ *   than left to match by accident.
+ */
+.from-ink\/60.via-ink\/25 {
+  background-image: linear-gradient(
+    to top,
+    var(--color-photo-scrim-strong),
+    var(--color-photo-scrim-soft),
+    transparent
+  );
+}
+
+/* =========================================================================
+   Thai typography
+   Keyed on the `lang` attribute the [locale] layout sets, so no component has
+   to know which language it is rendering in.
+
+   The identity of this design is Inter set very tight: the display scale sits
+   at -0.085em and the body at -0.025em. That tracking is what makes the Latin
+   headlines read as one editorial voice, and it is exactly what Thai cannot
+   take. Thai stacks vowels and tone marks above and below the base consonant,
+   and pulling the clusters together collides them — a tone mark lands on its
+   neighbour and the word becomes ambiguous rather than merely tight. Thai also
+   needs more leading than Latin for the same reason: the marks occupy space
+   above and below the line that Latin leaves empty.
+
+   So Thai resets the tracking at every size and opens the leading. Every value
+   below is an override of a token declared in the `@theme` block above; the
+   Latin values themselves are untouched, which is the point — an English page
+   renders exactly as it did before this file knew about languages.
+
+   These rules sit outside `@layer` on purpose. Unlayered declarations beat
+   layered ones in the cascade, so they also override a `tracking-tight` applied
+   directly by a component — which is why the two negative values in Tailwind's
+   own tracking scale are reset here as well.
+   ========================================================================= */
+
+:root[lang='th'] {
+  /* Tracking: nothing negative survives. */
+  --text-eyebrow--letter-spacing: normal;
+  --text-title--letter-spacing: normal;
+  --text-section--letter-spacing: normal;
+  --text-display--letter-spacing: normal;
+  --tracking-tighter: normal;
+  --tracking-tight: normal;
+
+  /* Leading: more of it, and most at the sizes where the marks are largest. */
+  --text-eyebrow--line-height: 1.5;
+  --text-meta--line-height: 1.75;
+  --text-caption--line-height: 1.85;
+  --text-body--line-height: 1.95;
+  --text-lead--line-height: 1.95;
+  --text-title--line-height: 1.5;
+  --text-section--line-height: 1.38;
+  --text-display--line-height: 1.18;
+}
+
+/* `body` sets its tracking directly rather than through a size token. */
+:root[lang='th'] body {
+  letter-spacing: normal;
+}
+
+/* The two fluid utilities hard-code their own tracking and leading inside
+   `@utility`, so they are overridden by rule rather than by token. */
+:root[lang='th'] .text-display-fluid {
+  letter-spacing: normal;
+  line-height: 1.18;
+}
+
+:root[lang='th'] .text-section-fluid {
+  letter-spacing: normal;
+  line-height: 1.35;
 }

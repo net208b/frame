@@ -1,9 +1,10 @@
 import { ArrowUpRight, MapPinOff } from 'lucide-react';
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
-import { CapabilityNotice } from '@/components/system/DemoNotice';
+import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
 import { ErrorState } from '@/components/ui/states';
+import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 import { MAP_PROVIDER_DOC, MAP_STYLE_ENV_VAR } from './map-style';
@@ -18,13 +19,23 @@ import { MAP_PROVIDER_DOC, MAP_STYLE_ENV_VAR } from './map-style';
  * No heading tag on purpose. Either block can appear inside any page's section,
  * and both carry their own bold title line, so adding a heading here would mean
  * guessing a level and breaking somebody's heading order.
+ *
+ * No `'use client'` on purpose either, and that is load-bearing now that these
+ * blocks read messages: `MapTeaser` renders `MapUnavailable` from the server,
+ * while `MapCanvas` and `StaticLocationMap` render it from the client. Keeping
+ * the directive off lets Next compile this module into whichever layer imports
+ * it, and `useTranslations` from `next-intl` resolves to the matching
+ * implementation in both — the server one through the `react-server` export
+ * condition, the client one against the provider in the locale layout.
  */
 
 function ListLinkButton() {
+  const t = useTranslations('map');
+
   return (
     <Button asChild variant="secondary">
       <Link href="/locations">
-        Browse the location list
+        {t('actions.browseList')}
         <ArrowUpRight aria-hidden className="size-3.5" />
       </Link>
     </Button>
@@ -39,6 +50,8 @@ export function MapUnavailable({
   className?: string;
   heightClassName?: string;
 }) {
+  const t = useTranslations('map');
+
   return (
     <div
       className={cn(
@@ -50,11 +63,19 @@ export function MapUnavailable({
     >
       <MapPinOff aria-hidden className="size-6 shrink-0 text-muted-soft" />
 
-      <CapabilityNotice capability="maps" action="The map" className="max-w-xl text-left" />
+      {/* CapabilityNotice supplies the other half of this disclosure — which
+          variable turns the map on and where the full list is documented — and
+          composes its sentences from the `common.capabilityMissing` messages.
+          The subject of those sentences is passed in, so it is translated here
+          rather than there. */}
+      <CapabilityNotice
+        capability="maps"
+        action={t('unavailable.capabilityAction')}
+        className="max-w-xl text-left"
+      />
 
       <p className="max-w-md text-caption leading-relaxed text-muted">
-        FRAME ships no default tile server on purpose. MapLibre’s demo tiles are licensed for
-        evaluation only, so falling back to them would breach those terms on the first page view.
+        {t('unavailable.tileServerPolicy')}
       </p>
 
       <ListLinkButton />
@@ -67,11 +88,16 @@ export function MapUnavailable({
  * key, an outage. The places themselves are fine, so say so.
  */
 export function MapLoadFailure({ className }: { className?: string }) {
+  const t = useTranslations('map');
+
   return (
     <ErrorState
       className={className}
-      title="The map could not be loaded"
-      description={`The style configured in ${MAP_STYLE_ENV_VAR} did not answer, so nothing has been drawn. The places themselves are unaffected. See ${MAP_PROVIDER_DOC} for the provider setup.`}
+      title={t('loadFailure.title')}
+      description={t('loadFailure.description', {
+        variable: MAP_STYLE_ENV_VAR,
+        docs: MAP_PROVIDER_DOC,
+      })}
       action={<ListLinkButton />}
     />
   );

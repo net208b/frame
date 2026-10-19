@@ -1,7 +1,5 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
-
 import {
   fail,
   NOT_CONFIGURED_MESSAGE,
@@ -11,6 +9,7 @@ import {
 import { getViewer } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import type { TablesInsert } from '@/lib/supabase/types';
@@ -265,7 +264,7 @@ export async function submitReport(input: unknown): Promise<ActionResult> {
     );
   }
 
-  revalidatePath('/moderation');
+  revalidateLocalisedPath('/moderation');
 
   return ok(undefined, 'Report filed. A moderator will review it.');
 }

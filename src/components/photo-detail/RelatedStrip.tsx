@@ -1,3 +1,5 @@
+import { getTranslations } from 'next-intl/server';
+
 import { PhotoCard } from '@/components/photo/PhotoCard';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { cn } from '@/lib/utils';
@@ -10,6 +12,11 @@ import type { PhotographCard } from '@/types/domain';
  * Each row scrolls sideways where there is no space for it to sit flat, and a
  * row with nothing in it is left out rather than shown empty — "no other
  * photographs here yet" is a sentence the reader did not ask for.
+ *
+ * `Row` takes its heading as finished text. The two rows are worded
+ * differently in each language and the place row has a second wording for a
+ * frame with no place attached, so the sentences are chosen above and this
+ * component only lays them out.
  */
 
 function Row({
@@ -49,7 +56,7 @@ function Row({
   );
 }
 
-export function RelatedStrip({
+export async function RelatedStrip({
   sameLocation,
   byPhotographer,
   locationName,
@@ -63,6 +70,7 @@ export function RelatedStrip({
   photographerName: string;
   className?: string;
 }) {
+  const t = await getTranslations('photo');
   const atLocation = locationName ? sameLocation : [];
 
   if (atLocation.length === 0 && byPhotographer.length === 0) return null;
@@ -70,13 +78,17 @@ export function RelatedStrip({
   return (
     <div className={cn('space-y-14', className)}>
       <Row
-        eyebrow="More from this place"
-        title={locationName ? `Other frames at ${locationName}` : 'Other frames at this place'}
+        eyebrow={t('related.placeEyebrow')}
+        title={
+          locationName
+            ? t('related.placeTitle', { place: locationName })
+            : t('related.placeTitleUnnamed')
+        }
         photos={atLocation}
       />
       <Row
-        eyebrow="More by this photographer"
-        title={`Other frames by ${photographerName}`}
+        eyebrow={t('related.photographerEyebrow')}
+        title={t('related.photographerTitle', { photographer: photographerName })}
         photos={byPhotographer}
       />
     </div>

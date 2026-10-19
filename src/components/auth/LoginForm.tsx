@@ -1,12 +1,13 @@
 'use client';
 
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useActionState } from 'react';
 
-import { fieldError, FormStatus } from '@/components/auth/AuthStatus';
+import { FormStatus, useFieldErrors } from '@/components/auth/AuthStatus';
 import { PasswordField } from '@/components/auth/PasswordField';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
+import { Link } from '@/i18n/navigation';
 import { signIn } from '@/server/actions/auth';
 
 /**
@@ -22,6 +23,8 @@ type FormState = Awaited<ReturnType<typeof signIn>> | null;
 
 export function LoginForm({ next }: { next: string }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(signIn, null);
+  const t = useTranslations('auth');
+  const errorFor = useFieldErrors(state);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -32,31 +35,31 @@ export function LoginForm({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
 
       <TextField
-        label="Email address"
+        label={t('fields.email')}
         name="email"
         type="email"
         autoComplete="email"
         autoCapitalize="none"
         spellCheck={false}
         required
-        error={fieldError(state, 'email')}
+        error={errorFor('email')}
       />
 
       <PasswordField
-        label="Password"
+        label={t('fields.password')}
         name="password"
         autoComplete="current-password"
         required
-        error={fieldError(state, 'password')}
+        error={errorFor('password')}
       />
 
       <Button type="submit" size="lg" loading={pending} className="w-full">
-        {pending ? 'Signing in' : 'Sign in'}
+        {pending ? t('login.submitPending') : t('login.submit')}
       </Button>
 
       <p className="text-caption text-muted">
         <Link href="/forgot-password" className="font-semibold text-ink underline underline-offset-2">
-          Forgotten your password?
+          {t('login.forgotPassword')}
         </Link>
       </p>
     </form>

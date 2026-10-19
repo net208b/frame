@@ -2,16 +2,18 @@
 
 import * as RadixDialog from '@radix-ui/react-dialog';
 import { LogOut, Menu, X } from 'lucide-react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 
 import { BrandMark, BrandWordmark } from '@/components/layout/Brand';
+import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import { NavLink } from '@/components/layout/NavLink';
 import type { MenuViewer } from '@/components/layout/UserMenu';
 import { Avatar } from '@/components/photographer/Avatar';
+import { ThemeToggle } from '@/components/system/ThemeToggle';
 import { Button } from '@/components/ui/Button';
 import { TextField } from '@/components/ui/Field';
+import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 /**
@@ -21,14 +23,18 @@ import { cn } from '@/lib/utils';
  * focus is trapped inside the panel, Escape closes it and focus returns to the
  * trigger. The panel also closes on navigation, so a viewer is never left
  * looking at a menu for the page they have already arrived on.
+ *
+ * It is also where the language and theme controls live on a small screen —
+ * the header has no room for them there — so this panel, and not the header
+ * row, is the only way a phone reaches either one.
  */
 
 const PRIMARY_LINKS = [
-  { href: '/discover', label: 'Discover' },
-  { href: '/map', label: 'Map' },
-  { href: '/locations', label: 'Locations' },
-  { href: '/collections', label: 'Collections' },
-  { href: '/community', label: 'Community' },
+  { href: '/discover', key: 'discover' },
+  { href: '/map', key: 'map' },
+  { href: '/locations', key: 'locations' },
+  { href: '/collections', key: 'collections' },
+  { href: '/community', key: 'community' },
 ] as const;
 
 export function MobileNav({
@@ -42,6 +48,10 @@ export function MobileNav({
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const locale = useLocale();
+  const t = useTranslations('nav');
+  const tCommon = useTranslations('common');
+  const tTheme = useTranslations('theme');
 
   // Close on navigation, decided during render rather than in an effect: an
   // effect would let the panel paint once over the page it was navigating away
@@ -65,70 +75,96 @@ export function MobileNav({
         )}
       >
         <Menu className="size-4.5" aria-hidden />
-        <span className="sr-only">Open navigation</span>
+        <span className="sr-only">{t('openNavigation')}</span>
       </RadixDialog.Trigger>
 
       <RadixDialog.Portal>
-        <RadixDialog.Overlay className="fixed inset-0 z-40 bg-ink/45 backdrop-blur-[2px] data-[state=open]:motion-safe:animate-fade-in" />
+        {/* `bg-scrim` rather than an opacity on the ink token: ink is the
+            primary text colour, which is near-white in the dark theme, so a
+            scrim built from it would brighten the page it is meant to dim. */}
+        <RadixDialog.Overlay className="fixed inset-0 z-40 bg-scrim backdrop-blur-[2px] data-[state=open]:motion-safe:animate-fade-in" />
         <RadixDialog.Content
           className={cn(
             'fixed inset-x-0 top-0 z-50 max-h-dvh overflow-y-auto rounded-b-panel bg-paper',
             'px-5 pt-4 pb-7 shadow-modal data-[state=open]:motion-safe:animate-rise-in',
           )}
         >
-          <RadixDialog.Title className="sr-only">Site navigation</RadixDialog.Title>
+          <RadixDialog.Title className="sr-only">{t('panelTitle')}</RadixDialog.Title>
           <RadixDialog.Description className="sr-only">
-            Navigate FRAME, search the archive and reach your account.
+            {t('panelDescription')}
           </RadixDialog.Description>
 
           <div className="flex items-center justify-between">
-            <Link href="/" onClick={close} className="flex items-center gap-2.5" aria-label="FRAME, home">
+            <Link
+              href="/"
+              onClick={close}
+              className="flex items-center gap-2.5"
+              aria-label={t('home')}
+            >
               <BrandMark className="size-5" />
               <BrandWordmark className="text-[21px]" />
             </Link>
             <RadixDialog.Close className="grid size-9 place-items-center rounded-pill text-muted transition-colors hover:text-ink">
               <X className="size-4.5" aria-hidden />
-              <span className="sr-only">Close navigation</span>
+              <span className="sr-only">{t('closeNavigation')}</span>
             </RadixDialog.Close>
           </div>
 
-          <form action="/search" method="get" role="search" className="mt-6 flex items-end gap-2">
+          {/* A real GET form, so search works without JavaScript — which means
+              the action has to carry the locale itself. */}
+          <form
+            action={`/${locale}/search`}
+            method="get"
+            role="search"
+            className="mt-6 flex items-end gap-2"
+          >
             <TextField
-              label="Search FRAME"
+              label={t('searchLabel')}
               name="q"
               type="search"
-              placeholder="Photographs, places, photographers"
+              placeholder={t('searchPlaceholder')}
               autoComplete="off"
               wrapperClassName="flex-1"
             />
-            <Button type="submit">Search</Button>
+            <Button type="submit">{tCommon('search')}</Button>
           </form>
 
-          <nav aria-label="All sections" className="mt-6">
+          <nav aria-label={t('allSections')} className="mt-6">
             <ul className="flex flex-col gap-0.5">
               {PRIMARY_LINKS.map((link) => (
                 <li key={link.href}>
                   <NavLink href={link.href} variant="stacked" onClick={close}>
-                    {link.label}
+                    {t(link.key)}
                   </NavLink>
                 </li>
               ))}
             </ul>
           </nav>
 
-          <div className="mt-6 border-t border-line pt-5">
+          <div className="mt-6 flex flex-col gap-4 border-t border-line pt-5">
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-eyebrow text-muted uppercase">{tCommon('language')}</p>
+              <LocaleSwitcher />
+            </div>
+            <div className="flex items-center justify-between gap-4">
+              <p className="text-eyebrow text-muted uppercase">{tTheme('label')}</p>
+              <ThemeToggle />
+            </div>
+          </div>
+
+          <div className="mt-5 border-t border-line pt-5">
             {viewer ? (
               <AccountSection viewer={viewer} canModerate={canModerate} onNavigate={close} />
             ) : (
               <div className="flex flex-col gap-2.5">
                 <Button asChild variant="secondary" size="lg">
                   <Link href="/login" onClick={close}>
-                    Log in
+                    {t('logIn')}
                   </Link>
                 </Button>
                 <Button asChild size="lg">
                   <Link href="/join" onClick={close}>
-                    Join FRAME
+                    {t('join')}
                   </Link>
                 </Button>
               </div>
@@ -149,11 +185,13 @@ function AccountSection({
   canModerate: boolean;
   onNavigate: () => void;
 }) {
+  const t = useTranslations('nav');
+
   const accountLinks = [
-    { href: '/upload', label: 'Upload a photograph' },
-    { href: '/collections', label: 'My collections' },
-    { href: `/photographers/${viewer.username}`, label: 'My profile' },
-    ...(canModerate ? [{ href: '/moderation', label: 'Moderation' }] : []),
+    { href: '/upload', label: t('upload') },
+    { href: '/collections', label: t('myCollections') },
+    { href: `/photographers/${viewer.username}`, label: t('myProfile') },
+    ...(canModerate ? [{ href: '/moderation', label: t('moderation') }] : []),
   ];
 
   return (
@@ -186,7 +224,7 @@ function AccountSection({
           className="flex w-full items-center gap-2 rounded-field px-4 py-2.5 text-body font-semibold text-ink-soft transition-colors hover:bg-surface hover:text-ink"
         >
           <LogOut className="size-4 shrink-0 text-muted" aria-hidden />
-          Sign out
+          {t('signOut')}
         </button>
       </form>
     </div>

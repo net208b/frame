@@ -1,3 +1,5 @@
+import { getLocale, getTranslations } from 'next-intl/server';
+
 import { CollectionCard } from '@/components/collections/CollectionCard';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { cn } from '@/lib/utils';
@@ -10,8 +12,12 @@ import type { Collection } from '@/types/domain';
  * The repository already filters by visibility, and this filters again. That is
  * deliberate: a private collection appearing on a public profile is the kind of
  * mistake that cannot be taken back, so it is worth refusing twice.
+ *
+ * The description names the member, so it is one whole message with the name
+ * as an argument rather than a sentence assembled around it — Thai puts the
+ * name in a different place and needs no space on either side of it.
  */
-export function ProfileCollections({
+export async function ProfileCollections({
   collections,
   photographerName,
   className,
@@ -26,12 +32,15 @@ export function ProfileCollections({
   // member keeps no collections" instead of "there is nothing public here".
   if (visible.length === 0) return null;
 
+  const locale = await getLocale();
+  const t = await getTranslations({ locale, namespace: 'profile' });
+
   return (
     <section className={cn(className)}>
       <SectionHead
-        eyebrow="Collections"
-        title="Sets worth keeping"
-        description={`Photographs and places ${photographerName} has grouped and made public.`}
+        eyebrow={t('collections.eyebrow')}
+        title={t('collections.title')}
+        description={t('collections.description', { name: photographerName })}
       />
 
       <ul className="grid gap-x-5 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">

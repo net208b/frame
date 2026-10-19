@@ -1,13 +1,14 @@
 'use client';
 
 import { Pencil, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useId, useState, type FormEvent } from 'react';
 
 import { useToast } from '@/components/system/Toast';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog, Dialog, DialogClose, DialogContent } from '@/components/ui/Dialog';
 import { SelectField, TextAreaField, TextField } from '@/components/ui/Field';
+import { useRouter } from '@/i18n/navigation';
 import type { ActionResult } from '@/lib/action-result';
 import { cn } from '@/lib/utils';
 import {
@@ -25,25 +26,34 @@ import type { CollectionVisibility } from '@/types/domain';
  * refusal is rendered next to the field that caused it and left in the page
  * afterwards, because a toast that has already dismissed itself is no record.
  *
- * The visibility choices are written here rather than imported from the
+ * The confirmations are written here, in the reader's language, from the facts
+ * the action returned — `ok`, the saved slug, whether the address moved. The
+ * server also returns an English sentence of its own, and it is deliberately
+ * not shown: it is one language, and the member reading this form may not be
+ * reading in it. Nothing is claimed that the result did not report.
+ *
+ * Refusals are a different matter. `result.error` carries a reason only the
+ * server knows — an address already taken, a field the schema rejected — so it
+ * is shown exactly as it arrives. Those sentences are still English; see the
+ * note in the handover.
+ *
+ * The visibility choices are assembled here rather than imported from the
  * validation module so the select's copy stays a short label with a sentence of
  * explanation, and so the schemas — and Zod with them — stay out of this
  * bundle. The map is keyed by the domain union, so a third visibility could not
  * be added without this list refusing to compile.
  */
 
-const VISIBILITY: Record<CollectionVisibility, { label: string; description: string }> = {
-  private: {
-    label: 'Private — only you',
-    description: 'Only you can open it. This is the default, and it stays that way until you say otherwise.',
-  },
-  public: {
-    label: 'Public — anyone with the link',
-    description: 'Anyone can open it and it may appear in the collections index.',
-  },
-};
+const VISIBILITY_ORDER: readonly CollectionVisibility[] = ['private', 'public'];
 
-const VISIBILITY_ORDER: CollectionVisibility[] = ['private', 'public'];
+/**
+ * The stored limits, declared once so the field and the sentence that describes
+ * it cannot drift apart. They mirror `collectionSchema`, which is the authority:
+ * the server trims and re-checks whatever arrives.
+ */
+const TITLE_MAX = 80;
+const DESCRIPTION_MAX = 600;
+const SLUG_MAX = 80;
 
 export interface CollectionFormValues {
   id: string;
@@ -72,6 +82,8 @@ export function CollectionFormDialog({
   const router = useRouter();
   const toast = useToast();
   const formId = useId();
+  const t = useTranslations('collections');
+  const tCommon = useTranslations('common');
 
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
@@ -79,7 +91,18 @@ export function CollectionFormDialog({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const isEdit = collection !== undefined;
-  const label = triggerLabel ?? (isEdit ? 'Edit details' : 'Create collection');
+  const label = triggerLabel ?? (isEdit ? t('form.editTrigger') : t('form.createTrigger'));
+
+  const visibility: Record<CollectionVisibility, { label: string; description: string }> = {
+    private: {
+      label: t('form.visibilityPrivateLabel'),
+      description: t('form.visibilityPrivateDescription'),
+    },
+    public: {
+      label: t('form.visibilityPublicLabel'),
+      description: t('form.visibilityPublicDescription'),
+    },
+  };
 
   function reset(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -126,19 +149,34 @@ export function CollectionFormDialog({
         return;
       }
 
-      toast.show(result.message ?? 'Saved.', 'success');
-      reset(false);
+      // The schema trims the title before storing it, so the confirmation
+      // names the collection the way it was actually saved.
+      const saved = payload.title.trim();
 
-      if (isEdit && collection !== undefined && result.data.slug !== collection.slug) {
-        // The address moved, so the page we are standing on no longer exists.
-        router.replace(`/collections/${result.data.slug}`);
-      } else {
-        router.refresh();
+      if (isEdit && collection !== undefined) {
+        const moved = result.data.slug !== collection.slug;
+        toast.show(
+          moved
+            ? t('form.updatedWithAddress', { title: saved, slug: result.data.slug })
+            : t('form.updated', { title: saved }),
+          'success',
+        );
+        reset(false);
+
+        if (moved) {
+          // The address moved, so the page we are standing on no longer exists.
+          router.replace(`/collections/${result.data.slug}`);
+        } else {
+          router.refresh();
+        }
+        return;
       }
+
+      toast.show(t('form.created', { title: saved }), 'success');
+      reset(false);
+      router.refresh();
     } catch {
-      setFormError(
-        'That could not be saved. Check your connection and try again — nothing has changed.',
-      );
+      setFormError(t('form.networkError'));
     } finally {
       setPending(false);
     }
@@ -160,19 +198,15 @@ export function CollectionFormDialog({
 
       <Dialog open={open} onOpenChange={reset}>
         <DialogContent
-          title={isEdit ? 'Edit this collection' : 'Create a collection'}
-          description={
-            isEdit
-              ? 'Change the title, the description, the address or who can see it.'
-              : 'Group photographs and places together — a shot list for a city, a route to walk, or frames worth returning to.'
-          }
+          title={isEdit ? t('form.editTitle') : t('form.createTitle')}
+          description={isEdit ? t('form.editDescription') : t('form.createDescription')}
           footer={
             <>
               <DialogClose asChild>
-                <Button variant="secondary">Cancel</Button>
+                <Button variant="secondary">{tCommon('cancel')}</Button>
               </DialogClose>
               <Button type="submit" form={formId} loading={pending}>
-                {isEdit ? 'Save changes' : 'Create collection'}
+                {isEdit ? t('form.submitEdit') : t('form.submitCreate')}
               </Button>
             </>
           }
@@ -180,28 +214,28 @@ export function CollectionFormDialog({
           <form id={formId} onSubmit={onSubmit} noValidate className="space-y-4">
             <TextField
               name="title"
-              label="Title"
+              label={t('form.titleLabel')}
               required
-              maxLength={80}
+              maxLength={TITLE_MAX}
               defaultValue={collection?.title ?? ''}
               error={fieldError(fieldErrors, 'title')}
-              placeholder="Tokyo after midnight"
-              hint="Up to 80 characters. The address is built from this unless you set one below."
+              placeholder={t('form.titlePlaceholder')}
+              hint={t('form.titleHint', { max: TITLE_MAX })}
             />
 
             <TextAreaField
               name="description"
-              label="Description"
+              label={t('form.descriptionLabel')}
               rows={3}
-              maxLength={600}
+              maxLength={DESCRIPTION_MAX}
               defaultValue={collection?.description ?? ''}
               error={fieldError(fieldErrors, 'description')}
-              hint="Optional. Say what holds the set together, so somebody else can tell whether it is for them."
+              hint={t('form.descriptionHint', { max: DESCRIPTION_MAX })}
             />
 
             <SelectField
               name="visibility"
-              label="Who can see it"
+              label={t('form.visibilityLabel')}
               defaultValue={collection?.visibility ?? 'private'}
               error={fieldError(fieldErrors, 'visibility')}
               hint={
@@ -209,9 +243,9 @@ export function CollectionFormDialog({
                   {VISIBILITY_ORDER.map((value) => (
                     <span key={value} className="mt-0.5 block">
                       <strong className="font-semibold text-ink-soft">
-                        {VISIBILITY[value].label}.
+                        {visibility[value].label}.
                       </strong>{' '}
-                      {VISIBILITY[value].description}
+                      {visibility[value].description}
                     </span>
                   ))}
                 </>
@@ -219,7 +253,7 @@ export function CollectionFormDialog({
             >
               {VISIBILITY_ORDER.map((value) => (
                 <option key={value} value={value}>
-                  {VISIBILITY[value].label}
+                  {visibility[value].label}
                 </option>
               ))}
             </SelectField>
@@ -227,16 +261,16 @@ export function CollectionFormDialog({
             {isEdit ? (
               <TextField
                 name="slug"
-                label="Address"
-                maxLength={80}
+                label={t('form.slugLabel')}
+                maxLength={SLUG_MAX}
                 defaultValue={collection?.slug ?? ''}
                 error={fieldError(fieldErrors, 'slug')}
-                hint="The part after /collections/ in the link. Changing it breaks any link already shared; clearing it rebuilds the address from the title."
+                hint={t('form.slugHint')}
               />
             ) : null}
 
             <p aria-live="polite" className="sr-only">
-              {pending ? 'Saving your collection.' : ''}
+              {pending ? t('form.saving') : ''}
             </p>
 
             {/* The refusal stays in the page rather than only in a toast. */}
@@ -272,15 +306,12 @@ export function DeleteCollectionButton({
 }) {
   const router = useRouter();
   const toast = useToast();
+  const t = useTranslations('collections');
+  const tCommon = useTranslations('common');
 
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const entries =
-    itemCount === 0
-      ? 'It holds nothing at the moment.'
-      : `Its ${itemCount} ${itemCount === 1 ? 'entry' : 'entries'} go with it.`;
 
   async function onConfirm() {
     if (pending) return;
@@ -296,14 +327,12 @@ export function DeleteCollectionButton({
         return;
       }
 
-      toast.show(result.message ?? 'The collection is deleted.', 'success');
+      toast.show(t('deleteDialog.done', { title: collectionTitle }), 'success');
       setOpen(false);
       router.push('/collections');
     } catch {
       setOpen(false);
-      setError(
-        'That collection could not be deleted. Check your connection and try again — it is still there.',
-      );
+      setError(t('deleteDialog.networkError'));
     } finally {
       setPending(false);
     }
@@ -316,15 +345,20 @@ export function DeleteCollectionButton({
         onClick={() => setOpen(true)}
         iconLeft={<Trash2 aria-hidden className="size-3.5" />}
       >
-        Delete
+        {tCommon('delete')}
       </Button>
 
+      {/* The collection is named in the question, in both languages, so the
+          confirmation can never read "Are you sure?" with no object. The entry
+          count and the warning are one message: English selects a plural form,
+          Thai has a single one and separates the two sentences with a space,
+          which is what a Thai sentence break is. */}
       <ConfirmDialog
         open={open}
         onOpenChange={setOpen}
-        title={`Delete “${collectionTitle}”?`}
-        body={`${entries} The photographs and places themselves are not affected — only this grouping of them. This cannot be undone.`}
-        confirmLabel="Delete collection"
+        title={t('deleteDialog.title', { title: collectionTitle })}
+        body={t('deleteDialog.body', { count: itemCount })}
+        confirmLabel={t('deleteDialog.confirm')}
         onConfirm={onConfirm}
         pending={pending}
       />

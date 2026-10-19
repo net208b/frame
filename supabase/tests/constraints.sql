@@ -362,23 +362,33 @@ end $$;
 
 -- ------------------------------------------------------------------ summary
 do $$
-declare n_tables integer; n_unprotected integer;
+declare n_tables integer; n_unprotected integer; v_offenders text;
 begin
+  -- Application tables only. An extension installed into `public` brings its own
+  -- — PostGIS puts `spatial_ref_sys` there, and a managed image may install it
+  -- before the migrations run — and counting those reported a gap on a table
+  -- FRAME does not own and cannot protect.
   select count(*) into n_tables
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r';
+   where n.nspname = 'public' and c.relkind in ('r', 'p')
+     and c.oid not in (select objid from pg_depend
+                        where classid = 'pg_class'::regclass and deptype = 'e');
 
   -- rate_limit_hits is deliberately policy-free: RLS on with no policy denies
   -- every direct read and write, leaving check_rate_limit() the only way in.
-  select count(*) into n_unprotected
+  select count(*), string_agg(c.relname, ', ' order by c.relname)
+    into n_unprotected, v_offenders
     from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
+   where n.nspname = 'public' and c.relkind in ('r', 'p')
+     and not c.relrowsecurity
+     and c.oid not in (select objid from pg_depend
+                        where classid = 'pg_class'::regclass and deptype = 'e');
 
   if n_unprotected > 0 then
-    raise exception 'RLS GAP  % of % public tables have row-level security off',
-      n_unprotected, n_tables;
+    raise exception 'RLS GAP  % of % application tables have row-level security off: %',
+      n_unprotected, n_tables, v_offenders;
   end if;
-  raise notice 'rls ok        row-level security is enabled on all % public tables', n_tables;
+  raise notice 'rls ok        row-level security is enabled on all % application tables', n_tables;
   raise notice '';
   raise notice 'All database guarantees held.';
 end $$;

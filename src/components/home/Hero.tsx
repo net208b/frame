@@ -1,9 +1,12 @@
 import { ArrowUpRight } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
-import Link from 'next/link';
+import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
+import type { Locale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { IMAGE_SIZES } from '@/lib/images/variants';
 import { cn } from '@/lib/utils';
 import type { PhotographCard } from '@/types/domain';
@@ -16,12 +19,25 @@ import type { PhotographCard } from '@/types/domain';
  * carries the cover frame, which is the single priority image in the document.
  */
 
-/** Where the cover frame sits inside the set it was chosen from. */
-export interface HeroIndex {
+/**
+ * The cover frame, why it is on the cover, and where it sits in the set it was
+ * drawn from.
+ *
+ * One object rather than a photograph plus a loose index, because the two can
+ * never legitimately disagree: a frame with no set behind it would leave the
+ * caption with nothing honest to say about why it is there.
+ *
+ * The page decides only *which* set the frame came from. The wording for each
+ * case lives in the message catalogue, so neither sentence is assembled outside
+ * it.
+ */
+export interface HeroCover {
+  photo: PhotographCard;
+  /** Which set the frame was drawn from. Decides the eyebrow and the note. */
+  kind: 'trending' | 'editors';
   position: number;
+  /** How many frames the set holds — the denominator of the pill. */
   total: number;
-  /** One sentence saying what the pill counts, read by assistive technology. */
-  note: string;
 }
 
 /** Matches the prototype's three hero heights. */
@@ -31,20 +47,19 @@ function pad(value: number): string {
   return String(Math.max(0, Math.round(value))).padStart(2, '0');
 }
 
-export function Hero({
-  featured,
-  featuredEyebrow,
-  featuredIndex,
+export async function Hero({
+  cover,
   signedIn,
+  locale,
   className,
 }: {
-  featured: PhotographCard | null;
-  /** Why this frame is on the cover, shown verbatim: "Trending now". */
-  featuredEyebrow: string;
-  featuredIndex: HeroIndex | null;
+  cover: HeroCover | null;
   signedIn: boolean;
+  locale: Locale;
   className?: string;
 }) {
+  const t = await getTranslations({ locale, namespace: 'home' });
+
   return (
     <section
       className={cn(
@@ -55,52 +70,80 @@ export function Hero({
       )}
     >
       <div>
-        <Eyebrow>Street photography, place by place</Eyebrow>
+        <Eyebrow>{t('hero.eyebrow')}</Eyebrow>
 
+        {/* THE EMPHASISED WORD, which is a different device in each language.
+            One message carries the whole headline and marks the accent with a
+            tag, so each translator decides which word takes the emphasis.
+
+            English sets it in Instrument Serif italic — the one serif accent in
+            the product, and the device the prototype established.
+
+            Thai cannot use it. Instrument Serif has no Thai glyphs, so
+            `font-serif` on Thai text falls through the stack to Noto Sans Thai,
+            and `italic` then makes the browser synthesise the slant. A
+            synthetic slant shears the vowel and tone marks away from the base
+            glyph they belong to — the exact failure this project's Thai
+            typography work exists to prevent — and Thai has no italic
+            tradition to read as emphasis in the first place, so the device
+            would cost legibility and buy nothing.
+
+            Thai gets the device Thai editorial typography actually uses:
+            weight. The display sits at 780, so the accent goes to 900 — the top
+            of the Noto Sans Thai variable range, which this layout already
+            loads for the wordmark — against 780 around it. `not-italic` is not
+            optional: `em` is italic by default, and that default is precisely
+            the synthetic slant to avoid.
+
+            Colour was the other candidate and was rejected. The palette's only
+            accent is the lime `--color-accent`, which is used as a background
+            and fails contrast as text on paper; and dimming the surrounding
+            words so one stands out would have changed the headline's weight on
+            the page in English too. */}
         <h1 className="mt-5 max-w-[760px] text-display-fluid">
-          Start with a place. The frame{' '}
-          {/* The one serif italic accent in the product, as in the prototype. */}
-          <em className="font-serif font-normal tracking-[-0.09em] italic">follows</em>.
+          {t.rich('hero.headline', {
+            accent: (chunks: ReactNode) =>
+              locale === 'th' ? (
+                <em className="font-black not-italic">{chunks}</em>
+              ) : (
+                <em className="font-serif font-normal tracking-[-0.09em] italic">{chunks}</em>
+              ),
+          })}
         </h1>
 
-        <p className="mt-6 max-w-[390px] text-lead text-muted">
-          Every photograph here is pinned to the place it was made, with the settings behind it.
-          Begin with a city, a corner or a single frame, and find somewhere worth standing.
-        </p>
+        <p className="mt-6 max-w-[390px] text-lead text-muted">{t('hero.lead')}</p>
 
         <div className="mt-7 flex flex-wrap items-center gap-2.5">
           <Button asChild size="lg">
             <Link href="/discover">
-              Explore photographs
+              {t('hero.explore')}
               <ArrowUpRight aria-hidden className="size-4" />
             </Link>
           </Button>
 
           <Button asChild variant="secondary" size="lg">
-            <Link href={signedIn ? '/upload' : '/join'}>Share your work</Link>
+            <Link href={signedIn ? '/upload' : '/join'}>{t('hero.share')}</Link>
           </Button>
         </div>
       </div>
 
-      {featured ? (
-        <CoverFrame photo={featured} eyebrow={featuredEyebrow} index={featuredIndex} />
-      ) : (
-        <NoCoverFrame />
-      )}
+      {cover ? <CoverFrame cover={cover} locale={locale} /> : <NoCoverFrame locale={locale} />}
     </section>
   );
 }
 
-function CoverFrame({
-  photo,
-  eyebrow,
-  index,
-}: {
-  photo: PhotographCard;
-  eyebrow: string;
-  index: HeroIndex | null;
-}) {
+async function CoverFrame({ cover, locale }: { cover: HeroCover; locale: Locale }) {
+  const t = await getTranslations({ locale, namespace: 'home' });
+  const photo = cover.photo;
   const place = photo.location ? `${photo.location.city}, ${photo.location.country}` : null;
+
+  // Each case is spelled out rather than selected through a computed key, so
+  // both sentences stay whole messages a translator reads in context.
+  const isTrending = cover.kind === 'trending';
+  const eyebrow = isTrending ? t('cover.trendingEyebrow') : t('cover.editorsEyebrow');
+  const note = isTrending
+    ? t('cover.trendingNote', { count: cover.total })
+    : t('cover.editorsNote', { count: cover.total });
 
   return (
     <figure className={cn('relative overflow-hidden rounded-media bg-surface-sunken', MEDIA_HEIGHT)}>
@@ -130,6 +173,8 @@ function CoverFrame({
 
       <figcaption className="absolute inset-x-[18px] bottom-[18px] flex items-end justify-between gap-4">
         <div className="min-w-0 [text-shadow:0_1px_8px_rgb(0_0_0/0.55)]">
+          {/* `uppercase` is a no-op on Thai, which has no letter case, so the
+              Thai eyebrow renders exactly as it is written in the catalogue. */}
           <p className="text-eyebrow text-on-ink uppercase">
             {eyebrow}
             {place ? ` · ${place}` : ''}
@@ -154,20 +199,24 @@ function CoverFrame({
           </p>
         </div>
 
-        {index ? (
-          <span className="relative z-10 shrink-0 rounded-pill bg-surface/88 px-3 py-2 text-eyebrow text-ink uppercase tabular-nums">
-            {pad(index.position)}
-            <span aria-hidden> / </span>
-            {pad(index.total)}
-            <span className="sr-only">{`. ${index.note}`}</span>
-          </span>
-        ) : null}
+        <span className="relative z-10 shrink-0 rounded-pill bg-surface/88 px-3 py-2 text-eyebrow text-ink uppercase tabular-nums">
+          {pad(cover.position)}
+          <span aria-hidden> / </span>
+          {pad(cover.total)}
+          {/* A space, not a full stop, separates the digits from the sentence a
+              screen reader reads next. Thai does not close a sentence with one,
+              and the note is a whole message in both languages, so the
+              punctuation cannot be added here. */}
+          <span className="sr-only"> {note}</span>
+        </span>
       </figcaption>
     </figure>
   );
 }
 
-function NoCoverFrame() {
+async function NoCoverFrame({ locale }: { locale: Locale }) {
+  const t = await getTranslations({ locale, namespace: 'home' });
+
   return (
     <div
       className={cn(
@@ -175,10 +224,7 @@ function NoCoverFrame() {
         MEDIA_HEIGHT,
       )}
     >
-      <p className="text-caption text-muted">
-        No photographs have been published yet, so there is no cover frame to show. The first
-        published photograph will appear here.
-      </p>
+      <p className="text-caption text-muted">{t('cover.empty')}</p>
     </div>
   );
 }

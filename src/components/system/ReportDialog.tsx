@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useId, useState, type FormEvent } from 'react';
 
 import { useToast } from '@/components/system/Toast';
@@ -8,11 +8,11 @@ import { Button } from '@/components/ui/Button';
 import { Dialog, DialogClose, DialogContent, DialogTrigger } from '@/components/ui/Dialog';
 import { SelectField, TextAreaField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
+import { Link } from '@/i18n/navigation';
 import { isDemoMode } from '@/lib/config';
 import { submitReport } from '@/server/actions/reports';
 import {
   REPORT_REASONS,
-  REPORT_REASON_LABELS,
   type ReportReason,
   type ReportSubjectType,
 } from '@/types/domain';
@@ -26,6 +26,16 @@ import {
  * claims more than it can deliver: a failed submission keeps the dialog open
  * with the real reason beside the form, and in a deployment with no database
  * the dialog says so instead of collecting a report it cannot store.
+ *
+ * The reasons are translated under `report.reason.*`, keyed by the same literal
+ * values as `REPORT_REASONS` in `types/domain.ts`. That constant and
+ * `REPORT_REASON_LABELS` stay as they are: the value is what is written to the
+ * moderation queue and what a moderator reads, and translating the stored
+ * reason would make two reports of the same thing look like two different
+ * things. Only the words in this form change language.
+ *
+ * `subjectLabel` arrives already written by the page that opened the dialog,
+ * for the same reason the subject of a report is quoted rather than described.
  */
 
 /** Matches `optionalText({ label: 'Details', max: 1_200 })` in the schema. */
@@ -35,17 +45,21 @@ export function ReportDialog({
   subjectType,
   subjectId,
   subjectLabel,
-  triggerLabel = 'Report',
+  triggerLabel,
   triggerVariant = 'ghost',
   className,
 }: {
   subjectType: ReportSubjectType;
   subjectId: string;
   subjectLabel: string;
+  /** Overrides the generic "Report" on a page that can be more specific. */
   triggerLabel?: string;
   triggerVariant?: 'ghost' | 'secondary';
   className?: string;
 }) {
+  const t = useTranslations('report');
+  // "Cancel" is already translated once, for every dialog in FRAME.
+  const common = useTranslations('common');
   const toast = useToast();
   const formId = useId();
 
@@ -88,16 +102,18 @@ export function ReportDialog({
 
       if (result.ok) {
         onOpenChange(false);
-        toast.show(result.message ?? 'Report filed. A moderator will review it.', 'success');
+        // The translated sentence, not `result.message`. `submitReport` returns
+        // one fixed English success line, and letting it through would answer a
+        // Thai form in English. A failure still shows `result.error`, because
+        // that one really does vary — see the follow-ups.
+        toast.show(t('filed'), 'success');
         return;
       }
 
       setError(result.error);
       setFieldErrors(result.fieldErrors ?? {});
     } catch {
-      setError(
-        'Your report could not be sent. Check your connection and try again — nothing has been filed.',
-      );
+      setError(t('failed'));
     } finally {
       setPending(false);
     }
@@ -107,57 +123,58 @@ export function ReportDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button variant={triggerVariant} size="sm" className={className}>
-          {triggerLabel}
+          {triggerLabel ?? t('trigger')}
         </Button>
       </DialogTrigger>
 
       <DialogContent
-        title="Report this item"
-        description={`You are reporting ${subjectLabel}.`}
+        title={t('title')}
+        description={t('describeSubject', { subject: subjectLabel })}
         footer={
           <>
             <DialogClose asChild>
-              <Button variant="secondary">Cancel</Button>
+              <Button variant="secondary">{common('cancel')}</Button>
             </DialogClose>
             {configured ? (
               <Button type="submit" form={formId} loading={pending}>
-                Send report
+                {t('submit')}
               </Button>
             ) : null}
           </>
         }
       >
         {configured ? null : (
-          <Notice tone="warning" title="Reports cannot be filed in this build" className="mb-5">
+          <Notice tone="warning" title={t('demo.title')} className="mb-5">
             <p>
-              No database is configured, so there is no moderation queue to file into and nothing
-              typed here would be stored. See{' '}
-              <code className="font-mono text-[0.95em] font-semibold">docs/ENVIRONMENT.md</code>{' '}
-              for the environment variables that connect one.
+              {t.rich('demo.body', {
+                file: (chunks) => (
+                  <code className="font-mono text-[0.95em] font-semibold">{chunks}</code>
+                ),
+              })}
             </p>
           </Notice>
         )}
 
         <form id={formId} onSubmit={onSubmit} className="space-y-4">
           <SelectField
-            label="Reason"
+            label={t('reasonLabel')}
             required
             disabled={!configured || pending}
             value={reason}
             error={fieldErrors.reason}
             onChange={(event) => setReason(event.target.value as ReportReason | '')}
-            hint="Pick the closest match — the detail you add below matters more than the category."
+            hint={t('reasonHint')}
           >
-            <option value="">Choose a reason</option>
+            <option value="">{t('reasonPlaceholder')}</option>
             {REPORT_REASONS.map((value) => (
               <option key={value} value={value}>
-                {REPORT_REASON_LABELS[value]}
+                {t(`reason.${value}`)}
               </option>
             ))}
           </SelectField>
 
           <TextAreaField
-            label="Details"
+            label={t('detailsLabel')}
             value={details}
             disabled={!configured || pending}
             // The schema refuses "something else" without an explanation, so
@@ -166,26 +183,26 @@ export function ReportDialog({
             maxLength={DETAILS_MAX_LENGTH}
             error={fieldErrors.details}
             onChange={(event) => setDetails(event.target.value)}
-            placeholder="Anything that would help a moderator see what you are seeing."
-            hint={`Optional, unless the reason is “something else”. ${
-              DETAILS_MAX_LENGTH - details.length
-            } characters left.`}
+            placeholder={t('detailsPlaceholder')}
+            hint={t('detailsHint', {
+              reason: t('reason.other'),
+              remaining: DETAILS_MAX_LENGTH - details.length,
+            })}
           />
 
           <div className="rounded-card bg-surface-sunken px-4 py-3 text-meta leading-relaxed text-muted">
-            <p>
-              A moderator reviews each report by hand. Nothing is removed automatically, and the
-              person you are reporting is not shown who filed it.
-            </p>
+            <p>{t('byHand')}</p>
             <p className="mt-1.5">
-              A copyright claim is handled under the takedown policy rather than this queue, so read{' '}
-              <Link
-                href="/legal/copyright"
-                className="font-semibold text-ink-soft underline decoration-line-strong underline-offset-2 transition-colors hover:text-ink"
-              >
-                the copyright and takedown policy
-              </Link>{' '}
-              before filing one — it sets out what a claim has to contain.
+              {t.rich('copyright', {
+                policy: (chunks) => (
+                  <Link
+                    href="/legal/copyright"
+                    className="font-semibold text-ink-soft underline decoration-line-strong underline-offset-2 transition-colors hover:text-ink"
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </p>
           </div>
 
@@ -193,7 +210,7 @@ export function ReportDialog({
               dismissed itself is no record of what went wrong. */}
           <div aria-live="polite">
             {error ? (
-              <Notice tone="danger" title="This report was not filed">
+              <Notice tone="danger" title={t('errorTitle')}>
                 {error}
               </Notice>
             ) : null}

@@ -1,15 +1,16 @@
 'use client';
 
 import { ImageUp, Upload } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useId, useRef, useState, type DragEvent } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { Notice } from '@/components/ui/states';
 import { UPLOAD_POLICY } from '@/lib/config';
-import { describeExifGpsPolicy } from '@/lib/images/exif';
-import { cn, formatFileSize } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
-import { validateStep, type UploadDraft } from './use-upload-draft';
+import { useUploadFormat } from './format';
+import type { UploadDraft } from './use-upload-draft';
 
 /**
  * Step 1 — the file.
@@ -19,10 +20,20 @@ import { validateStep, type UploadDraft } from './use-upload-draft';
  * member finds out in a second rather than after a 25 MB upload, and the page
  * says as much, because a check that looks like a guarantee is worse than no
  * check at all.
+ *
+ * Every limit on this step is read from `UPLOAD_POLICY` and formatted through
+ * the active locale. None of it is written into the copy, in either language:
+ * a figure typed into a sentence is a second source of truth that stops
+ * agreeing with the server the day the limit moves.
  */
 
 const ACCEPT = [...UPLOAD_POLICY.acceptedMimeTypes, ...UPLOAD_POLICY.acceptedExtensions].join(',');
 
+/**
+ * The accepted formats as a photographer names them, rather than as media
+ * types. Not translated: JPG and AVIF are the same four letters in every
+ * language, and a localised list of file formats would be an invention.
+ */
 function readableFormats(): string {
   return UPLOAD_POLICY.acceptedExtensions
     .filter((extension) => extension !== '.jpeg')
@@ -31,6 +42,8 @@ function readableFormats(): string {
 }
 
 export function StepChooseFile({ draft }: { draft: UploadDraft }) {
+  const t = useTranslations('upload');
+  const format = useUploadFormat();
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
@@ -38,7 +51,7 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
 
   // Shown as soon as a file is chosen rather than waiting for a step attempt:
   // the member has just done something, and the answer is already known.
-  const fileError = state.file ? validateStep('file', state).file : draft.errors.file;
+  const fileError = state.file ? draft.immediateErrors.file : draft.errors.file;
 
   const onDrop = (event: DragEvent<HTMLElement>) => {
     event.preventDefault();
@@ -55,19 +68,43 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
             ? [exif.cameraBrand, exif.cameraModel].filter(Boolean).join(' ')
             : null,
           exif.lensModel,
-          exif.focalLengthMm === null ? null : `${exif.focalLengthMm} mm`,
-          exif.aperture === null ? null : `f/${exif.aperture}`,
+          exif.focalLengthMm === null
+            ? null
+            : t('file.focalLengthFact', { value: format.plain(exif.focalLengthMm) }),
+          exif.aperture === null
+            ? null
+            : t('file.apertureFact', { value: format.plain(exif.aperture) }),
           exif.shutterSpeed,
-          exif.iso === null ? null : `ISO ${exif.iso}`,
+          exif.iso === null ? null : t('file.isoFact', { value: format.plain(exif.iso) }),
+        ].filter((fact): fact is string => typeof fact === 'string' && fact.length > 0);
+
+  // The size, the declared type and the pixel dimensions are three facts rather
+  // than a sentence, so they are joined with a separator rather than written
+  // into a message where a translator would have to keep the punctuation.
+  const fileFacts =
+    state.file === null
+      ? []
+      : [
+          format.fileSize(state.file.size),
+          state.file.type,
+          exif?.width && exif.height
+            ? t('file.dimensions', {
+                width: format.plain(exif.width),
+                height: format.plain(exif.height),
+              })
+            : null,
         ].filter((fact): fact is string => typeof fact === 'string' && fact.length > 0);
 
   return (
     <div>
-      <h2 className="text-section font-bold">Choose the photograph</h2>
+      <h2 className="text-section font-bold">{t('file.heading')}</h2>
       <p className="mt-2 max-w-prose text-body text-muted">
-        One photograph per upload. {readableFormats()} files up to{' '}
-        {formatFileSize(UPLOAD_POLICY.maxFileBytes)}, at least {UPLOAD_POLICY.minPixelWidth} by{' '}
-        {UPLOAD_POLICY.minPixelHeight} pixels.
+        {t('file.lead', {
+          formats: readableFormats(),
+          size: format.fileSize(UPLOAD_POLICY.maxFileBytes),
+          width: format.plain(UPLOAD_POLICY.minPixelWidth),
+          height: format.plain(UPLOAD_POLICY.minPixelHeight),
+        })}
       </p>
 
       <input
@@ -99,11 +136,9 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
       >
         <ImageUp className="size-7 text-muted" aria-hidden />
         <span className="mt-4 text-title font-semibold tracking-tight">
-          {state.file ? 'Choose a different photograph' : 'Drop a photograph here'}
+          {state.file ? t('file.dropZoneReplace') : t('file.dropZone')}
         </span>
-        <span className="mt-1.5 text-caption text-muted">
-          or press Enter to browse your files
-        </span>
+        <span className="mt-1.5 text-caption text-muted">{t('file.browseHint')}</span>
       </label>
 
       {fileError ? (
@@ -113,16 +148,13 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
       ) : null}
 
       <p className="mt-4 max-w-prose text-meta leading-relaxed text-muted">
-        These two checks run in your browser, so they are a convenience rather than a control.
-        FRAME reads the real contents of the file on the server after it arrives, and refuses
-        anything that is not a photograph it can publish — whatever the file was named or said it
-        was.
+        {t('file.clientCheckNote')}
       </p>
 
       {state.file && state.previewUrl ? (
         <section aria-labelledby="chosen-file" className="mt-8">
           <h3 id="chosen-file" className="text-eyebrow text-muted uppercase">
-            Chosen file
+            {t('file.chosenFile')}
           </h3>
 
           <div className="mt-3 flex flex-wrap items-start gap-5 rounded-card border border-line bg-surface p-4">
@@ -131,25 +163,21 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={state.previewUrl}
-              alt={`Preview of ${state.file.name}, the photograph you have chosen to upload`}
+              alt={t('file.previewAlt', { fileName: state.file.name })}
               className="h-32 w-32 rounded-media object-cover"
             />
 
             <div className="min-w-0 flex-1">
               <p className="truncate text-body font-semibold">{state.file.name}</p>
-              <p className="mt-1 text-meta text-muted">
-                {formatFileSize(state.file.size)}
-                {state.file.type ? ` · ${state.file.type}` : ''}
-                {exif?.width && exif.height ? ` · ${exif.width} × ${exif.height} px` : ''}
-              </p>
+              <p className="mt-1 text-meta text-muted">{fileFacts.join(' · ')}</p>
 
               <p aria-live="polite" className="mt-3 text-meta leading-relaxed text-ink-soft">
                 {state.exifStatus === 'reading'
-                  ? 'Reading the camera metadata…'
+                  ? t('file.exifReading')
                   : state.exifStatus === 'read' && readFacts.length > 0
-                    ? `Read from the file: ${readFacts.join(' · ')}. You can change any of it later.`
+                    ? t('file.exifRead', { facts: readFacts.join(' · ') })
                     : state.exifStatus === 'read'
-                      ? 'This file carries no camera metadata. That is common and nothing is wrong — you can type the details in yourself.'
+                      ? t('file.exifNone')
                       : ''}
               </p>
 
@@ -160,16 +188,18 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
                 iconLeft={<Upload className="size-3.5" aria-hidden />}
                 onClick={() => inputRef.current?.click()}
               >
-                Replace this file
+                {t('file.replace')}
               </Button>
             </div>
           </div>
 
           {exif?.gps ? (
-            <Notice tone="info" title="This file records where it was taken" className="mt-4">
+            <Notice tone="info" title={t('exifGps.title')} className="mt-4">
+              {/* Two sentences, two messages, a space between them — which is
+                  also how Thai separates them. The first is the policy itself
+                  and is shared verbatim with the place step. */}
               <p>
-                {describeExifGpsPolicy()} You will be asked about it on the place step, and nothing
-                happens with it unless you choose it there.
+                {t('exifGps.policy')} {t('exifGps.onFileStep')}
               </p>
             </Notice>
           ) : null}

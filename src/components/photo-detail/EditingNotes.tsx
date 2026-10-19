@@ -1,4 +1,7 @@
+import { getLocale, getTranslations } from 'next-intl/server';
+
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
 import { cn, formatDate } from '@/lib/utils';
 import type { EditingDetails } from '@/types/domain';
 
@@ -8,12 +11,18 @@ import type { EditingDetails } from '@/types/domain';
  * Kept apart from the capture settings on purpose: a reader learning from this
  * page needs to be able to tell what the camera did from what was decided
  * later, and a single merged list of "details" hides exactly that difference.
+ * Both languages keep the pair of headings that carries the distinction — "In
+ * the camera" / "After the shutter", "ในกล้อง" / "หลังกดชัตเตอร์".
  *
  * The capture date appears only when `capturedAt` is set, which the domain type
  * already defines as "EXIF held a date *and* the owner chose to publish it" —
  * so there is no consent decision left to make here.
+ *
+ * The date goes through `Intl` in the reader's language, which is why the
+ * locale is mapped through `INTL_LOCALES`: `th` alone would print the Buddhist
+ * era, and bare `en` would reorder the day and the month.
  */
-export function EditingNotes({
+export async function EditingNotes({
   editing,
   capturedAt,
   className,
@@ -22,7 +31,10 @@ export function EditingNotes({
   capturedAt: string | null;
   className?: string;
 }) {
-  const captured = capturedAt ? formatDate(capturedAt) : null;
+  const [t, locale] = await Promise.all([getTranslations('photo'), getLocale()]);
+  const intlLocale = INTL_LOCALES[isLocale(locale) ? locale : DEFAULT_LOCALE];
+
+  const captured = capturedAt ? formatDate(capturedAt, intlLocale) : null;
   const hasEditing = Boolean(editing.software || editing.notes);
 
   // Nothing to separate from the capture settings, so the block stays away
@@ -31,19 +43,17 @@ export function EditingNotes({
 
   return (
     <section className={cn('min-w-0', className)}>
-      <Eyebrow>After the shutter</Eyebrow>
-      <h2 className="mt-2 text-title font-bold">Editing</h2>
+      <Eyebrow>{t('editing.eyebrow')}</Eyebrow>
+      <h2 className="mt-2 text-title font-bold">{t('editing.title')}</h2>
 
       {!hasEditing && captured ? (
-        <p className="mt-3 text-caption leading-relaxed text-muted">
-          No editing was recorded for this frame.
-        </p>
+        <p className="mt-3 text-caption leading-relaxed text-muted">{t('editing.none')}</p>
       ) : null}
 
       <dl className="mt-4 text-caption">
         {captured && capturedAt ? (
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 py-2.5 pt-0">
-            <dt className="text-meta text-muted">Taken</dt>
+            <dt className="text-meta text-muted">{t('editing.taken')}</dt>
             <dd className="font-semibold text-ink">
               <time dateTime={capturedAt}>{captured}</time>
             </dd>
@@ -57,7 +67,7 @@ export function EditingNotes({
               captured ? 'border-t border-line' : 'pt-0',
             )}
           >
-            <dt className="text-meta text-muted">Edited in</dt>
+            <dt className="text-meta text-muted">{t('editing.editedIn')}</dt>
             <dd className="font-semibold text-ink">{editing.software}</dd>
           </div>
         ) : null}
@@ -65,7 +75,7 @@ export function EditingNotes({
 
       {editing.notes ? (
         <div className="mt-3">
-          <h3 className="text-meta text-muted">The photographer’s notes</h3>
+          <h3 className="text-meta text-muted">{t('editing.notes')}</h3>
           <p className="mt-1.5 text-caption leading-relaxed text-ink-soft">{editing.notes}</p>
         </div>
       ) : null}

@@ -1,12 +1,14 @@
 'use client';
 
 import { RotateCcw } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { TextField } from '@/components/ui/Field';
+import { taxonomyLabels } from '@/lib/taxonomy';
 import { cn, formatCount } from '@/lib/utils';
-import { CATEGORY_LABELS, type PhotoCategory } from '@/types/domain';
+import { type PhotoCategory } from '@/types/domain';
 
 export interface CategoryOption {
   category: PhotoCategory;
@@ -20,6 +22,10 @@ export interface CategoryOption {
  * what the map draws, and a change a sighted viewer sees as pins disappearing
  * is otherwise silent. The chips carry their own counts so it is clear in
  * advance that a filter will not empty the map.
+ *
+ * The category names come from `lib/taxonomy.ts` rather than from this file, so
+ * a category reads identically here, on Discover, on a photograph and in the
+ * upload steps.
  */
 export function MapFilterBar({
   query,
@@ -42,16 +48,21 @@ export function MapFilterBar({
   onReset: () => void;
   className?: string;
 }) {
+  const t = useTranslations('map');
+  const tCommon = useTranslations('common');
+  const taxonomy = taxonomyLabels(useTranslations('taxonomy'));
+  const locale = useLocale();
+
   const filtered = query.trim().length > 0 || activeCategories.length > 0;
 
   return (
     <div className={cn('flex flex-col gap-3', className)}>
       <TextField
-        label="Search places"
+        label={t('filters.searchLabel')}
         hideLabel
         type="search"
         value={query}
-        placeholder="Search by place, city or country"
+        placeholder={t('filters.searchPlaceholder')}
         onChange={(event) => onQueryChange(event.target.value)}
       />
 
@@ -59,17 +70,23 @@ export function MapFilterBar({
         <ul className="flex flex-wrap gap-1.5">
           {options.map((option) => {
             const active = activeCategories.includes(option.category);
+            const label = taxonomy.category(option.category);
+
             return (
               <li key={option.category}>
                 <Chip
                   active={active}
                   count={option.count}
                   onClick={() => onToggleCategory(option.category)}
-                  ariaLabel={`${CATEGORY_LABELS[option.category]}, ${formatCount(option.count)} ${
-                    option.count === 1 ? 'location' : 'locations'
-                  }`}
+                  // The visible chip is a name and a bare number side by side;
+                  // the accessible name says what the number counts, as one
+                  // sentence rather than a word stitched onto a figure.
+                  ariaLabel={t('filters.categoryOption', {
+                    category: label,
+                    count: option.count,
+                  })}
                 >
-                  {CATEGORY_LABELS[option.category]}
+                  {label}
                 </Chip>
               </li>
             );
@@ -80,14 +97,21 @@ export function MapFilterBar({
       <div className="flex items-center justify-between gap-3">
         <p aria-live="polite" className="text-meta text-muted">
           {filtered
-            ? `${formatCount(matchingCount)} of ${formatCount(totalCount)} locations match`
-            : `${formatCount(totalCount)} ${totalCount === 1 ? 'location' : 'locations'} pinned`}
+            ? t('filters.matching', {
+                count: matchingCount,
+                matching: formatCount(matchingCount, locale),
+                total: formatCount(totalCount, locale),
+              })
+            : t('filters.pinned', {
+                count: totalCount,
+                formatted: formatCount(totalCount, locale),
+              })}
         </p>
 
         {filtered ? (
           <Button variant="ghost" size="sm" onClick={onReset}>
             <RotateCcw aria-hidden className="size-3.5" />
-            Clear
+            {tCommon('clear')}
           </Button>
         ) : null}
       </div>

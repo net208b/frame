@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react';
+import { getTranslations } from 'next-intl/server';
 
 import { ActiveFilters } from '@/components/discover/ActiveFilters';
 import { CategoryFilter } from '@/components/discover/CategoryFilter';
@@ -18,7 +19,7 @@ import type { DiscoverQuery, GearFacets } from '@/types/domain';
  * disclosure that says how many of them are on. Finding a photograph should not
  * start with reading a control panel.
  */
-export function DiscoverToolbar({
+export async function DiscoverToolbar({
   query,
   facets,
   className,
@@ -27,12 +28,13 @@ export function DiscoverToolbar({
   facets: GearFacets;
   className?: string;
 }) {
+  const t = await getTranslations('discover');
   const gearCount = activeGearFilterCount(query);
   const hasFilters = activeDiscoverFilterCount(query) > 0;
 
   return (
     <section
-      aria-label="Gallery filters"
+      aria-label={t('filters.sectionLabel')}
       className={cn('border-y border-line py-6', className)}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
@@ -54,18 +56,18 @@ export function DiscoverToolbar({
               'hover:text-ink [&::-webkit-details-marker]:hidden',
             )}
           >
-            <span>Camera and lens</span>
+            <span>{t('gear.summary')}</span>
             <span
               className={cn(
                 'rounded-pill px-2 py-0.5 text-meta font-bold',
                 gearCount > 0 ? 'bg-ink text-on-ink' : 'bg-surface-sunken text-muted',
               )}
             >
-              {gearCount > 0 ? `${gearCount} on` : 'off'}
+              {gearCount > 0 ? t('gear.badgeActive', { count: gearCount }) : t('gear.badgeOff')}
             </span>
-            <span className="sr-only">
-              {gearCount === 1 ? '1 gear filter applied' : `${gearCount} gear filters applied`}
-            </span>
+            {/* The badge above is two words at most, so the count is also said
+                in full for anyone who cannot see how it is styled. */}
+            <span className="sr-only">{t('gear.appliedCount', { count: gearCount })}</span>
             <ChevronDown
               aria-hidden
               className="size-3.5 text-muted-soft transition-transform duration-150 group-open:rotate-180"

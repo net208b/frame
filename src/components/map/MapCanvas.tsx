@@ -1,6 +1,7 @@
 'use client';
 
 import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature, MapMouseEvent } from 'maplibre-gl';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { isMapConfigured } from '@/lib/config';
@@ -44,8 +45,6 @@ import 'maplibre-gl/dist/maplibre-gl.css';
  */
 
 type Phase = 'loading' | 'ready' | 'failed';
-
-const MAP_ACCESSIBLE_NAME = 'Map of photography locations';
 
 function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false;
@@ -124,6 +123,17 @@ export function MapCanvas({
   const mapRef = useRef<MapLibreMap | null>(null);
   const [phase, setPhase] = useState<Phase>('loading');
 
+  const t = useTranslations('map');
+
+  // MapLibre is told its own strings once, when the map is built, so these are
+  // read at render and listed in the build effect's dependencies. They are
+  // plain strings, which a dependency array compares by value: the same
+  // language produces the same strings and the map is never rebuilt. A
+  // language change is a navigation, which remounts this component anyway.
+  const accessibleName = t('canvas.accessibleName');
+  const zoomInLabel = t('canvas.zoomIn');
+  const zoomOutLabel = t('canvas.zoomOut');
+
   // Props the map reads from inside long-lived MapLibre handlers. Keeping them
   // in refs means a new `onSelect` identity never tears the map down.
   const pinsRef = useRef(pins);
@@ -182,7 +192,16 @@ export function MapCanvas({
         // itself, which is the element a keyboard user actually lands on and
         // pans with the arrow keys. Naming it here rather than labelling the
         // wrapper avoids announcing one map as two nested regions.
-        locale: { 'Map.Title': MAP_ACCESSIBLE_NAME },
+        //
+        // The zoom buttons below are MapLibre's own, and their accessible names
+        // come from this same table, so they are translated here too. Anything
+        // not listed keeps MapLibre's English default, which only affects
+        // controls this map does not add.
+        locale: {
+          'Map.Title': accessibleName,
+          'NavigationControl.ZoomIn': zoomInLabel,
+          'NavigationControl.ZoomOut': zoomOutLabel,
+        },
         // A published coordinate is rounded to roughly eleven metres, and an
         // approximate one to about a kilometre, so deeper zoom than this would
         // only dramatise precision the data does not have.
@@ -291,7 +310,7 @@ export function MapCanvas({
       created?.remove();
       if (mapRef.current === created) mapRef.current = null;
     };
-  }, [attribution, reportVisible, styleUrl]);
+  }, [accessibleName, attribution, reportVisible, styleUrl, zoomInLabel, zoomOutLabel]);
 
   // Filter changes replace the source data rather than rebuilding the map.
   useEffect(() => {
@@ -335,10 +354,7 @@ export function MapCanvas({
 
   return (
     <div className={cn('relative', className)}>
-      <p className="sr-only">
-        An interactive map. Use the arrow keys to pan and the plus and minus keys to zoom. The same
-        places are listed beside the map.
-      </p>
+      <p className="sr-only">{t('canvas.instructions')}</p>
 
       <div ref={containerRef} className={cn('w-full', heightClassName)} />
 
@@ -351,15 +367,20 @@ export function MapCanvas({
       ) : null}
 
       <p aria-live="polite" className="sr-only">
-        {phase === 'loading' ? 'Loading the map.' : null}
-        {phase === 'ready' ? 'The map is ready.' : null}
-        {phase === 'failed' ? 'The map could not be loaded.' : null}
+        {phase === 'loading' ? t('canvas.statusLoading') : null}
+        {phase === 'ready' ? t('canvas.statusReady') : null}
+        {phase === 'failed' ? t('canvas.statusFailed') : null}
       </p>
 
       {attribution ? null : (
+        // The provider's own credit line is passed through untouched (it is a
+        // licence condition); this is FRAME's own sentence about its absence,
+        // so it is translated. The variable name is not.
         <p className="px-3 py-2 text-meta text-muted">
-          No map attribution is configured. Most providers require a credit line: set{' '}
-          <code className="font-mono font-semibold">{MAP_ATTRIBUTION_ENV_VAR}</code>.
+          {t.rich('attribution.missing', {
+            variable: MAP_ATTRIBUTION_ENV_VAR,
+            code: (chunks) => <code className="font-mono font-semibold">{chunks}</code>,
+          })}
         </p>
       )}
     </div>

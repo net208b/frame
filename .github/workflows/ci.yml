@@ -1,0 +1,166 @@
+name: CI
+
+# Every pull request, and every push to main so the default branch is never
+# left in a state nobody checked.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A second push to the same branch supersedes the first; there is no value in
+# finishing a run for a commit nobody will merge. main is excluded because its
+# history is what the badge reports.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+env:
+  # Node 20 is past end of life and @supabase/supabase-js warns on it. 24 is the
+  # active LTS line and satisfies that warning. Keep this in step with the
+  # `engines` field in package.json.
+  NODE_VERSION: '24'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The application: it must type-check, satisfy the lint rules, and build.
+  #
+  # No environment variables are set on purpose. With no Supabase credentials
+  # FRAME builds in demo mode, which is the configuration a reviewer can
+  # reproduce without an account, and the one the repository is published in.
+  # ---------------------------------------------------------------------------
+  checks:
+    name: Lint, types and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly what
+      # package-lock.json records and fails if the two have drifted, which is
+      # the behaviour a check wants.
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # The database guarantees in supabase/tests.
+  #
+  # Separate from the job above because the two are independent: a reviewer
+  # should be able to see at a glance whether the interface or the schema is
+  # what broke, and neither needs to wait for the other.
+  #
+  # The service image carries PostGIS, so `run.sh` applies the migrations
+  # unmodified. Its local shims — rewriting `locations.geog` to text and
+  # swapping the GiST index for a B-tree — exist for a developer machine
+  # without PostGIS, and they narrow what a green run proves. CI should not be
+  # the weaker check, so this runs against the real extension.
+  # ---------------------------------------------------------------------------
+  database:
+    name: Database guarantees
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        # Matches the PostgreSQL major version Supabase provisions, so a
+        # migration that passes here is one that will apply to a real project.
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          # The image installs PostGIS into whatever this names, so it is left
+          # as the default and never used. The step below creates the real test
+          # database from template1 instead, so the migrations install PostGIS
+          # themselves — see the comment there.
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # run.sh needs only `psql` when DATABASE_URL is set. Installing the client
+      # explicitly rather than relying on whatever the runner image happens to
+      # ship keeps the run from breaking when that image changes.
+      - name: Install the PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-client
+
+      # The postgis image pre-installs the extension into its POSTGRES_DB, and
+      # into the `public` schema. A real Supabase project has it in
+      # `extensions`, which is where migration 0001 puts it — but `create
+      # extension if not exists` is a no-op when it is already present, so
+      # inheriting the image's database would silently test the wrong schema
+      # layout and leave the production one uncovered. Creating the database
+      # from template1 leaves the binaries available and the extension absent,
+      # so 0001 installs it exactly as it would on a real project.
+      - name: Create an empty database
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d postgres -v ON_ERROR_STOP=1 -c 'create database frame_ci'
+
+      - name: Apply the migrations and assert the guarantees
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/frame_ci
+        run: ./supabase/tests/run.sh
+
+      # If the suite passed, the run must have used real PostGIS rather than the
+      # shim. Without this a silently shim-free expectation could regress to a
+      # shimmed run and still report success.
+      - name: Confirm PostGIS was real, and in the schema the migrations chose
+        env:
+          PGPASSWORD: postgres
+        run: |
+          schema=$(psql -h localhost -U postgres -d frame_ci -tAc \
+            "select n.nspname from pg_extension e
+               join pg_namespace n on n.oid = e.extnamespace
+              where e.extname = 'postgis';")
+          echo "postgis is installed in schema: $schema"
+          if [ "$schema" != "extensions" ]; then
+            echo "::error::postgis landed in '$schema', not 'extensions' — migration 0001 did not install it, so this run did not cover the schema layout a real project uses." >&2
+            exit 1
+          fi
+
+          type=$(psql -h localhost -U postgres -d frame_ci -tAc \
+            "select format_type(a.atttypid, a.atttypmod)
+               from pg_attribute a
+               join pg_class c on c.oid = a.attrelid
+               join pg_namespace n on n.oid = c.relnamespace
+              where n.nspname = 'public'
+                and c.relname = 'locations'
+                and a.attname = 'geog';")
+          # format_type() qualifies the type with its schema whenever that schema
+          # is not on the session's search_path, so the same correct column reads
+          # back as `geography(Point,4326)` against Supabase — whose roles carry
+          # `extensions` on the path — and as `extensions.geography(Point,4326)`
+          # against a plain image, which does not. Comparing the formatted string
+          # literally therefore depends on the server's role configuration rather
+          # than on the column, so the qualifier is stripped before comparing.
+          bare="${type##*.}"
+          echo "locations.geog is: $type (bare: $bare)"
+          if [ "$bare" != "geography(Point,4326)" ]; then
+            echo "::error::locations.geog is '$type', not geography(Point,4326) — the PostGIS shim was applied, so geography semantics were not covered." >&2
+            exit 1
+          fi

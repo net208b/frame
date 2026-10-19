@@ -1,8 +1,10 @@
 import { ArrowUpRight } from 'lucide-react';
-import Link from 'next/link';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { StaticLocationMap } from '@/components/map/StaticLocationMap';
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
+import { Link } from '@/i18n/navigation';
 import { precisionLabel } from '@/lib/geo';
 import { cn, formatCoordinates } from '@/lib/utils';
 import type { LocationDetail, LocationSummary } from '@/types/domain';
@@ -16,8 +18,52 @@ import type { LocationDetail, LocationSummary } from '@/types/domain';
  * coarsened and a withheld one arrives as null. Nothing here recomputes,
  * re-rounds or re-derives a point, because every one of those would be a way to
  * widen precision after the policy had already narrowed it.
+ *
+ * The disclosure is just as blunt in Thai as in English. A coarsened point says
+ * that the precision was reduced deliberately, roughly how far the published
+ * point can be from the real one, and why — a softer Thai sentence would be a
+ * worse one, because a reader deciding whether to publish their own location
+ * is reading this to find out what FRAME will do with it.
  */
-export function LocationPanel({
+
+const INTL_UNIT: Record<'km' | 'm', 'kilometer' | 'meter'> = {
+  km: 'kilometer',
+  m: 'meter',
+};
+
+/**
+ * The published precision as a distance in the reader's language.
+ *
+ * `precisionLabel()` in `lib/geo.ts` owns the arithmetic that turns decimal
+ * places into metres on the ground, and it returns English prose ("about 180
+ * m"). The quantity is read back out of that string so the unit can be named by
+ * `Intl` — "180 m" in English, "180 ม." in Thai. Recomputing the metres here
+ * would put a second copy of a privacy figure in the tree, and the two copies
+ * would eventually disagree.
+ *
+ * If that string's shape ever changes, its own words are shown instead. An
+ * English unit inside a Thai sentence is a visible defect; a distance that is
+ * quietly wrong is a dangerous one, and this is the direction to fail in.
+ */
+function approximateDistance(decimals: number, intlLocale: string): string {
+  const label = precisionLabel(decimals);
+  const match = /^about ([\d.]+) (km|m)$/.exec(label);
+  const amount = Number(match?.[1]);
+  const unit = match?.[2];
+
+  if (!Number.isFinite(amount) || (unit !== 'km' && unit !== 'm')) {
+    return label.replace(/^about\s+/, '');
+  }
+
+  return new Intl.NumberFormat(intlLocale, {
+    style: 'unit',
+    unit: INTL_UNIT[unit],
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(amount);
+}
+
+export async function LocationPanel({
   summary,
   detail,
   className,
@@ -28,15 +74,19 @@ export function LocationPanel({
   detail: LocationDetail | null;
   className?: string;
 }) {
+  const [t, common, locale] = await Promise.all([
+    getTranslations('photo'),
+    getTranslations('common'),
+    getLocale(),
+  ]);
+  const intlLocale = INTL_LOCALES[isLocale(locale) ? locale : DEFAULT_LOCALE];
+
   if (!summary) {
     return (
       <section className={cn('min-w-0', className)}>
-        <Eyebrow>Place</Eyebrow>
-        <h2 className="mt-2 text-title font-bold">No place attached</h2>
-        <p className="mt-3 text-caption leading-relaxed text-muted">
-          The photographer did not attach a place to this frame. Pinning a location is optional,
-          and a photograph is never assigned one automatically from its file.
-        </p>
+        <Eyebrow>{common('place')}</Eyebrow>
+        <h2 className="mt-2 text-title font-bold">{t('place.noneTitle')}</h2>
+        <p className="mt-3 text-caption leading-relaxed text-muted">{t('place.noneBody')}</p>
       </section>
     );
   }
@@ -45,7 +95,7 @@ export function LocationPanel({
 
   return (
     <section className={cn('min-w-0', className)}>
-      <Eyebrow>Place</Eyebrow>
+      <Eyebrow>{common('place')}</Eyebrow>
       <h2 className="mt-2 text-title font-bold">
         <Link
           href={`/locations/${summary.slug}`}
@@ -84,17 +134,14 @@ export function LocationPanel({
 
           {coordinates.isApproximate ? (
             <p className="mt-2 text-meta leading-relaxed text-muted">
-              This point is deliberately approximate, accurate to{' '}
-              {precisionLabel(coordinates.precisionDecimals)}. The precision was reduced on
-              purpose because publishing the exact spot could cause harm.
+              {t('place.approximate', {
+                distance: approximateDistance(coordinates.precisionDecimals, intlLocale),
+              })}
             </p>
           ) : null}
         </>
       ) : (
-        <p className="mt-3 text-caption leading-relaxed text-muted">
-          No coordinate is published for this place, so there is no point to put on a map. That is
-          either a privacy decision taken by a moderator or a location that has not been given one.
-        </p>
+        <p className="mt-3 text-caption leading-relaxed text-muted">{t('place.withheld')}</p>
       )}
     </section>
   );
