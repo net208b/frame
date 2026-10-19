@@ -21,3 +21,8 @@ coverage/
 # Supabase CLI local state
 supabase/.branches/
 supabase/.temp/
+.vercel
+# Vercel's `vercel link` appends `.env*`, which would also hide the committed
+# `.env.example`. The explicit list above already covers the real ones, so the
+# blanket rule is narrowed to the local files Vercel actually writes.
+.env*.local
