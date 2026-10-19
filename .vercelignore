@@ -1,0 +1,39 @@
+# What never gets uploaded to a deployment.
+#
+# Vercel's own defaults already exclude most of this. The file is explicit
+# anyway, because a change in those defaults should not be able to quietly start
+# shipping a local credential, and because being able to read the rule is worth
+# more than trusting one.
+
+# ---------------------------------------------------------------- secrets
+# Environment variables belong in the project settings, never in the upload.
+# `.env.local` in particular holds the local Supabase stack's keys, including a
+# service-role key that bypasses every row-level security policy.
+.env
+.env.*
+!.env.example
+
+# ------------------------------------------------- build output and caches
+# The builder produces its own; uploading ours would only slow it down and
+# risks a stale artifact being preferred to a fresh one.
+.next
+out
+build
+dist
+*.tsbuildinfo
+next-env.d.ts
+
+# ------------------------------------------------------------ dependencies
+# The builder runs `npm ci` from package-lock.json. A node_modules copied from
+# macOS would carry the wrong `sharp` binary for a Linux runtime.
+node_modules
+
+# ------------------------------------------------------ local tooling state
+# Written by the Supabase CLI while a local stack runs. Nothing at runtime
+# reads it, and it can contain connection details for the local containers.
+supabase/.branches
+supabase/.temp
+
+# The migrations and the test suite are kept: they are part of the repository's
+# documentation of the schema, they are small, and excluding them would make the
+# deployed source a misleading copy of the project.
