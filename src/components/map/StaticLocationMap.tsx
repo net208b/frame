@@ -21,6 +21,8 @@ import { precisionParts } from './precision';
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { loadMapLibre } from '@/components/map/load-maplibre';
+
 /**
  * One place, one pin.
  *
@@ -91,7 +93,7 @@ export function StaticLocationMap({
     let created: MapLibreMap | null = null;
 
     const build = async () => {
-      const maplibregl = await import('maplibre-gl');
+      const maplibregl = await loadMapLibre();
       if (disposed) return;
 
       const instance = new maplibregl.Map({
