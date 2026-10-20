@@ -69,10 +69,10 @@ that point takes a key from a client.
 
 ## Why bytes do not pass through the application server
 
-`UPLOAD_POLICY.maxFileBytes` is 25 MB. Routing that through a Next.js server
+`UPLOAD_POLICY.maxFileBytes` is 50 MB. Routing that through a Next.js server
 costs memory and wall-clock time for no benefit: the server would receive the
 whole file, hold it, and write it out again to the same provider the browser
-could have reached directly. On a serverless host it is worse — a 25 MB request
+could have reached directly. On a serverless host it is worse — a 50 MB request
 body is close to or past the request limits of several platforms, and
 [`next.config.mjs`](../next.config.mjs) deliberately caps server-action bodies
 at 1 MB precisely because no upload is meant to travel that way:
@@ -152,7 +152,7 @@ The honest consequence: **the grant is not the size control.** The controls that
 actually hold are the bucket's own limits, the short expiry, and
 `verifyImageBytes()` reading the bytes that arrived. The
 [bucket policies in `supabase/README.md`](../supabase/README.md#creating-the-storage-bucket)
-set `file_size_limit` to 26214400 — the same 25 MiB — and restrict a member to
+set `file_size_limit` to 52428800 — the same 50 MiB — and restrict a member to
 writing inside their own `auth.uid()` prefix, which is a second, independent
 statement of the rule the route derives.
 
@@ -213,10 +213,34 @@ union, so the type system requires every variant to be declared:
 
 | Variant | Width | Quality | Format | Purpose |
 | --- | --- | --- | --- | --- |
-| `thumb` | 320 | 72 | WebP | Moderation rows, dense lists |
-| `grid` | 800 | 76 | WebP | Gallery and masonry cards |
-| `display` | 1800 | 82 | WebP | Photograph detail page |
-| `full` | 2560 | 84 | WebP | Large-screen detail view |
+| `thumb` | 320 | 80 | WebP | Moderation rows, dense lists |
+| `grid` | 800 | 84 | WebP | Gallery and masonry cards |
+| `display` | 1800 | 90 | WebP | Photograph detail page, mid-size |
+| `full` | 2560 | 92 | WebP | Photograph detail page, large screens |
+| avatar | 512 (square) | 90 | WebP | A member's profile picture — one file, not a set |
+
+These numbers were raised from 72–84 in October 2026, and `full` was wired up at
+the same time. Three things were wrong at once, and all three showed as "the
+pictures look soft":
+
+1. **`full` was generated on every upload and served to nobody.** `buildImage()`
+   preferred `display`, so the largest derivative in the bucket never reached a
+   page. It is now first in that chain; `sizes` is what keeps a phone from
+   downloading it.
+2. **`next/image` re-encoded every derivative at its default quality of 75.**
+   A file built at 92 and served at 75 is a file built at 75. The photograph and
+   the avatar now pass an explicit `quality`, which `images.qualities` in
+   `next.config.mjs` has to allow.
+3. **Every avatar on the site declared `sizes="48px"`** while the profile
+   masthead drew it at 128, so the browser fetched a 48-pixel file and scaled it
+   up. `Avatar` now declares the size it is actually rendering.
+
+What is deliberately *not* done is serving the original. It is kept untouched
+and unserved: a 20–50 MB file per frame is a gallery nobody on a phone can open,
+and an egress bill that grows with every view. The quality claim this project
+makes is that the largest *derivative* is genuinely large and genuinely high
+quality — and that the original is still there if a photograph ever has to be
+rebuilt.
 
 **The rule: a gallery request must never download an original.** An original
 routinely runs 8–40 MB from a full-frame body. A 24-card gallery of originals is
@@ -231,7 +255,7 @@ That rule is enforced on the read side as well as the write side.
 fallback chain — `display` → `full` → `grid` → `thumb` — and returns `null`
 rather than falling back to the original if none of them exists. A photograph
 mid-reprocessing degrades to a smaller derivative; it never degrades to the
-25 MB file.
+50 MB file.
 
 How `buildVariants()` behaves, and why:
 
@@ -245,7 +269,7 @@ How `buildVariants()` behaves, and why:
 - **Converts to sRGB** with `withIccProfile('srgb')`, so a wide-gamut original
   is converted rather than left to be misread as sRGB. A colour profile
   describes pixels; it identifies no person, place or device.
-- **Encodes one at a time.** Four simultaneous decodes of a 25 MB original is a
+- **Encodes one at a time.** Four simultaneous decodes of a 50 MB original is a
   lot of memory for a serverless function, and the wall-clock saving is small.
 
 Each derivative is written with its own grant — signed for that one key and that
@@ -450,7 +474,7 @@ The arithmetic, because guessing it is how a successful week becomes an invoice.
 comparison; this is the part that comes from the pipeline itself.
 
 **What you store is dominated by the original.** Four derivatives together are
-roughly 0.7–1.5 MB. The original can be up to 25 MB. So a 1 GB storage
+roughly 0.7–1.5 MB. The original can be up to 50 MB. So a 1 GB storage
 allowance is in the region of fifty to a hundred uploads, almost all of it
 originals.
 
@@ -465,7 +489,7 @@ cheap and predictable. Serving it would cost egress, which is neither.
 
 The levers already in the code, in the order they matter:
 
-1. **Only derivatives are served.** A 25 MB file is never a page's payload.
+1. **Only derivatives are served.** A 50 MB file is never a page's payload.
 2. **`sizes` matches the layout**, so a browser downloads one correctly-sized
    candidate rather than the widest.
 3. **Quality rises with size** — 72 at 320 px, 84 at 2560 px — because

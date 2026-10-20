@@ -1,6 +1,6 @@
 import Image from 'next/image';
 
-import { IMAGE_SIZES } from '@/lib/images/variants';
+import { AVATAR_DISPLAY_QUALITY } from '@/lib/images/variants';
 import { cn } from '@/lib/utils';
 
 /** Up to two initials, for the fallback when a member has no avatar. */
@@ -38,7 +38,18 @@ export function Avatar({
         alt={decorative ? '' : name}
         width={size}
         height={size}
-        sizes={IMAGE_SIZES.avatar}
+        /*
+         * The rendered size, not a fixed 48px.
+         *
+         * THIS WAS THE BUG behind "my profile picture looks pixelated". Every
+         * avatar on the site declared `sizes="48px"`, so the browser asked for a
+         * 48-pixel image — 96 on a two-times display — and the profile masthead
+         * then drew it at 128. The file was fine; the page was asking for the
+         * wrong one. `${size}px` is what this component already knows, and
+         * next/image multiplies it by the device's pixel ratio itself.
+         */
+        sizes={`${size}px`}
+        quality={AVATAR_DISPLAY_QUALITY}
         className={cn(shell, 'object-cover', className)}
       />
     );

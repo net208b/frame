@@ -925,7 +925,7 @@ low zoom. Raising `max_rows` is the stopgap.
 
 **What.** One gallery page is 24 `grid` derivatives at roughly 60–120 KB each:
 about 1.5–3 MB per page view. Four derivatives together are 0.7–1.5 MB stored;
-the original can be 25 MB.
+the original can be 50 MB.
 
 **Why.** The original is kept as the source for re-processing and never served —
 which is what makes the asymmetry a feature rather than a problem.

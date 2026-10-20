@@ -195,7 +195,11 @@ of it. The bucket is created with:
 
 - `public = true`, because every derivative is served straight to a browser from
   a public photograph page,
-- `file_size_limit = 26214400` (25 MiB), matching `UPLOAD_POLICY.maxFileBytes`,
+- `file_size_limit = 52428800` (50 MiB), matching `UPLOAD_POLICY.maxFileBytes`,
+  **which has to be changed by hand when that constant changes.** It lives on the
+  bucket, not in a migration, so raising the application's limit without raising
+  this one gives a member a form that accepts a 40 MB photograph and a storage
+  provider that refuses it,
 - `allowed_mime_types` matching `UPLOAD_POLICY.acceptedMimeTypes`.
 
 The same migration creates four policies on `storage.objects`: public read,

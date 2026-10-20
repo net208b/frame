@@ -315,7 +315,7 @@ Three related failures that look the same from the outside:
   `<owner_id>/<photograph_id>/<variant>`, and the owner segment is derived
   server-side from the session, never from the request.
 - **The bucket's own ceiling is lower than the app's.** Set
-  `file_size_limit` to `26214400` bytes and `allowed_mime_types` to the four
+  `file_size_limit` to `52428800` bytes and `allowed_mime_types` to the four
   types in `UPLOAD_POLICY`, so the bucket and `src/lib/config.ts` agree.
 - **R2 is selected but unconfigured.** `POST /api/uploads/sign` answers 503 with
   `code: "not_configured"` and the message names the first missing variable. See

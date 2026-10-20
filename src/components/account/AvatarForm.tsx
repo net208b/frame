@@ -19,8 +19,8 @@ import { removeAvatar, updateAvatar } from '@/server/actions/account';
  * which ends with the profile updated beats three that leave an orphan object
  * if the member closes the tab. A server action's body is capped, though, and a
  * photograph off a phone is several megabytes, so the picture is drawn into a
- * canvas at {@link SOURCE_SIZE} and submitted as that. What arrives is a couple
- * of hundred kilobytes of exactly the crop the member was shown.
+ * canvas at {@link SOURCE_SIZE} and submitted as that. What arrives is a few
+ * hundred kilobytes of exactly the crop the member was shown.
  *
  * It is a convenience, not the rule. The server decodes whatever arrives, checks
  * it, and re-crops it itself: a browser that cannot do any of this — or a
@@ -39,13 +39,18 @@ import { removeAvatar, updateAvatar } from '@/server/actions/account';
  */
 
 /**
- * Twice the stored size, so the server crops down rather than up and a
- * high-density screen has something to work with if the stored size ever grows.
+ * Twice the stored size, so the server crops down rather than up.
+ *
+ * It went 512 → 1024 with the stored size going 256 → 512, for the same reason:
+ * the only lossy step that should matter is the server's one, and handing it a
+ * file the same size as its output leaves it nothing to resample from. A
+ * 1024-pixel square at the quality below is 300–500 KB, well inside the 2 MB
+ * the action will accept.
  */
-const SOURCE_SIZE = 512;
+const SOURCE_SIZE = 1024;
 
-/** Good enough that re-encoding to WebP at 82 on the server loses nothing. */
-const SOURCE_QUALITY = 0.92;
+/** High enough that the server's single re-encode is the one that counts. */
+const SOURCE_QUALITY = 0.95;
 
 type FormState = Awaited<ReturnType<typeof updateAvatar>> | null;
 

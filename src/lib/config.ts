@@ -177,8 +177,20 @@ export function serverEnv(): ServerEnv {
 /* ------------------------------------------------------------------------ */
 
 export const UPLOAD_POLICY = {
-  /** Keeps a single bad actor from running up an egress bill. */
-  maxFileBytes: 25 * 1024 * 1024,
+  /**
+   * 50 MB. A 61-megapixel full-frame raw export or a 16-bit TIFF-sourced JPEG
+   * runs past 25, and refusing those was refusing exactly the photographs this
+   * site is for. The ceiling still exists to keep one account from running up
+   * an egress bill, and nothing this large is ever served: it is decoded once
+   * into the derivatives above and then only kept.
+   *
+   * Two things have to agree with this number outside the application: the
+   * storage bucket's own `file_size_limit`, which is set where the bucket was
+   * created and not in a migration, and the memory of the function that decodes
+   * it — a 50 MB JPEG is around 8000 x 6000 pixels, which sharp holds as
+   * roughly 400 MB while it works.
+   */
+  maxFileBytes: 50 * 1024 * 1024,
   minPixelWidth: 800,
   minPixelHeight: 800,
   /** Verified by inspecting the file's magic bytes, not the declared type. */
