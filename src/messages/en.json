@@ -62,6 +62,7 @@
     "upload": "Upload a photograph",
     "myCollections": "My collections",
     "myProfile": "My profile",
+    "settings": "Settings",
     "moderation": "Moderation",
     "signOut": "Sign out"
   },
@@ -760,7 +761,11 @@
       "arrivalProviderCancelledTitle": "Sign-in was cancelled",
       "arrivalProviderCancelledBody": "Nothing was changed and you are not signed in. Choose another way below, or try again.",
       "arrivalProviderFailedTitle": "That sign-in did not finish",
-      "arrivalProviderFailedBody": "The provider did not confirm who you are, so no session was started. Try again, or sign in with your email address below."
+      "arrivalProviderFailedBody": "The provider did not confirm who you are, so no session was started. Try again, or sign in with your email address below.",
+      "arrivalAccountDeletedTitle": "Your account has been deleted",
+      "arrivalAccountDeletedBody": "Your profile, photographs and collections are gone, and you have been signed out. Thank you for what you shared here.",
+      "arrivalAccountClosedTitle": "Your account has been closed",
+      "arrivalAccountClosedBody": "Your photographs, collections and profile details are deleted, and you have been signed out. The account itself is kept, closed and hidden, because moderation decisions you made still name it."
     },
     "join": {
       "metaTitle": "Join FRAME",
@@ -864,6 +869,23 @@
       },
       "terms": {
         "required": "Please confirm you accept the terms and the community guidelines before joining."
+      },
+      "biography": {
+        "max": "Keep the biography to 1,200 characters."
+      },
+      "basedIn": {
+        "max": "Keep this to 80 characters."
+      },
+      "website": {
+        "invalid": "Enter a web address, such as https://example.com.",
+        "max": "That address is too long. Keep it to 200 characters."
+      },
+      "gear": {
+        "tooMany": "List up to 12 pieces of gear.",
+        "itemMax": "Keep each line to 60 characters."
+      },
+      "confirmUsername": {
+        "required": "Type your username to confirm."
       }
     },
     "actions": {
@@ -907,6 +929,81 @@
       "providerUnknown": "Choose one of the sign-in options shown.",
       "providerUnavailable": "Signing in with {provider} is not available at the moment. Use another option, or your email address.",
       "providerFailed": "Signing in with {provider} could not be started. Try again in a moment."
+    }
+  },
+  "account": {
+    "metaTitle": "Settings",
+    "metaDescription": "Edit your profile, change a username that was chosen for you, or delete your account.",
+    "eyebrow": "Account",
+    "title": "Settings",
+    "description": "What other people see on your profile, and the account itself.",
+    "capabilityAction": "Changing account settings",
+    "missingTitle": "This account has no profile",
+    "missingBody": "It is still being created, or is being deleted. Try again in a minute.",
+    "suspendedTitle": "This account is suspended",
+    "suspendedBody": "You can’t edit your profile while it is. You can still delete the account.",
+    "profile": {
+      "heading": "Profile",
+      "intro": "Shown on your public profile, in your own words. Only the display name is required.",
+      "displayName": "Display name",
+      "displayNameHint": "How your name appears beside your photographs. Up to 60 characters.",
+      "biography": "Biography",
+      "biographyHint": "Up to {max} characters. A blank line starts a new paragraph.",
+      "basedIn": "Based in",
+      "basedInHint": "A city or region, if you want one shown. FRAME never fills this in for you.",
+      "website": "Website",
+      "websiteHint": "A link to your own site. https:// is added if you leave it out.",
+      "gear": "Gear you usually carry",
+      "gearHint": "One per line, up to {count}, each up to {length} characters.",
+      "avatarNote": "Profile pictures can’t be uploaded yet.",
+      "submit": "Save profile",
+      "submitPending": "Saving…",
+      "viewProfile": "See your profile"
+    },
+    "username": {
+      "heading": "Username",
+      "current": "Your profile is at <code>{address}</code>.",
+      "changeIntro": "Your account was made with {provider}, so this username was chosen for you. You can replace it once. After that it stays, as everyone’s does, so links to your profile keep working.",
+      "aProvider": "a sign-in provider",
+      "field": "New username",
+      "hint": "3 to 24 lowercase letters, digits or underscores.",
+      "submit": "Change username",
+      "submitPending": "Changing…",
+      "fixed": "Usernames don’t change: yours was chosen when you joined, and it is the address every link to your profile uses.",
+      "used": "You used your one change on {date}. Your username now stays.",
+      "usedJustNow": "That was your one change. Your username now stays."
+    },
+    "delete": {
+      "heading": "Delete your account",
+      "intro": "This can’t be undone.",
+      "whatGoes": "Your profile, every photograph and its image files, your collections, the appreciation you have given, and any places you proposed that are still waiting are deleted.",
+      "whatStays": "Reports you filed and places that were approved stay, without your name on them, because other members’ decisions rest on them.",
+      "retained": "You have made moderation decisions, and those have to keep their author, so your account can’t be erased. Instead your photographs and their files, collections, appreciation and profile details are deleted, your moderator role is removed, and the account is closed: hidden from the site and unable to sign in. Only its username remains, on the decisions you made.",
+      "confirmLabel": "Type your username, {username}, to confirm",
+      "submit": "Delete my account",
+      "submitPending": "Deleting…"
+    },
+    "actions": {
+      "notConfigured": "Account settings need a database and none is configured, so nothing was saved.",
+      "signedOut": "You’re no longer signed in. Sign in and try again.",
+      "suspended": "A suspended account can’t edit its profile.",
+      "profileSaved": "Profile saved.",
+      "profileRefused": "One of these values wasn’t accepted. Check each field and try again.",
+      "profileFailed": "Your profile couldn’t be saved. Try again in a moment.",
+      "usernameTaken": "That username is taken.",
+      "usernameTakenField": "Somebody already has this username. Try another.",
+      "usernameReserved": "That username is reserved.",
+      "usernameReservedField": "This name belongs to a page on FRAME, or implies an authority. Choose another.",
+      "usernameInvalid": "That isn’t a valid username.",
+      "usernameInvalidField": "Use 3 to 24 lowercase letters, digits or underscores.",
+      "usernameNotAllowed": "This account’s username can’t be changed.",
+      "usernameFailed": "Your username couldn’t be changed. Try again in a moment.",
+      "usernameChanged": "Your username is now {username}.",
+      "deleteConfirmMismatch": "The username you typed doesn’t match, so nothing was deleted.",
+      "deleteConfirmMismatchField": "Type {username} exactly.",
+      "deleteFailed": "Your account couldn’t be deleted, and nothing was removed. Try again in a moment.",
+      "deleteFilesFailed": "Not all of your image files could be removed, so your account wasn’t deleted. Some files may already be gone. Try again in a moment.",
+      "deleteRecordsFailed": "Your image files were removed, but the account itself couldn’t be deleted. Press Delete again to finish."
     }
   },
   "upload": {
@@ -1927,8 +2024,8 @@
       },
       "accessAndDeletion": {
         "heading": "Access, correction and deletion",
-        "p1": "Most of this you can do yourself, which is the point: edit any profile field, remove a photograph, make a collection private, or delete the account outright.",
-        "p2": "Deleting an account removes the profile, the photographs, the generated sizes and the collections. Two things survive it. Moderation decisions are kept with the account reference removed wherever that is possible, for the reason above. And where the account belonged to a moderator, the audit trail it authored cannot be left without an author, so such an account is demoted and retained rather than erased — a point worth knowing before anybody is made a moderator.",
+        "p1": "Most of this you can do yourself, from Settings and from your collections: edit your display name, biography, location, website and gear; replace a username that was chosen for you, once; make a collection private, or delete it; and delete the account outright. Two things cannot be done yourself yet. A profile picture cannot be uploaded. And a published photograph cannot be withdrawn on its own: report it to have a moderator take it down, or delete the account, which removes every one.",
+        "p2": "Deleting an account removes the profile, every photograph and the image files generated from it, the collections, the appreciation the account gave, and any place it proposed that is still waiting. Reports it filed and places that were approved are kept with the account’s name removed, because other people’s decisions rest on them; moderation decisions likewise keep their content with the account reference removed wherever that is possible, for the reason above. One kind of account cannot be erased: one that has made moderation decisions, because an audit trail cannot be left without an author. Such an account is emptied instead — its photographs, collections, appreciation and profile details deleted, its role removed — and closed: hidden from the site and unable to sign in, with only its username left on the decisions it made. That is worth knowing before anybody is made a moderator.",
         "p3": "You can ask for a copy of what is held about you, and for a correction of anything that is wrong. The contact route for those requests, and the supervisory authority a complaint can be taken to, must be named here before launch."
       },
       "thirdParties": {

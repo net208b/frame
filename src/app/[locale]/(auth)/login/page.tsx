@@ -78,6 +78,18 @@ const ARRIVALS: Record<string, { title: string; body: string; tone: 'info' | 'wa
     body: 'login.arrivalProviderFailedBody',
     tone: 'warning',
   },
+  // Where deleteAccount() sends a member once their account is gone or
+  // closed. There is no account left to show them a page of their own.
+  account_deleted: {
+    title: 'login.arrivalAccountDeletedTitle',
+    body: 'login.arrivalAccountDeletedBody',
+    tone: 'info',
+  },
+  account_closed: {
+    title: 'login.arrivalAccountClosedTitle',
+    body: 'login.arrivalAccountClosedBody',
+    tone: 'info',
+  },
 };
 
 export default async function LoginPage({

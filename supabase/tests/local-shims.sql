@@ -35,11 +35,24 @@ $$;
 grant usage on schema public, extensions, auth to anon, authenticated, service_role;
 
 -- Only the columns the migrations actually read.
+--
+-- raw_app_meta_data and banned_until are read and written by change_username()
+-- and delete_own_account() (0010); auth.sessions exists so the latter can end a
+-- retained account's sessions. Each mirrors the hosted column's type and its
+-- delete rule, since those are what the assertions depend on.
 create table if not exists auth.users (
   id                 uuid primary key default gen_random_uuid(),
   email              text,
   raw_user_meta_data jsonb default '{}'::jsonb,
+  raw_app_meta_data  jsonb default '{}'::jsonb,
+  banned_until       timestamptz,
   created_at         timestamptz not null default now()
+);
+
+create table if not exists auth.sessions (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz not null default now()
 );
 
 create or replace function auth.uid()

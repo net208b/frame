@@ -1,19 +1,23 @@
 #!/usr/bin/env node
 /**
- * Reserved usernames are enforced in two places, which must agree.
+ * Reserved usernames are enforced in three places, which must agree.
  *
- *   src/lib/validation/auth.ts   RESERVED_USERNAMES, for the Join form
- *   supabase/migrations/*.sql    c_reserved in handle_new_user(), for accounts
- *                                whose username the trigger chooses — those
- *                                made through Google, Apple, Facebook or X
+ *   src/lib/validation/auth.ts   RESERVED_USERNAMES, for the Join form and for
+ *                                the username field in Settings
+ *   handle_new_user()            c_reserved, for accounts whose username the
+ *                                trigger chooses — those made through Google,
+ *                                Apple, Facebook or X (migration 0009)
+ *   is_reserved_username()       for change_username(), the one route by which
+ *                                an existing username changes (migration 0010)
  *
- * A name added to one and not the other is a reserved name that can be taken
- * by whichever path was missed. Both sides carry a "keep in step" comment;
- * this is what makes that comment true.
+ * A name added to one and not the others is a reserved name that can be taken
+ * by whichever path was missed. Each carries a "keep in step" comment; this is
+ * what makes that comment true.
  *
- * The migration checked is the last one that defines handle_new_user(), since
- * that is the definition in force. A later redefinition without a c_reserved
- * list fails here too, which is the regression this exists to catch.
+ * For each SQL function the migration checked is the last one that defines it,
+ * since that is the definition in force. A later redefinition without its list
+ * fails here, which is the regression this exists to catch. A function no
+ * migration defines yet is skipped, so the check can land before 0010 does.
  *
  * Run from the repository root: node scripts/assert-reserved-usernames.mjs
  */
@@ -23,6 +27,22 @@ import { join } from 'node:path';
 
 const VALIDATION = 'src/lib/validation/auth.ts';
 const MIGRATIONS = 'supabase/migrations';
+
+/** Where each SQL list lives, and how to find it inside the function body. */
+const SQL_SOURCES = [
+  {
+    name: 'handle_new_user()',
+    defines: /create or replace function public\.handle_new_user\(\)/i,
+    list: /c_reserved\s+constant\s+text\[\]\s*:=\s*array\[([\s\S]*?)\];/i,
+    required: true,
+  },
+  {
+    name: 'is_reserved_username()',
+    defines: /create or replace function public\.is_reserved_username\(/i,
+    list: /function public\.is_reserved_username\([\s\S]*?=\s*any\s*\(\s*array\[([\s\S]*?)\]\s*\)/i,
+    required: false,
+  },
+];
 
 function fail(message) {
   console.error(`reserved usernames: ${message}`);
@@ -39,38 +59,44 @@ const ts = readFileSync(VALIDATION, 'utf8');
 const tsBlock = ts.match(/export const RESERVED_USERNAMES = \[([\s\S]*?)\] as const;/);
 if (!tsBlock) fail(`RESERVED_USERNAMES was not found in ${VALIDATION}`);
 const fromForm = namesIn(tsBlock[1]);
-
-const definingFiles = readdirSync(MIGRATIONS)
-  .filter((file) => file.endsWith('.sql'))
-  .sort()
-  .filter((file) =>
-    /create or replace function public\.handle_new_user\(\)/i.test(
-      readFileSync(join(MIGRATIONS, file), 'utf8'),
-    ),
-  );
-const current = definingFiles.at(-1);
-if (!current) fail(`no migration in ${MIGRATIONS} defines handle_new_user()`);
-
-const sql = readFileSync(join(MIGRATIONS, current), 'utf8');
-const sqlBlock = sql.match(/c_reserved\s+constant\s+text\[\]\s*:=\s*array\[([\s\S]*?)\];/i);
-if (!sqlBlock) {
-  fail(`${current} defines handle_new_user() without a c_reserved list, so the trigger no longer refuses reserved names`);
-}
-const fromTrigger = namesIn(sqlBlock[1]);
-
-const onlyForm = [...fromForm].filter((name) => !fromTrigger.has(name)).sort();
-const onlyTrigger = [...fromTrigger].filter((name) => !fromForm.has(name)).sort();
-
 if (fromForm.size === 0) fail(`RESERVED_USERNAMES in ${VALIDATION} parsed as empty`);
 
-if (onlyForm.length || onlyTrigger.length) {
+const migrationFiles = readdirSync(MIGRATIONS)
+  .filter((file) => file.endsWith('.sql'))
+  .sort()
+  .map((file) => ({ file, text: readFileSync(join(MIGRATIONS, file), 'utf8') }));
+
+let mismatched = false;
+const checked = [];
+
+for (const source of SQL_SOURCES) {
+  const current = migrationFiles.filter(({ text }) => source.defines.test(text)).at(-1);
+
+  if (!current) {
+    if (source.required) fail(`no migration in ${MIGRATIONS} defines ${source.name}`);
+    continue;
+  }
+
+  const block = current.text.match(source.list);
+  if (!block) {
+    fail(`${current.file} defines ${source.name} without its reserved list, so it no longer refuses reserved names`);
+  }
+
+  const fromSql = namesIn(block[1]);
+  const onlyForm = [...fromForm].filter((name) => !fromSql.has(name)).sort();
+  const onlySql = [...fromSql].filter((name) => !fromForm.has(name)).sort();
+
   if (onlyForm.length) {
-    console.error(`  reserved by the form but not by ${current}: ${onlyForm.join(', ')}`);
+    console.error(`  reserved by the form but not by ${source.name} in ${current.file}: ${onlyForm.join(', ')}`);
   }
-  if (onlyTrigger.length) {
-    console.error(`  reserved by ${current} but not by the form: ${onlyTrigger.join(', ')}`);
+  if (onlySql.length) {
+    console.error(`  reserved by ${source.name} in ${current.file} but not by the form: ${onlySql.join(', ')}`);
   }
-  fail('the two lists differ — add each name to both');
+  if (onlyForm.length || onlySql.length) mismatched = true;
+
+  checked.push(`${source.name} in ${current.file}`);
 }
 
-console.log(`reserved usernames: ${fromForm.size} names, identical in ${VALIDATION} and ${current}`);
+if (mismatched) fail('the lists differ — add each name to all of them');
+
+console.log(`reserved usernames: ${fromForm.size} names, identical in ${VALIDATION}, ${checked.join(' and ')}`);
