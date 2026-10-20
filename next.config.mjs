@@ -23,9 +23,26 @@ if (publicImageHost) {
   remotePatterns.push({ protocol: 'https', hostname: publicImageHost });
 }
 
+// Crawlers that read the HTML as it arrives and never run JavaScript. Next
+// streams a page's <title>, description, canonical and Open Graph tags after
+// the first chunk for ordinary browsers, so they land in <body> and React moves
+// them into <head> on the client. A crawler that does not run scripts never
+// sees that move, and most AI answer engines parse <head> only. For the user
+// agents below Next renders the page in one piece instead: metadata in <head>,
+// and a real 404 status for a page that is not there.
+//
+// This replaces Next's own list, so that list (next/dist/shared/lib/router/
+// utils/html-bots.js, 15.5) is repeated first, then Googlebot and the AI
+// crawlers it does not name.
+const NEXT_DEFAULT_HTML_LIMITED_BOTS =
+  '[\\w-]+-Google|Google-[\\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight';
+const SEARCH_AND_AI_BOTS =
+  'Googlebot|GPTBot|OAI-SearchBot|ChatGPT-User|PerplexityBot|Perplexity-User|ClaudeBot|Claude-User|Claude-SearchBot|anthropic-ai|Amazonbot|DuckAssistBot|MistralAI-User|YouBot|cohere-ai|meta-externalagent|Bytespider|CCBot';
+
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  htmlLimitedBots: new RegExp(`${NEXT_DEFAULT_HTML_LIMITED_BOTS}|${SEARCH_AND_AI_BOTS}`, 'i'),
 
   images: {
     remotePatterns,

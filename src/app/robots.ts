@@ -49,6 +49,39 @@ function disallowed(): string[] {
   return paths;
 }
 
+/**
+ * Crawlers that collect pages to train models, as opposed to answering a
+ * search. FRAME's copyright terms say plainly that uploading a photograph does
+ * not license it for training a machine-learning model, so these are kept off
+ * the whole site.
+ *
+ * The answer engines are not on this list and fall under `*` like any search
+ * engine: OAI-SearchBot and ChatGPT-User (ChatGPT search), PerplexityBot and
+ * Perplexity-User, Claude-SearchBot and Claude-User, DuckAssistBot. Blocking
+ * Google-Extended keeps photographs out of Gemini training without touching
+ * Google Search or its AI Overviews, which crawl as Googlebot.
+ *
+ * robots.txt is a request that reputable crawlers honour, not an access
+ * control. It is the signal the training crawlers below document that they
+ * respect.
+ */
+const TRAINING_CRAWLERS = [
+  'GPTBot',
+  'ClaudeBot',
+  'anthropic-ai',
+  'Google-Extended',
+  'Applebot-Extended',
+  'CCBot',
+  'Bytespider',
+  'meta-externalagent',
+  'cohere-training-data-crawler',
+  'Amazonbot',
+  'Diffbot',
+  'ImagesiftBot',
+  'Timpibot',
+  'omgili',
+] as const;
+
 export default function robots(): MetadataRoute.Robots {
   const base = siteUrl();
 
@@ -58,6 +91,10 @@ export default function robots(): MetadataRoute.Robots {
         userAgent: '*',
         allow: '/',
         disallow: disallowed(),
+      },
+      {
+        userAgent: [...TRAINING_CRAWLERS],
+        disallow: '/',
       },
     ],
     // No `host` directive: Google and Bing ignore it and Yandex retired it, so

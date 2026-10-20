@@ -52,6 +52,15 @@ function alternateLanguages(base: string, path: string): Record<string, string> 
   return languages;
 }
 
+/** public/og-default.png: the FRAME mark, name and tagline at 1200 × 630. */
+const DEFAULT_SHARE_IMAGE = {
+  url: '/og-default.png',
+  alt: `${SITE.name} — ${SITE.tagline}`,
+};
+
+/** public/frame-logo-512.png, for the Organization in structured data. */
+const LOGO_URL = '/frame-logo-512.png';
+
 export function buildMetadata(input: {
   title: string;
   description: string;
@@ -66,14 +75,17 @@ export function buildMetadata(input: {
   const url = localeUrl(base, input.path, input.locale);
 
   // Open Graph consumers crop to roughly 1.91:1, so the declared box matches
-  // the share card rather than the source image's own dimensions.
-  const images = input.image
+  // the share card rather than the source image's own dimensions. A page with
+  // no photograph of its own shares FRAME's card rather than a blank one; a
+  // page that should not be shared at all is noIndex and gets neither.
+  const image = input.image ?? (input.noIndex ? null : DEFAULT_SHARE_IMAGE);
+  const images = image
     ? [
         {
-          url: absoluteUrl(input.image.url, base),
+          url: absoluteUrl(image.url, base),
           width: 1200,
           height: 630,
-          alt: input.image.alt,
+          alt: image.alt,
         },
       ]
     : undefined;
@@ -133,6 +145,11 @@ export function photographJsonLd(
       width: photo.image.width,
       height: photo.image.height,
       caption: photo.altText,
+      // Credit and copyright, which Google Images shows beside the picture.
+      // Still no `license`: members grant none beyond display on FRAME.
+      creditText: photo.photographer.displayName,
+      copyrightNotice: `© ${photo.photographer.displayName}`,
+      creator: { '@type': 'Person', name: photo.photographer.displayName },
     },
     thumbnailUrl: absoluteUrl(photo.image.thumbUrl, base),
     creator: {
@@ -208,4 +225,37 @@ export function placeJsonLd(
   }
 
   return jsonLd;
+}
+
+/**
+ * The site itself, for the home page: who publishes it and what it is, in the
+ * reader's language. Answer engines lean on this to name the site correctly
+ * when they cite one of its pages.
+ */
+export function siteJsonLd(locale: Locale, description: string): Record<string, unknown> {
+  const base = siteUrl();
+  const home = localeUrl(base, '/', locale);
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${base}/#organization`,
+        name: SITE.name,
+        url: base,
+        logo: absoluteUrl(LOGO_URL, base),
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${base}/#website`,
+        name: SITE.name,
+        alternateName: `${SITE.name} — ${SITE.tagline}`,
+        url: home,
+        description,
+        inLanguage: locale,
+        publisher: { '@id': `${base}/#organization` },
+      },
+    ],
+  };
 }
