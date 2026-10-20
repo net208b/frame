@@ -1031,6 +1031,53 @@ begin
   end if;
 end $$;
 
+-- ------------------------------------------------------- deleting your own
+-- Members delete their own photographs from the photograph page, published or
+-- not. RLS hides other members' rows from a DELETE rather than raising, so the
+-- refusal is checked by what survives.
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at, rights_confirmed_at,
+   image_width, image_height)
+values
+  ('eeeeeeee-1111-4000-8000-000000000004', 'to-be-deleted',
+   'eeeeeeee-0000-4000-8000-000000000001', 'Deleted by its owner',
+   'A bus shelter at dawn with condensation running down the glass panels.',
+   'street', 'published', now(), now(), 2400, 1600);
+
+insert into public.photograph_appreciations (photograph_id, profile_id)
+values ('eeeeeeee-1111-4000-8000-000000000004', 'eeeeeeee-0000-4000-8000-000000000004');
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000004';
+delete from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000004';
+commit;
+
+do $$
+begin
+  if not exists (select 1 from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000004') then
+    raise exception 'DELETE BUG  one member deleted another member''s photograph';
+  end if;
+end $$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+delete from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000004';
+commit;
+
+do $$
+begin
+  if exists (select 1 from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000004') then
+    raise exception 'DELETE GAP  an owner could not delete their own published photograph';
+  end if;
+  if exists (select 1 from public.photograph_appreciations where photograph_id = 'eeeeeeee-1111-4000-8000-000000000004') then
+    raise exception 'DELETE GAP  appreciation outlived the photograph it was for';
+  end if;
+  raise notice 'delete ok     an owner deletes their own published photograph, its dependants go with it, and nobody else can';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
