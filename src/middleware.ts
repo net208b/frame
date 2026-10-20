@@ -1,5 +1,5 @@
 import createIntlMiddleware from 'next-intl/middleware';
-import type { NextRequest, NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 import { routing } from '@/i18n/routing';
 import { updateSession } from '@/lib/supabase/middleware';
@@ -34,6 +34,35 @@ import { updateSession } from '@/lib/supabase/middleware';
 const handleLocaleRouting = createIntlMiddleware(routing);
 
 /**
+ * `/@nirut_rps` — the short form of a photographer's profile, and the link a
+ * member will actually paste somewhere.
+ *
+ * IT IS HANDLED HERE because it cannot be a route. A folder named `@something`
+ * under `app/` is a named parallel-route slot in Next.js, not a path segment, so
+ * `/@username` has no file that can answer it. Middleware is the one place that
+ * sees the address before the router tries to resolve it.
+ *
+ * IT REDIRECTS RATHER THAN REWRITES, so one profile stays one address. Showing
+ * the page at both `/@nirut_rps` and `/en/photographers/nirut_rps` would be the
+ * same content at two URLs, and the long one is already the canonical in the
+ * metadata and the one in the sitemap. The short form is a doorway, not a second
+ * front door.
+ *
+ * AND TEMPORARILY, not permanently. A permanent redirect is cached by the
+ * browser more or less forever, so making the short URL canonical later — which
+ * is the direction a site usually travels, not away from — would have to fight
+ * every browser that had already seen a 308. The cost of being wrong in this
+ * direction is one extra hop; in the other it is unfixable.
+ *
+ * The username rules are `src/lib/validation/auth.ts`: three to twenty-four
+ * characters of lowercase letters, digits and underscores. The pattern is
+ * repeated rather than imported because middleware runs on its own bundle and
+ * pulling Zod into it to validate a path would be absurd. An address that does
+ * not match is left alone and 404s as any other unknown path does.
+ */
+const SHORT_PROFILE = /^(?:\/(en|th))?\/@([A-Za-z0-9_]{3,24})\/?$/;
+
+/**
  * Route handlers are endpoints, not pages: they have no `[locale]` segment and
  * must not be redirected into one — `/api/uploads/sign` prefixed to
  * `/en/api/uploads/sign` is a 404. They still want the session refresh, which is
@@ -51,6 +80,23 @@ function isInternalHeader(name: string): boolean {
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
   // In demo mode this returns an untouched pass-through, as it always has.
   const sessionResponse = await updateSession(request);
+
+  const short = SHORT_PROFILE.exec(request.nextUrl.pathname);
+  if (short) {
+    const [, locale, username] = short;
+    const target = request.nextUrl.clone();
+    // Lowercased, because the stored username is: `/@Nirut_RPS` is the same
+    // person and should land on their page rather than on a 404.
+    const profile = `/photographers/${username!.toLowerCase()}`;
+    // A short URL that already carries a locale keeps it; one that does not is
+    // sent to the unprefixed path, and the locale middleware negotiates it on
+    // the next request exactly as it does for any other bare address.
+    target.pathname = locale ? `/${locale}${profile}` : profile;
+
+    const redirect = NextResponse.redirect(target);
+    for (const cookie of sessionResponse.cookies.getAll()) redirect.cookies.set(cookie);
+    return redirect;
+  }
 
   if (!isLocalisedPath(request.nextUrl.pathname)) return sessionResponse;
 
