@@ -1,7 +1,14 @@
 import { createClient as createSessionlessClient } from '@supabase/supabase-js';
 
 import { getViewer } from '@/lib/auth';
-import { LOCATION_POLICY, PAGE_SIZE, publicEnv, serverEnv, UPLOAD_POLICY } from '@/lib/config';
+import {
+  LOCATION_POLICY,
+  MAP_PIN_PHOTOGRAPH_SAMPLE,
+  PAGE_SIZE,
+  publicEnv,
+  serverEnv,
+  UPLOAD_POLICY,
+} from '@/lib/config';
 import type { MapPin, ModerationQueues } from '@/lib/data/repository';
 import { boundingBoxAround, distanceMetres, publishableCoordinates } from '@/lib/geo';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
@@ -1143,8 +1150,11 @@ export async function mapPins(): Promise<MapPin[]> {
       .eq('status', 'approved')
       .eq('withhold_coordinates', false)
       .eq('photographs.status', 'published')
+      // Newest first, and more than one of them: a pin shows the latest frame
+      // from the place with the ones before it stacked behind. The order is the
+      // product rule — see `MapPin.recentImageUrls`.
       .order('published_at', { ascending: false, referencedTable: 'photographs' })
-      .limit(1, { referencedTable: 'photographs' })
+      .limit(MAP_PIN_PHOTOGRAPH_SAMPLE, { referencedTable: 'photographs' })
       .limit(MAP_PIN_LIMIT),
   );
 
@@ -1161,11 +1171,17 @@ export async function mapPins(): Promise<MapPin[]> {
     });
     if (!point) continue;
 
-    const preview = firstOf<MapPinPhotograph>(row.photographs);
-    const previewImages = asArray<ImageColumns>(preview?.photograph_images);
-    const previewKey =
-      toText(previewImages.find((image) => image.variant === 'thumb')?.storage_key) ??
-      toText(previewImages.find((image) => image.variant === 'grid')?.storage_key);
+    // One URL per photograph, in the order the query returned them. A
+    // photograph whose thumbnail is missing is skipped rather than held as a
+    // null, so the stack never has a hole in it.
+    const recentImageUrls: string[] = [];
+    for (const photograph of asArray<MapPinPhotograph>(row.photographs)) {
+      const images = asArray<ImageColumns>(photograph?.photograph_images);
+      const key =
+        toText(images.find((image) => image.variant === 'thumb')?.storage_key) ??
+        toText(images.find((image) => image.variant === 'grid')?.storage_key);
+      if (key) recentImageUrls.push(storagePublicUrl(key));
+    }
 
     pins.push({
       ...summary,
@@ -1173,7 +1189,8 @@ export async function mapPins(): Promise<MapPin[]> {
       latitude: point.latitude,
       longitude: point.longitude,
       isApproximate: point.isApproximate,
-      previewImageUrl: previewKey ? storagePublicUrl(previewKey) : null,
+      previewImageUrl: recentImageUrls[0] ?? null,
+      recentImageUrls,
     });
   }
 

@@ -604,6 +604,9 @@
     "pinPreview": {
       "approximate": "This pin is deliberately approximate, accurate to about {precision}, because the place is privacy-sensitive."
     },
+    "pinCard": {
+      "photographs": "{count, plural, one {# photograph} other {# photographs}}"
+    },
     "static": {
       "title": "Map showing {name}",
       "description": "{name} on a map at {coordinates}.",

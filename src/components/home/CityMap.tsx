@@ -2,7 +2,7 @@ import { ArrowUpRight, Camera, CircleDashed, ShieldCheck } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 import type { ComponentType } from 'react';
 
-import { MapCanvas } from '@/components/map/MapCanvas';
+import { CityMapCanvas } from '@/components/home/CityMapCanvas';
 import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import type { Locale } from '@/i18n/locales';
@@ -102,13 +102,11 @@ export async function CityMap({
         */}
         <div className={cn('relative lg:[grid-area:1/1]', BAND_HEIGHT)}>
           {mapReady ? (
-            <MapCanvas
+            <CityMapCanvas
               pins={pins}
-              initialCenter={place.centre}
-              initialZoom={place.zoom}
-              scrollZoom={false}
+              centre={place.centre}
+              zoom={place.zoom}
               heightClassName="h-full"
-              className="h-full"
             />
           ) : (
             /* Maps are switched off for this deployment. The band keeps its
