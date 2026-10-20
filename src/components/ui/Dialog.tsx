@@ -91,6 +91,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel = 'Delete',
+  cancelLabel = 'Cancel',
   onConfirm,
   pending = false,
 }: {
@@ -99,6 +100,7 @@ export function ConfirmDialog({
   title: string;
   body: string;
   confirmLabel?: string;
+  cancelLabel?: string;
   onConfirm: () => void;
   pending?: boolean;
 }) {
@@ -111,7 +113,7 @@ export function ConfirmDialog({
         footer={
           <>
             <DialogClose asChild>
-              <Button variant="secondary">Cancel</Button>
+              <Button variant="secondary">{cancelLabel}</Button>
             </DialogClose>
             <Button variant="danger" loading={pending} onClick={onConfirm}>
               {confirmLabel}

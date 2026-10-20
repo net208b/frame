@@ -380,6 +380,16 @@
       "intro": "If this photograph is not the uploader’s work, misstates its location, or should not be published, tell a moderator.",
       "trigger": "Report this photograph",
       "subject": "“{title}” by {photographer}"
+    },
+    "delete": {
+      "intro": "This is your photograph. Deleting it removes it from FRAME for good: every size of the image, its details, the appreciation it received and its place in anyone's collections. Reports and moderation decisions about it are kept.",
+      "trigger": "Delete this photograph",
+      "confirmTitle": "Delete “{title}”?",
+      "confirmBody": "The image and everything attached to it are deleted now, and this cannot be undone. Its web address will stop working.",
+      "confirm": "Delete for good",
+      "cancel": "Keep it",
+      "done": "The photograph is deleted.",
+      "transportFailure": "The connection dropped, so it is not known whether the photograph was deleted. Reload the page to see."
     }
   },
   "report": {
