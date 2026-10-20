@@ -11,6 +11,7 @@ import { withLocalePrefix } from '@/i18n/locales';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { getOwnSettings } from '@/lib/account';
 import { requireViewer } from '@/lib/auth';
+import { getPortfolio } from '@/lib/data/repository';
 import { countryOptions } from '@/lib/geo/countries';
 import { isDemoMode } from '@/lib/config';
 import { buildMetadata } from '@/lib/seo';
@@ -74,7 +75,7 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
     );
   }
 
-  await requireViewer(withLocalePrefix('/settings', locale));
+  const viewer = await requireViewer(withLocalePrefix('/settings', locale));
   const settings = await getOwnSettings();
 
   if (!settings) {
@@ -87,6 +88,13 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
       </div>
     );
   }
+
+  // The frames a cover may be: this member's own published photographs, newest
+  // first, which is the same read the profile page makes.
+  const coverCandidates = (await getPortfolio(viewer.id)).map((photograph) => ({
+    id: photograph.id,
+    title: photograph.title,
+  }));
 
   const provider = isSignInProvider(settings.createdWith)
     ? SIGN_IN_PROVIDER_NAMES[settings.createdWith]
@@ -119,6 +127,7 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
               username={settings.username}
               disabled={settings.isSuspended}
               countries={countryOptions(locale)}
+              coverCandidates={coverCandidates}
               initial={{
                 displayName: settings.displayName,
                 biography: settings.biography ?? '',
@@ -129,6 +138,7 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
                 styles: settings.styles,
                 collaboration: settings.collaboration ?? '',
                 critique: settings.critique ?? '',
+                coverPhotographId: settings.coverPhotographId ?? '',
                 gear: settings.usualGear.join('\n'),
               }}
             />

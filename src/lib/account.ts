@@ -25,6 +25,8 @@ export interface OwnSettings {
   collaboration: string | null;
   /** How they want their work discussed. */
   critique: string | null;
+  /** The photograph standing at the top of the profile, if they chose one. */
+  coverPhotographId: string | null;
   usualGear: string[];
   /**
    * How the account was made: `email` for the Join form, otherwise the
@@ -52,6 +54,7 @@ interface ProfileRow {
   style_tags: string[] | null;
   collaboration_status: string | null;
   critique_preference: string | null;
+  cover_photograph_id: string | null;
   usual_gear: string[] | null;
   username_changed_at: string | null;
   is_suspended: boolean;
@@ -69,8 +72,8 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
       .from('profiles')
       .select(
         `username, display_name, biography, based_in, country_code, website, social_links,
-         style_tags, collaboration_status, critique_preference, usual_gear, username_changed_at,
-         is_suspended`,
+         style_tags, collaboration_status, critique_preference, cover_photograph_id, usual_gear,
+         username_changed_at, is_suspended`,
       )
       .eq('id', auth.user.id)
       .maybeSingle(),
@@ -103,6 +106,7 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
     styles: row.style_tags ?? [],
     collaboration: row.collaboration_status,
     critique: row.critique_preference,
+    coverPhotographId: row.cover_photograph_id,
     usualGear: row.usual_gear ?? [],
     createdWith,
     canChangeUsername:

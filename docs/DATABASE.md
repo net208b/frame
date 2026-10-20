@@ -82,6 +82,7 @@ there is no second identity to keep in step.
 | `collaboration_status` | `open` / `selective` / `closed`, or null. Null means they have not said, which is not the same as "no", so the profile shows nothing for it. |
 | `critique_preference` | `any` / `technical` / `none`, or null. A sentence addressed to other members: FRAME has no comments, so nothing in the application enforces it, and the Settings form says so. |
 | `social_links` | `text[]`, up to four, each `http(s)` only and at most 200 characters — each one becomes an `href` on a public page. |
+| `cover_photograph_id` | One of the member's **own published** photographs, shown across the top of their profile — not an uploaded banner, so there is no second image pipeline. `profiles_cover_must_be_own_published` refuses anything else (a CHECK cannot query another table); `on delete set null` clears it with the photograph; and the repository joins on `status = 'published'` as well, so a frame taken down for a day hides the band without forgetting the choice. |
 
 ### `camera_brands`, `camera_models`, `lens_brands`, `lens_models`
 

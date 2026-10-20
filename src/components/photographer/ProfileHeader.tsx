@@ -1,9 +1,11 @@
 import { ArrowUpRight, Handshake, MessageSquareQuote } from 'lucide-react';
 import { getLocale, getTranslations } from 'next-intl/server';
+import Image from 'next/image';
 
 import { Avatar } from '@/components/photographer/Avatar';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { Link } from '@/i18n/navigation';
 import { countryFlag, countryName } from '@/lib/geo/countries';
 import { cn, formatMonthYear } from '@/lib/utils';
 import type { PhotographerProfile } from '@/types/domain';
@@ -114,15 +116,59 @@ export async function ProfileHeader({
     .map((link) => externalWebsite(link))
     .filter((link): link is { href: string; label: string } => link !== null);
 
+  const cover = photographer.cover;
+
   return (
     <header className={cn('border-b border-line pb-10', className)}>
-      <div className="flex flex-col gap-7 md:flex-row md:items-start md:gap-10">
-        <Avatar
-          src={photographer.avatarUrl}
-          name={photographer.displayName}
-          size={128}
-          decorative
-        />
+      {/*
+        The cover: one of the member's own published photographs, chosen in
+        Settings, and a link to that photograph because that is what it is. It
+        is described with the alt text the member wrote for it rather than left
+        decorative — it is somebody's work, not a texture, and on the page about
+        them it is the one image that says what their work looks like before any
+        of the words do.
+
+        `priority`, because when a profile has a cover it is the largest thing
+        above the fold and therefore what the page is waiting on.
+      */}
+      {cover ? (
+        <Link
+          href={`/photographs/${cover.slug}`}
+          className="group relative block h-[clamp(9rem,26vw,19rem)] overflow-hidden rounded-panel bg-surface-sunken"
+        >
+          <Image
+            src={cover.imageUrl}
+            alt={cover.altText}
+            fill
+            sizes="(min-width: 1280px) 1200px, 100vw"
+            priority
+            className="object-cover motion-safe:transition-transform motion-safe:duration-500 group-hover:scale-[1.02]"
+          />
+        </Link>
+      ) : null}
+
+      <div
+        className={cn(
+          'flex flex-col gap-7 md:flex-row md:items-start md:gap-10',
+          cover && 'mt-7',
+        )}
+      >
+        {/*
+          Tucked up over the cover's bottom edge, with a ring of the page colour
+          around it so it reads as sitting on top rather than cut into it. Only
+          the avatar moves: the name and the lines under it stay where the row
+          puts them, which is what keeps the heading clear of the image.
+        */}
+        <div className={cn(cover && '-mt-16 md:-mt-20')}>
+          <div className={cn(cover && 'rounded-pill ring-4 ring-paper')}>
+            <Avatar
+              src={photographer.avatarUrl}
+              name={photographer.displayName}
+              size={128}
+              decorative
+            />
+          </div>
+        </div>
 
         <div className="min-w-0 flex-1">
           <Eyebrow>{common('photographer')}</Eyebrow>

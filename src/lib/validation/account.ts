@@ -161,6 +161,26 @@ const stylesSchema = z.preprocess(
   }),
 );
 
+/**
+ * The photograph chosen as the cover, by id, or nothing.
+ *
+ * Only the shape is checked here. Whether it is *this member's* and whether it
+ * is published are questions about other rows, so they are answered by the
+ * trigger in migration 0017 — which is also the only answer that holds for a
+ * request that skips this form.
+ */
+const coverSchema = z
+  .string()
+  .trim()
+  .transform((value, context) => {
+    if (value === '') return null;
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(value)) {
+      context.addIssue({ code: 'custom', message: validationCode('cover.invalid') });
+      return z.NEVER;
+    }
+    return value;
+  });
+
 /** One of the words, or nothing at all. Silence is not "closed". */
 function choiceOrBlank<const T extends readonly string[]>(allowed: T, code: string) {
   return z
@@ -215,6 +235,7 @@ export const profileSchema = z.object({
   styles: stylesSchema,
   collaboration: choiceOrBlank(COLLABORATION_STATUSES, 'collaboration.invalid'),
   critique: choiceOrBlank(CRITIQUE_PREFERENCES, 'critique.invalid'),
+  coverPhotographId: coverSchema,
   gear: gearSchema,
 });
 
