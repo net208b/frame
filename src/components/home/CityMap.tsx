@@ -134,22 +134,6 @@ export async function CityMap({
             </p>
           ) : null}
 
-          {totalPinCount === 0 ? (
-            /* Centred on the map, which is where "there is nothing here yet"
-               belongs. It is the honest state of a new deployment, and it is
-               said once — the paragraph under the old teaser said it too, and
-               two sentences about the same emptiness is one too many. */
-            <div
-              className={cn(
-                'absolute top-1/2 left-1/2 z-10 w-[min(23rem,calc(100%-2.5rem))]',
-                '-translate-x-1/2 -translate-y-1/2 rounded-panel border border-line bg-surface',
-                'p-5 text-center shadow-popover',
-              )}
-            >
-              <p className="text-body font-semibold">{t('city.emptyTitle', values)}</p>
-              <p className="mt-1.5 text-meta leading-relaxed text-muted">{t('city.emptyBody')}</p>
-            </div>
-          ) : null}
         </div>
 
         <div
@@ -192,6 +176,28 @@ export async function CityMap({
               <Link href={signedIn ? '/upload' : '/join'}>{t('city.addPlace')}</Link>
             </Button>
           </div>
+
+          {totalPinCount === 0 ? (
+            /*
+              In the text column, under the buttons, rather than floating in the
+              middle of the map. Centred on the map was the first attempt and it
+              was wrong on the layout that matters most: the plate above is a box
+              as tall as its own contents, so on a short viewport it reaches past
+              the middle of the map, and the two overlapped — the card's
+              sentences read through the buttons on production. Here the order is
+              the one a reader would expect anyway: what this is, where you are,
+              what to do, and then that there is nothing here yet.
+            */
+            <div
+              className={cn(
+                'mt-6 w-full max-w-[25rem] rounded-panel border border-line bg-surface p-5',
+                'shadow-popover lg:text-center',
+              )}
+            >
+              <p className="text-body font-semibold">{t('city.emptyTitle', values)}</p>
+              <p className="mt-1.5 text-meta leading-relaxed text-muted">{t('city.emptyBody')}</p>
+            </div>
+          ) : null}
         </div>
       </div>
 
