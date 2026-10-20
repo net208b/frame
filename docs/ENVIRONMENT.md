@@ -97,6 +97,7 @@ R2 therefore needs four values in total: the three `R2_*` secrets and the public
 | Variable | Required | Scope | What it does | Example shape | Missing |
 | --- | --- | --- | --- | --- | --- |
 | `GOOGLE_VISION_API_KEY` | Recommended | **Server only** | Google Cloud Vision API key. When an upload is processed, its display size (re-encoded, every tag stripped — never the original file) is sent to SafeSearch; a clear answer lets the photograph publish at once. Restrict the key to the Cloud Vision API in the Google Cloud console. | `AIza…` | The check reports "unavailable", and every upload waits in the moderation queue for a person. Nothing is published unchecked. |
+| `CONTENT_CHECK_DAILY_LIMIT` | Optional | Server only | The most classifier calls made per UTC day. Google offers no daily quota for Cloud Vision, so this is the ceiling on the bill. | `2000` | Defaults to 2,000. Past it, uploads wait for a moderator instead of being checked. |
 
 ### Maps
 

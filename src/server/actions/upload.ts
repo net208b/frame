@@ -717,8 +717,41 @@ export async function attachVariants(
  * Without a service-role key nothing can be stored, and publishPhotograph will
  * find no clear answer and send the upload to review — the safe failure.
  */
+/**
+ * A ceiling on paid classifier calls per UTC day.
+ *
+ * Google offers no daily quota for Cloud Vision — only a per-minute rate — so
+ * the cap lives here. Past it the check is not called and the upload goes to a
+ * person, which bounds the bill however many uploads arrive: the default of
+ * 2,000 a day is at most about $90 a month past the free tier.
+ */
+const CONTENT_CHECK_DAILY_LIMIT = (() => {
+  const value = Number(process.env.CONTENT_CHECK_DAILY_LIMIT);
+  return Number.isInteger(value) && value >= 0 ? value : 2_000;
+})();
+
+async function contentChecksToday(): Promise<number | null> {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const { count, error } = await createAdminClient()
+      .from('photograph_content_checks')
+      .select('photograph_id', { count: 'exact', head: true })
+      .eq('provider', 'google_vision_safesearch')
+      .gte('checked_at', startOfDay.toISOString());
+    return error ? null : (count ?? 0);
+  } catch {
+    return null;
+  }
+}
+
 async function recordContentCheck(photographId: string, image: Uint8Array | null): Promise<void> {
-  const result: ContentCheckResult = image
+  // An unknown count is treated as "at the limit": a check that cannot prove it
+  // is within budget does not spend.
+  const usedToday = image ? await contentChecksToday() : null;
+  const overBudget = usedToday === null || usedToday >= CONTENT_CHECK_DAILY_LIMIT;
+
+  const result: ContentCheckResult = image && !overBudget
     ? await checkImageContent(image)
     : {
         provider: 'none',
@@ -728,7 +761,9 @@ async function recordContentCheck(photographId: string, image: Uint8Array | null
         violence: null,
         medical: null,
         spoof: null,
-        note: 'No display size was generated, so the automated check could not run.',
+        note: image
+          ? 'The automated check has reached its daily limit, so a person reviews this upload.'
+          : 'No display size was generated, so the automated check could not run.',
       };
 
   try {
