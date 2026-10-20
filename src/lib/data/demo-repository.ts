@@ -246,6 +246,56 @@ export function demoMapPins() {
 
 export type DemoMapPin = ReturnType<typeof demoMapPins>[number];
 
+/**
+ * Pins for one photographer's own map: the places *they* have published from.
+ *
+ * Built from the photographs rather than from the locations, because that is
+ * the question — and because the count has to be theirs. A place where this
+ * member has one frame and four other members have ten reads "1" here and "11"
+ * on the map page, which is what both sentences mean.
+ */
+export function demoPhotographerMapPins(photographerId: string): DemoMapPin[] {
+  const pins = new Map<string, DemoMapPin>();
+
+  const own = DEMO_PHOTOGRAPHS.filter(
+    (photo) => photo.photographer.id === photographerId && photo.location !== null,
+  ).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+
+  for (const photo of own) {
+    const place = DEMO_LOCATIONS.find((location) => location.id === photo.location!.id);
+    if (!place?.coordinates) continue;
+
+    const existing = pins.get(place.id);
+    if (existing) {
+      existing.photographCount += 1;
+      if (existing.recentImageUrls.length < MAP_PIN_PHOTOGRAPH_SAMPLE) {
+        existing.recentImageUrls.push(photo.image.thumbUrl);
+      }
+      continue;
+    }
+
+    pins.set(place.id, {
+      id: place.id,
+      slug: place.slug,
+      name: place.name,
+      city: place.city,
+      country: place.country,
+      countryCode: place.countryCode,
+      // Theirs, not the place's.
+      photographCount: 1,
+      categories: place.categories,
+      latitude: place.coordinates.latitude,
+      longitude: place.coordinates.longitude,
+      isApproximate: place.coordinates.isApproximate,
+      previewImageUrl: photo.image.thumbUrl,
+      recentImageUrls: [photo.image.thumbUrl],
+    });
+  }
+
+  return [...pins.values()];
+}
+
+
 /* ------------------------------------------------------------------------ */
 /* People                                                                    */
 /* ------------------------------------------------------------------------ */

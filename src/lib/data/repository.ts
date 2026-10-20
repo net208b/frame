@@ -156,6 +156,17 @@ export async function getMapPins(): Promise<MapPin[]> {
   return demo.demoMapPins();
 }
 
+/**
+ * One photographer's footprints: every place they have published a frame from.
+ *
+ * Separate from {@link getMapPins} because the number on each pin is their own
+ * count at that place, not the place's total. See `photographerMapPins()`.
+ */
+export async function getPhotographerMapPins(photographerId: string): Promise<MapPin[]> {
+  if (useLive()) return live.photographerMapPins(photographerId);
+  return demo.demoPhotographerMapPins(photographerId);
+}
+
 export async function getLocationSlugs(): Promise<string[]> {
   if (useLive()) return live.approvedLocationSlugs();
   return demo.demoLocationSlugs();
