@@ -181,6 +181,50 @@ select public.test_accepts('suspending an account with a reason',
 update public.profiles set is_suspended = false, suspended_reason = null
  where id = '22222222-2222-4222-8222-222222222222';
 
+-- --------------------------------------------- writing your own row directly
+-- Migration 0010. These run as the `authenticated` role, not as the superuser
+-- the rest of this file uses: the rule under test is a trigger that reads who
+-- is writing, and a superuser with no session walks straight past it. Each
+-- block switches role inside its own transaction so the role cannot leak.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '22222222-2222-4222-8222-222222222222';
+
+-- The positive control: the policy does let a member edit their own row.
+select public.test_accepts('a member editing their own display name directly',
+  $$update public.profiles set display_name = 'Member Two, renamed'
+     where id = '22222222-2222-4222-8222-222222222222'$$);
+
+-- The hole 0010 closes. "support" is reserved: the Join form refuses it.
+select public.test_rejects('a member renaming themselves directly',
+  $$update public.profiles set username = 'support'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+
+select public.test_rejects('a member promoting themselves',
+  $$update public.profiles set role = 'admin'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+commit;
+
+-- Renaming somebody else is not a moderation tool either.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('a moderator renaming another member',
+  $$update public.profiles set username = 'renamed_by_mod'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+commit;
+
+do $$
+declare v_name text;
+begin
+  select username into v_name from public.profiles
+   where id = '22222222-2222-4222-8222-222222222222';
+  if v_name <> 'member_two' then
+    raise exception 'GUARD BUG  a refused rename still changed the username to %', v_name;
+  end if;
+  raise notice 'guard ok      the username is unchanged after every refused attempt';
+end $$;
+
 -- ------------------------------------------------------------------ places
 insert into public.locations
   (id, slug, name, city, country, country_code, latitude, longitude,
@@ -733,6 +777,57 @@ begin
   end if;
   raise notice 'retain ok     a moderator''s account is demoted, suspended, emptied and barred, and the decision keeps its author';
 end $$;
+
+-- ----------------------------------------------------------------- storage
+-- 0008_storage.sql is the only description of the bucket and of who may write
+-- into it, and it was a block of SQL applied by hand before that. The point of
+-- asserting it here is that a missing policy does not announce itself: the
+-- storage driver uses the cookie-bound client, so an absent insert policy
+-- reads as a row-level security refusal at upload time and nothing earlier.
+--
+-- What this cannot cover is the storage service — see the storage note in
+-- local-shims.sql. The shape is checked; the HTTP path is not.
+do $$
+declare v_missing text; v_limit bigint; v_public boolean;
+begin
+  select public, file_size_limit into v_public, v_limit
+    from storage.buckets where id = 'photographs';
+  if not found then
+    raise exception 'STORAGE GAP  the photographs bucket does not exist';
+  end if;
+  if not v_public then
+    raise exception 'STORAGE DRIFT  the photographs bucket is not public, so no derivative is readable';
+  end if;
+  if v_limit is distinct from 26214400 then
+    raise exception 'STORAGE DRIFT  file_size_limit is %, not UPLOAD_POLICY.maxFileBytes (26214400)', v_limit;
+  end if;
+
+  -- Named rather than counted: four policies of the wrong kinds would pass a count.
+  select string_agg(want.cmd, ', ' order by want.cmd) into v_missing
+    from (values ('SELECT'), ('INSERT'), ('UPDATE'), ('DELETE')) as want(cmd)
+   where not exists (
+     select 1 from pg_policies p
+      where p.schemaname = 'storage' and p.tablename = 'objects' and p.cmd = want.cmd
+        and coalesce(p.qual, '') || coalesce(p.with_check, '') like '%photographs%');
+  if v_missing is not null then
+    raise exception 'STORAGE GAP  no policy on storage.objects for: %', v_missing;
+  end if;
+
+  -- The owner-prefix rule is the whole of write authorisation, so a write
+  -- policy that does not mention auth.uid() is a policy that lets a member
+  -- write into somebody else's prefix.
+  select string_agg(p.cmd, ', ' order by p.cmd) into v_missing
+    from pg_policies p
+   where p.schemaname = 'storage' and p.tablename = 'objects'
+     and p.cmd in ('INSERT', 'UPDATE', 'DELETE')
+     and coalesce(p.qual, '') || coalesce(p.with_check, '') not like '%uid()%';
+  if v_missing is not null then
+    raise exception 'STORAGE GAP  write policy with no owner check: %', v_missing;
+  end if;
+
+  raise notice 'storage ok    the photographs bucket is public, capped at 25 MiB, and writable only inside the owner prefix';
+end $$;
+
 
 -- ------------------------------------------------------------------ summary
 do $$
