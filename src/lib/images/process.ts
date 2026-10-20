@@ -277,20 +277,28 @@ export async function buildVariants(bytes: Uint8Array | ArrayBuffer): Promise<Bu
  * the right way up: sharp applies the tag and drops it, which also means the
  * stored file carries no EXIF — no camera, no timestamp, no GPS from whatever
  * the member happened to pick off their phone.
+ *
+ * `withoutEnlargement` is the second rule, and it is the one that keeps this
+ * honest: a picture whose short side is under {@link AVATAR_VARIANT.size} is
+ * stored at the size it really is. Enlarging it would produce a file of the
+ * right dimensions and no more detail — a 400-pixel face resampled to 1024 is
+ * a 400-pixel face that now also looks soft, and it would be the application,
+ * not the camera, that made it so. The size actually produced comes back in the
+ * result so the caller can say what was stored.
  */
 export async function buildAvatar(
   bytes: Uint8Array | ArrayBuffer,
 ): Promise<{ bytes: Uint8Array; contentType: string; size: number }> {
   assertServer();
 
-  const { data } = await sharp(toInput(bytes), SHARP_INPUT)
+  const { data, info } = await sharp(toInput(bytes), SHARP_INPUT)
     .rotate()
     .resize({
       width: AVATAR_VARIANT.size,
       height: AVATAR_VARIANT.size,
       fit: 'cover',
       position: 'centre',
-      withoutEnlargement: false,
+      withoutEnlargement: true,
     })
     .webp({ quality: AVATAR_VARIANT.quality })
     .toBuffer({ resolveWithObject: true });
@@ -298,7 +306,7 @@ export async function buildAvatar(
   return {
     bytes: new Uint8Array(data),
     contentType: AVATAR_VARIANT.contentType,
-    size: AVATAR_VARIANT.size,
+    size: info.width,
   };
 }
 

@@ -76,12 +76,21 @@ export const AVATAR_DISPLAY_QUALITY = 88;
  * would be storing four files to answer a question nobody asks.
  */
 export const AVATAR_VARIANT = {
-  // 512, not 256. The profile masthead draws the avatar at 128 CSS pixels,
-  // which is 256 device pixels on a two-times display and 384 on a phone — so a
-  // 256-pixel file had no headroom at all on the one screen that shows it
-  // largest, and was being upscaled on most phones. At this size the same
-  // picture has something to spare everywhere it appears.
-  size: 512,
+  /*
+   * 1024, by way of 256 and then 512.
+   *
+   * The masthead draws the avatar at 128 CSS pixels, so 256 is what a
+   * two-times display fetches and 512 is already generous. This is larger than
+   * the page ever asks for on purpose: it is the file a member sees when they
+   * pinch into their own picture to judge it, it is what a future layout can
+   * draw bigger without a re-upload, and at this size the stored square is the
+   * member's photograph rather than our idea of it. A face at 1024 in WebP at
+   * 90 is around 150 KB, which is a tenth of one photograph in the grid.
+   *
+   * It is a ceiling and not a target: see `buildAvatar`, which never enlarges a
+   * smaller picture to meet it.
+   */
+  size: 1024,
   quality: 90,
   format: 'webp',
   contentType: 'image/webp',
