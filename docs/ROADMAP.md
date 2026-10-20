@@ -46,14 +46,21 @@ That argues for finishing what is nearly done over starting what is new.
 
 > เมื่อคลิกดูปักหมุดในเมืองต่างๆ (เช่น กรุงเทพฯ, โตเกียว, ลอนดอน) จะเห็นพรีวิวภาพถ่ายสตรีทที่เคยถูกบันทึก ณ จุดนั้น
 
-**Status: built.** `MapCanvas` and `StaticLocationMap` render MapLibre with
-clustered pins, and `MapPinPreview` shows a `LocationCard` on click. The map
-needs `NEXT_PUBLIC_MAP_STYLE_URL` pointed at a tile provider — see
-`docs/EXTERNAL-SERVICES.md`; with none set the page shows a capability notice
-rather than a broken map.
+**Status: built and live**, and more than this entry originally asked for.
 
-**Remaining:** choosing and paying for a tile provider. That is a running cost,
-not a code change.
+FRAME draws its own basemap (`src/lib/map/basemap.ts`, served at
+`/basemap/{light,dark}-{en,th}`) over OpenFreeMap's tiles — no account, no API
+key, no quota, and no running cost. The home page and `/map` open on the
+reader's own city, resolved from the request's IP at the edge. A place that has
+been photographed is drawn as its newest frame with the earlier ones stacked
+behind it, and choosing a pin opens a card anchored beside it. Proposing a new
+place is a pin on a map that fills in the city, country and country code for
+itself.
+
+**Remaining: nothing on this entry.** The tile provider that this said would be
+a running cost turned out not to need paying for — see
+`docs/EXTERNAL-SERVICES.md` for what that free basemap costs instead, which is
+an SLA rather than money.
 
 ### 1b. Spot tips — ข้อมูลสภาวะแสง
 
@@ -356,7 +363,6 @@ against the design system, and the short URL delivers most of the benefit.
 
 Things that need a decision from the owner before the work above can be scoped.
 
-- **Tile provider for the map.** A running cost, and 1a and 1b both depend on it.
 - **Is "city" an entity?** Needed by 5a and by 3b. Deriving it from coordinates
   avoids a migration; introducing it makes cities addressable and curatable.
   Picking one early avoids building both.
