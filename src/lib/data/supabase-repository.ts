@@ -16,7 +16,10 @@ import { trendingScore } from '@/lib/ranking';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/types';
 import {
+  COLLABORATION_STATUSES,
+  CRITIQUE_PREFERENCES,
   PHOTO_CATEGORIES,
+  PHOTOGRAPHY_STYLES,
   REPORT_REASONS,
   type Collection,
   type CollectionItem,
@@ -28,6 +31,7 @@ import {
   type LocationRestriction,
   type LocationSubmission,
   type LocationSummary,
+  type PhotographyStyle,
   type ModerationAction,
   type ModerationDecision,
   type Paginated,
@@ -273,6 +277,35 @@ function oneOf<T extends string>(allowed: readonly T[], value: unknown, fallback
   return allowed.find((entry) => entry === value) ?? fallback;
 }
 
+/**
+ * The same, for a column where "not set" is a meaning of its own: a member who
+ * has not said whether they collaborate has not said "no".
+ */
+function oneOrNull<T extends string>(allowed: readonly T[], value: unknown): T | null {
+  return allowed.find((entry) => entry === value) ?? null;
+}
+
+function isPhotographyStyle(value: unknown): value is PhotographyStyle {
+  return PHOTOGRAPHY_STYLES.some((style) => style === value);
+}
+
+/**
+ * Whether a stored link is one this site will put in an href.
+ *
+ * The database already refuses anything but http(s) on these columns
+ * (migration 0016). This is the second refusal, at the boundary where the value
+ * stops being a row and becomes a page: a link is the one piece of
+ * member-written text the browser executes if it is the wrong scheme.
+ */
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 /* ------------------------------------------------------------------------ */
 /* Clients                                                                  */
 /* ------------------------------------------------------------------------ */
@@ -389,6 +422,11 @@ type ProfileDetailColumns = Nullable<
     | 'based_in'
     | 'biography'
     | 'website'
+    | 'country_code'
+    | 'style_tags'
+    | 'collaboration_status'
+    | 'critique_preference'
+    | 'social_links'
     | 'usual_gear'
     | 'role'
     | 'member_since'
@@ -432,7 +470,9 @@ type RestrictionColumns = Nullable<
 >;
 
 const PROFILE_SUMMARY_FIELDS = 'id, username, display_name, avatar_url, based_in';
-const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, usual_gear, role, member_since, created_at`;
+const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, country_code,
+  style_tags, collaboration_status, critique_preference, social_links, usual_gear, role,
+  member_since, created_at`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
 const IMAGE_FIELDS = 'variant, storage_key, width, height';
 const METADATA_FIELDS =
@@ -1388,6 +1428,14 @@ async function buildProfiles(
       ...summary,
       biography: toText(row.biography),
       website: toText(row.website),
+      countryCode: toText(row.country_code),
+      styles: toStringList(row.style_tags).filter(isPhotographyStyle),
+      collaboration: oneOrNull(COLLABORATION_STATUSES, row.collaboration_status),
+      critique: oneOrNull(CRITIQUE_PREFERENCES, row.critique_preference),
+      // Filtered on the way out as well as on the way in: the column is
+      // constrained to http(s) by the database, and a value that somehow is not
+      // would become an href on a public page.
+      socialLinks: toStringList(row.social_links).filter(isHttpUrl),
       usualGear: toStringList(row.usual_gear),
       photographCount: photographCounts.get(summary.id) ?? 0,
       appreciationsReceived: appreciationTotals.get(summary.id) ?? 0,

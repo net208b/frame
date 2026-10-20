@@ -77,6 +77,11 @@ there is no second identity to keep in step.
 | `based_in` | Free text the member typed. Never inferred from an IP address or a locale header — a guessed location presented as a fact is a privacy problem. |
 | `member_since` | A `date`, not a timestamp, because the profile page shows month precision. The exact signup moment is never published. |
 | `usual_gear` | `text[]`, the member's own words. Unrelated to the gear lookup tables. |
+| `country_code` | `char(2)`, ISO 3166-1 alpha-2, chosen by the member from a list beside the free-text `based_in` line. Never inferred from a request, for the same reason `based_in` is not. |
+| `style_tags` | `text[]` from a closed vocabulary (`PHOTOGRAPHY_STYLES`), up to five with no repeats. How the member shoots, which is a different axis from a photograph's category. |
+| `collaboration_status` | `open` / `selective` / `closed`, or null. Null means they have not said, which is not the same as "no", so the profile shows nothing for it. |
+| `critique_preference` | `any` / `technical` / `none`, or null. A sentence addressed to other members: FRAME has no comments, so nothing in the application enforces it, and the Settings form says so. |
+| `social_links` | `text[]`, up to four, each `http(s)` only and at most 200 characters — each one becomes an `href` on a public page. |
 
 ### `camera_brands`, `camera_models`, `lens_brands`, `lens_models`
 

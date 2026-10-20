@@ -33,6 +33,16 @@ export interface ProfileRow extends Timestamps {
   biography: string | null;
   website: string | null;
   based_in: string | null;
+  /** ISO 3166-1 alpha-2, chosen by the member (migration 0016). */
+  country_code: string | null;
+  /** From PHOTOGRAPHY_STYLES, up to five (migration 0016). */
+  style_tags: string[] | null;
+  /** 'open' | 'selective' | 'closed', or null for "not said" (migration 0016). */
+  collaboration_status: string | null;
+  /** 'any' | 'technical' | 'none' (migration 0016). */
+  critique_preference: string | null;
+  /** Up to four http(s) links (migration 0016). */
+  social_links: string[] | null;
   usual_gear: string[] | null;
   role: 'member' | 'moderator' | 'admin';
   is_suspended: boolean;

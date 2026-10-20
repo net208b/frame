@@ -133,14 +133,20 @@ export async function updateProfile(
   const limited = await limit('profile-update', member.id);
   if (limited) return limited;
 
-  const { displayName, biography, basedIn, website, gear } = parsed.data;
+  const { displayName, biography, basedIn, countryCode, website, socialLinks, styles, collaboration, critique, gear } =
+    parsed.data;
   const { error } = await supabase
     .from('profiles')
     .update({
       display_name: displayName,
       biography,
       based_in: basedIn,
+      country_code: countryCode,
       website,
+      social_links: socialLinks,
+      style_tags: styles,
+      collaboration_status: collaboration,
+      critique_preference: critique,
       usual_gear: gear,
     })
     .eq('id', member.id);

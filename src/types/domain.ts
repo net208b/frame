@@ -61,6 +61,62 @@ export interface PhotoImage {
 
 export type ProfileRole = 'member' | 'moderator' | 'admin';
 
+/**
+ * How a member shoots, as opposed to what they shoot.
+ *
+ * A closed vocabulary, and a different axis from {@link PHOTO_CATEGORIES}: a
+ * category describes one photograph's subject, a style describes a
+ * photographer's way of working, and the two are chosen in different places by
+ * different people — the category on each upload, the style once in Settings.
+ * The labels are translated, because unlike a biography these are FRAME's words
+ * rather than the member's.
+ *
+ * Kept in step with profiles_style_tags_allowed (migration 0016).
+ */
+export const PHOTOGRAPHY_STYLES = [
+  'black-and-white',
+  'colour',
+  'film',
+  'candid',
+  'flash',
+  'minimal',
+  'geometry',
+  'layered',
+] as const;
+
+export type PhotographyStyle = (typeof PHOTOGRAPHY_STYLES)[number];
+
+/** At most this many, so the row under a name stays readable. */
+export const MAX_PHOTOGRAPHY_STYLES = 5;
+
+/**
+ * Whether the member is open to working with somebody — a shoot, a zine, a
+ * walk. `null` on a profile means they have not said, which the page shows as
+ * nothing at all rather than as "closed": silence is not a refusal.
+ *
+ * Kept in step with profiles_collaboration_status_allowed (migration 0016).
+ */
+export const COLLABORATION_STATUSES = ['open', 'selective', 'closed'] as const;
+
+export type CollaborationStatus = (typeof COLLABORATION_STATUSES)[number];
+
+/**
+ * How a member wants their frames talked about.
+ *
+ * It is a sentence to other members, not a permission. FRAME has no comments,
+ * so there is nothing here for the application to enforce, and the Settings
+ * form says so where it is set. Presenting it as a control would be the kind of
+ * promise this project does not make.
+ *
+ * Kept in step with profiles_critique_preference_allowed (migration 0016).
+ */
+export const CRITIQUE_PREFERENCES = ['any', 'technical', 'none'] as const;
+
+export type CritiquePreference = (typeof CRITIQUE_PREFERENCES)[number];
+
+/** Up to this many other places a member publishes. */
+export const MAX_SOCIAL_LINKS = 4;
+
 export interface PhotographerSummary {
   id: string;
   username: string;
@@ -73,6 +129,20 @@ export interface PhotographerSummary {
 export interface PhotographerProfile extends PhotographerSummary {
   biography: string | null;
   website: string | null;
+  /**
+   * The country the member chose, ISO 3166-1 alpha-2, beside the free-text
+   * `basedIn` city. Chosen, never inferred: a country guessed from an address
+   * and shown as a fact is the same privacy problem as a guessed city.
+   */
+  countryCode: string | null;
+  /** How they shoot. Empty when they have not said. */
+  styles: PhotographyStyle[];
+  /** Open to working with somebody. Null means they have not said. */
+  collaboration: CollaborationStatus | null;
+  /** How they want their work discussed. A statement, not a permission. */
+  critique: CritiquePreference | null;
+  /** Other places they publish. Already filtered to http(s). */
+  socialLinks: string[];
   /** Gear the member chose to show. Absent when they have not filled it in. */
   usualGear: string[];
   photographCount: number;
