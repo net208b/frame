@@ -19,7 +19,7 @@ import {
   getPlatformStats,
   normaliseDiscoverQuery,
 } from '@/lib/data/repository';
-import { buildMetadata } from '@/lib/seo';
+import { buildMetadata, siteJsonLd } from '@/lib/seo';
 
 /** How many editor-picked frames the curated gallery shows. */
 const CURATED_SIZE = 8;
@@ -62,7 +62,7 @@ export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await readLocaleParams(params);
   setRequestLocale(locale);
 
-  const [editorsPicks, trending, stats, photographers, locationPage, pins, viewer] =
+  const [editorsPicks, trending, stats, photographers, locationPage, pins, viewer, t] =
     await Promise.all([
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'editors', pageSize: CURATED_SIZE })),
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'trending', pageSize: COVER_POOL_SIZE })),
@@ -71,7 +71,12 @@ export default async function HomePage({ params }: HomePageProps) {
       getLocations({ page: 1 }),
       getMapPins(),
       getViewer(),
+      getTranslations({ locale, namespace: 'home' }),
     ]);
+
+  // "<" escaped for the same reason as on the photograph page: a description
+  // containing "</script>" must not end the block early.
+  const jsonLd = JSON.stringify(siteJsonLd(locale, t('meta.description'))).replace(/</g, '\\u003c');
 
   // The cover frame is the leading trending photograph, so the opening spread
   // reflects what the community is appreciating now. An editor's pick stands in
@@ -105,6 +110,7 @@ export default async function HomePage({ params }: HomePageProps) {
 
   return (
     <div className="site-container pb-4">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       <Hero cover={cover} signedIn={viewer !== null} locale={locale} />
 
       <PlatformStatsRow stats={stats} locale={locale} className="mt-9" />
