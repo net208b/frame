@@ -4,16 +4,23 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { AlreadySignedIn, AuthShell } from '@/components/auth/AuthShell';
 import { JoinForm } from '@/components/auth/JoinForm';
+import { ProviderSignIn } from '@/components/auth/ProviderSignIn';
+import { withLocalePrefix } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { getViewer } from '@/lib/auth';
+import { enabledSignInProviders } from '@/lib/enabled-sign-in-providers';
 import { buildMetadata } from '@/lib/seo';
 
 /**
  * Create an account.
  *
- * Joining does not sign anybody in: the address has to be confirmed first,
- * and the form says so rather than dropping somebody onto the home page as a
- * member of a community they have not finished joining.
+ * Joining with an email address does not sign anybody in: the address has to
+ * be confirmed first, and the form says so rather than dropping somebody onto
+ * the home page as a member of a community they have not finished joining.
+ *
+ * Joining with Google, Apple, Facebook or X does sign them in, because the
+ * provider has already confirmed the address — so the provider buttons land on
+ * the home page in this language, which is where a new member starts.
  */
 
 export async function generateMetadata({
@@ -43,7 +50,7 @@ export default async function JoinPage({
 
   const t = await getTranslations({ locale, namespace: 'auth' });
 
-  const viewer = await getViewer();
+  const [viewer, providers] = await Promise.all([getViewer(), enabledSignInProviders()]);
 
   return (
     <AuthShell
@@ -82,7 +89,10 @@ export default async function JoinPage({
           continueLabel={t('join.continueLabel')}
         />
       ) : (
-        <JoinForm />
+        <>
+          <ProviderSignIn providers={providers} next={withLocalePrefix('/', locale)} />
+          <JoinForm />
+        </>
       )}
     </AuthShell>
   );

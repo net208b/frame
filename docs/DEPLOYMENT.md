@@ -257,6 +257,12 @@ While you are there, set **minimum password length to 10** to match
 will accept a password that the auth service then refuses, and the member is
 told two different things.
 
+Signing in with Google, Apple, Facebook or X needs no extra entry here: every
+provider returns to the bare `/auth/callback`, which the list above already
+covers. Each provider does need its own setup in that company's developer
+console, and migration 0009 applied before any of them is switched on —
+[`SOCIAL-SIGN-IN.md`](SOCIAL-SIGN-IN.md) has both.
+
 ### 6. Add the image host to the remote patterns
 
 `next.config.mjs` builds `images.remotePatterns` at build time from

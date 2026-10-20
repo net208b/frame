@@ -27,6 +27,11 @@ import { consent } from './fields';
  * Route segments this app serves, plus the handful of names that would let an
  * account imply it speaks for FRAME. Kept here rather than derived from the
  * router because a new page must be a deliberate decision about usernames too.
+ *
+ * Enforced twice, and the two copies must be kept in step: here, for the Join
+ * form, and by `handle_new_user()` in supabase/migrations/0009, for accounts
+ * whose username the trigger chooses — those made through Google, Apple,
+ * Facebook or X, which never pass through this schema.
  */
 export const RESERVED_USERNAMES = [
   // Route segments.

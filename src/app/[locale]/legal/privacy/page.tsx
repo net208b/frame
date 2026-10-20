@@ -47,6 +47,7 @@ export default async function PrivacyPage({
           <p>{t('privacy.whatIsCollected.intro')}</p>
           <ul className={POLICY_LIST}>
             <li>{t.rich('privacy.whatIsCollected.list.email', POLICY_TAGS)}</li>
+            <li>{t.rich('privacy.whatIsCollected.list.signIn', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.whatIsCollected.list.profile', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.whatIsCollected.list.photographs', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.whatIsCollected.list.appreciation', POLICY_TAGS)}</li>
@@ -139,9 +140,30 @@ export default async function PrivacyPage({
             <li>{t.rich('privacy.thirdParties.list.storage', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.thirdParties.list.tiles', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.thirdParties.list.hosting', POLICY_TAGS)}</li>
+            <li>{t.rich('privacy.thirdParties.list.signIn', POLICY_TAGS)}</li>
           </ul>
           <p>{t('privacy.thirdParties.demo')}</p>
           <p>{t.rich('privacy.thirdParties.outstanding', { terms: policyLinkTag('terms') })}</p>
+        </>
+      ),
+    },
+    {
+      // The address given to Meta as this app's data-deletion instructions,
+      // and linked from the consent line under the sign-in buttons — so the id
+      // is part of a contract with outside parties and must not be renamed.
+      id: 'sign-in-providers',
+      heading: t('privacy.signInProviders.heading'),
+      body: (
+        <>
+          <p>{t('privacy.signInProviders.p1')}</p>
+          <p>{t('privacy.signInProviders.disconnect')}</p>
+          <ul className={POLICY_LIST}>
+            <li>{t.rich('privacy.signInProviders.list.google', POLICY_TAGS)}</li>
+            <li>{t.rich('privacy.signInProviders.list.apple', POLICY_TAGS)}</li>
+            <li>{t.rich('privacy.signInProviders.list.facebook', POLICY_TAGS)}</li>
+            <li>{t.rich('privacy.signInProviders.list.twitter', POLICY_TAGS)}</li>
+          </ul>
+          <p>{t('privacy.signInProviders.deletion')}</p>
         </>
       ),
     },

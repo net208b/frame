@@ -49,6 +49,12 @@ jobs:
       # the behaviour a check wants.
       - run: npm ci
 
+      # The Join form and handle_new_user() each keep a list of reserved
+      # usernames, and a name missing from either can be taken through it.
+      # Seconds to run, and the only thing that keeps the two in step.
+      - name: Reserved usernames match the trigger
+        run: node scripts/assert-reserved-usernames.mjs
+
       - name: Lint
         run: npm run lint
 

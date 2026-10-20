@@ -75,6 +75,93 @@ begin
   raise notice 'sanitise ok   "Owner!!" became "%"', v_created;
 end $$;
 
+-- ------------------------------------------------- sign-in provider accounts
+-- An account made through Google, Apple, Facebook or X arrives with no
+-- username of its own; handle_new_user() chooses one (migration 0009). Each
+-- block below states what a provider actually sends.
+
+-- Positive control: the Join form's own choice still wins outright. If the
+-- fallbacks below were ever tried first, this is what would break.
+do $$
+declare v_name text;
+begin
+  select username into v_name from public.profiles
+   where id = '11111111-1111-4111-8111-111111111111';
+  if v_name is distinct from 'owner' then
+    raise exception 'TRIGGER BUG  a requested username was not used as given: %', v_name;
+  end if;
+  raise notice 'provider ok   a requested username is still used as given';
+end $$;
+
+-- X sends the handle as preferred_username and user_name, and often no email.
+do $$
+declare v_name text;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values ('55555555-5555-4555-8555-555555555555', null,
+          '{"preferred_username":"Street_Walker","user_name":"Street_Walker","full_name":"Street Walker"}');
+  select username into v_name from public.profiles
+   where id = '55555555-5555-4555-8555-555555555555';
+  if v_name is distinct from 'street_walker' then
+    raise exception 'TRIGGER BUG  an X handle did not become the username: %', v_name;
+  end if;
+  raise notice 'provider ok   an X handle with no email became "%"', v_name;
+end $$;
+
+-- Apple can hide the real address behind a relay whose local part is random.
+-- That must not become a permanent public username when a name is available.
+do $$
+declare v_name text;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values ('66666666-6666-4666-8666-666666666666', 'k3j9x2q8vm@privaterelay.appleid.com',
+          '{"full_name":"Ada Lovelace"}');
+  select username into v_name from public.profiles
+   where id = '66666666-6666-4666-8666-666666666666';
+  if v_name like 'k3j9x2q8vm%' then
+    raise exception 'TRIGGER BUG  an Apple relay address became the username: %', v_name;
+  end if;
+  if v_name is distinct from 'adalovelace' then
+    raise exception 'TRIGGER BUG  an Apple relay account did not take its name: %', v_name;
+  end if;
+  raise notice 'provider ok   an Apple relay address was passed over for "%"', v_name;
+end $$;
+
+-- A source that sanitises to nothing falls through to the next one, rather
+-- than straight to "member": a Thai handle, then the email address.
+do $$
+declare v_name text;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values ('77777777-7777-4777-8777-777777777777', 'nirut.photo@example.test',
+          '{"preferred_username":"ช่างภาพ"}');
+  select username into v_name from public.profiles
+   where id = '77777777-7777-4777-8777-777777777777';
+  if v_name is distinct from 'nirutphoto' then
+    raise exception 'TRIGGER BUG  an unusable handle did not fall through to the email: %', v_name;
+  end if;
+  raise notice 'provider ok   an unusable handle fell through to "%"', v_name;
+end $$;
+
+-- A reserved name is treated as taken, whichever source offered it — an X
+-- handle here, but a Gmail address of admin@… arrives the same way.
+do $$
+declare v_name text;
+begin
+  insert into auth.users (id, email, raw_user_meta_data)
+  values ('88888888-8888-4888-8888-888888888888', 'someone@example.test',
+          '{"preferred_username":"admin"}');
+  select username into v_name from public.profiles
+   where id = '88888888-8888-4888-8888-888888888888';
+  if v_name = 'admin' then
+    raise exception 'RESERVED NAME TAKEN  a provider account became "admin"';
+  end if;
+  if v_name !~ '^admin_[0-9a-f]{4}$' then
+    raise exception 'TRIGGER BUG  a reserved name was not suffixed as a taken one would be: %', v_name;
+  end if;
+  raise notice 'reserved ok   a provider asking for "admin" got "%"', v_name;
+end $$;
+
 update public.profiles set role = 'moderator'
  where id = '33333333-3333-4333-8333-333333333333';
 
