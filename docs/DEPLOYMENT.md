@@ -16,6 +16,35 @@ drift. If you later measure a real bottleneck, by all means move that one piece
 
 ---
 
+
+## Where the functions run
+
+`vercel.json` pins every function to **`sin1`** (Singapore), and that one line is
+worth more than any other performance change in this repository.
+
+The default region is `iad1`, Washington DC. The Supabase project is in
+`ap-southeast-1`, Singapore. Until this was set, every request did this:
+
+```
+reader in Bangkok → edge sin1 → function iad1 → database ap-southeast-1
+                                   ~230 ms each way, per query
+```
+
+A page makes four to six queries. Even with `Promise.all` around them, the
+round trips put most of a second into every page, and a profile save — which
+reads the session, reads the profile, checks a rate limit and then writes —
+spent about a second doing nothing but crossing the Pacific twice per step. The
+header told the story plainly: `x-vercel-id: sin1::iad1::…`, meaning the request
+entered in Singapore and was executed in Virginia.
+
+With the function in the same region as the database, those round trips are
+single-digit milliseconds and the HTML is generated two thousand kilometres from
+the reader rather than fifteen thousand.
+
+**If the database ever moves, this has to move with it.** The two belong in the
+same region; which region matters far less than that they match. On the Hobby
+plan exactly one region may be listed.
+
 ## Before you start
 
 You need:
