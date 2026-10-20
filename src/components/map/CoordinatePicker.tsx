@@ -109,7 +109,20 @@ export function CoordinatePicker({
     onChangeRef.current = onChange;
   });
 
+  /**
+   * Set when the change came from this map — a click on it or a drag of its pin.
+   *
+   * It is what tells the camera effect below to stay where it is. A coordinate
+   * the member produced by pointing at the map is already on their screen, at
+   * the zoom they chose; flying to it would move the ground under the gesture
+   * they just made. A coordinate from anywhere else — typed, copied from the
+   * file's own GPS, or picked from the place search — is somewhere they have
+   * not looked yet, and the map should go there.
+   */
+  const fromMapRef = useRef(false);
+
   const write = useCallback((lng: number, lat: number) => {
+    fromMapRef.current = true;
     onChangeRef.current({ latitude: format(lat), longitude: format(lng) });
   }, []);
 
@@ -239,10 +252,14 @@ export function CoordinatePicker({
   }, [parsed, ready, write]);
 
   /**
-   * Follows the value with the camera too, but only when the value came from
-   * somewhere else — a typed coordinate, or the position copied out of the
-   * file. A drag already moved the map, and easing back to the pin afterwards
-   * would fight the member's own hand.
+   * Follows the value with the camera, for every value the member did not
+   * produce by pointing at this map — see `fromMapRef`.
+   *
+   * Being inside the current viewport is not enough to stay put: picking
+   * "Wat Arun" from the search while looking at the whole world leaves the pin
+   * technically on screen and four pixels wide, which is not an answer to "is
+   * this the right spot?". So the camera goes to it and zooms in far enough to
+   * read the street.
    */
   const lastCentredRef = useRef<string | null>(null);
   useEffect(() => {
@@ -254,7 +271,11 @@ export function CoordinatePicker({
     const first = lastCentredRef.current === null;
     lastCentredRef.current = key;
 
-    if (instance.getBounds().contains([parsed.lng, parsed.lat])) return;
+    if (fromMapRef.current) {
+      fromMapRef.current = false;
+      return;
+    }
+
     instance.easeTo({
       center: [parsed.lng, parsed.lat],
       zoom: Math.max(instance.getZoom(), PLACED_ZOOM),
