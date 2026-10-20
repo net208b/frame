@@ -1,33 +1,31 @@
-import type { Metadata } from "next";
-import { getTranslations, setRequestLocale } from "next-intl/server";
-import { notFound } from "next/navigation";
-import { cache } from "react";
+import type { Metadata } from 'next';
+import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { notFound } from 'next/navigation';
+import { cache } from 'react';
 
-import { readLocaleParams, type LocaleParams } from "@/i18n/params";
-import { CaptureSpecs } from "@/components/photo-detail/CaptureSpecs";
-import { DeletePhotograph } from "@/components/photo-detail/DeletePhotograph";
-import { EditingNotes } from "@/components/photo-detail/EditingNotes";
-import { LocationPanel } from "@/components/photo-detail/LocationPanel";
-import { PhotoHeadline } from "@/components/photo-detail/PhotoHeadline";
-import { PhotographerPanel } from "@/components/photo-detail/PhotographerPanel";
-import { PhotoStage } from "@/components/photo-detail/PhotoStage";
-import { RelatedStrip } from "@/components/photo-detail/RelatedStrip";
-import { ReportDialog } from "@/components/system/ReportDialog";
-import { Notice } from "@/components/ui/states";
-import { LOCALES, type Locale } from "@/i18n/locales";
-import { Link } from "@/i18n/navigation";
-import { getViewer, isModerator } from "@/lib/auth";
+import { readLocaleParams, type LocaleParams } from '@/i18n/params';
+import { CaptureSpecs } from '@/components/photo-detail/CaptureSpecs';
+import { DeletePhotograph } from '@/components/photo-detail/DeletePhotograph';
+import { EditingNotes } from '@/components/photo-detail/EditingNotes';
+import { LocationPanel } from '@/components/photo-detail/LocationPanel';
+import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
+import { PhotographerPanel } from '@/components/photo-detail/PhotographerPanel';
+import { PhotoStage } from '@/components/photo-detail/PhotoStage';
+import { RelatedStrip } from '@/components/photo-detail/RelatedStrip';
+import { ReportDialog } from '@/components/system/ReportDialog';
+import { Notice } from '@/components/ui/states';
+import { Link } from '@/i18n/navigation';
+import { getViewer, isModerator } from '@/lib/auth';
 import {
   getLocation,
   getMoreByPhotographer,
   getPhotograph,
   getPhotographer,
-  getPhotographSlugs,
   getPhotographsAtSameLocation,
-} from "@/lib/data/repository";
-import { buildMetadata, photographJsonLd } from "@/lib/seo";
-import { truncate } from "@/lib/utils";
-import type { PublicationStatus } from "@/types/domain";
+} from '@/lib/data/repository';
+import { buildMetadata, photographJsonLd } from '@/lib/seo';
+import { truncate } from '@/lib/utils';
+import type { PublicationStatus } from '@/types/domain';
 
 /**
  * The photograph page.
@@ -38,17 +36,6 @@ import type { PublicationStatus } from "@/types/domain";
  * pinned — a tall portrait frame and a sticky sidebar fight each other, and the
  * photograph wins that argument every time.
  */
-
-/**
- * Five minutes.
- *
- * Appreciation totals move on their own, and `toggleAppreciation` revalidates
- * this path when a member changes one, so a short window is only a backstop. It
- * applies where the page can actually be cached: a deployment with a database
- * reads per-viewer appreciation state through the request's cookies, which
- * makes this route dynamic whatever this number says.
- */
-export const revalidate = 300;
 
 interface PageProps {
   params: LocaleParams<{ slug: string }>;
@@ -75,58 +62,59 @@ function endWithStop(value: string): string {
  * both catalogues.
  */
 const STATUS_NOTE_KEY: Record<PublicationStatus, string | null> = {
-  draft: "status.draft",
-  processing: "status.processing",
+  draft: 'status.draft',
+  processing: 'status.processing',
   published: null,
-  under_review: "status.underReview",
-  removed: "status.removed",
+  under_review: 'status.underReview',
+  removed: 'status.removed',
 };
 
 /**
- * Every published photograph in every language. The locale is part of the
- * returned params rather than inherited, so this list stays correct whether or
- * not the locale layout above also enumerates them.
+ * Rendered on demand, never prerendered.
+ *
+ * Every read in this route goes through the cookie-bound Supabase client, so
+ * row-level security answers as whoever is reading rather than as the public.
+ * That makes `cookies()` part of loading the page, whether or not anything on
+ * it differs between two viewers.
+ *
+ * A dynamic segment with `generateStaticParams` serves an address that was not
+ * in that list by rendering it once and caching the result, and a cached
+ * render may not read cookies — Next.js raises DYNAMIC_SERVER_USAGE and the
+ * request becomes a 500. Which is to say: with a database behind it, this page
+ * returned 500 for anything published since the last deployment, and a
+ * missing photograph returned 500 instead of its not-found page.
+ *
+ * So the route says plainly that it is dynamic, and `generateStaticParams` is
+ * gone rather than left to look like it still prerenders something. Putting it
+ * back without first moving the per-viewer parts behind their own boundary
+ * brings the 500 back with it.
  */
-export async function generateStaticParams(): Promise<
-  Array<{ locale: Locale; slug: string }>
-> {
-  const slugs = await getPhotographSlugs();
-  return LOCALES.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
-}
+export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug } = await readLocaleParams(params);
   const [photo, t] = await Promise.all([
     loadPhotograph(slug),
-    getTranslations({ locale, namespace: "photo" }),
+    getTranslations({ locale, namespace: 'photo' }),
   ]);
 
   if (!photo) {
     return buildMetadata({
-      title: t("meta.notFoundTitle"),
-      description: t("meta.notFoundDescription"),
+      title: t('meta.notFoundTitle'),
+      description: t('meta.notFoundDescription'),
       path: `/photographs/${slug}`,
       locale,
       noIndex: true,
     });
   }
 
-  const place = photo.location
-    ? `${photo.location.city}, ${photo.location.country}`
-    : null;
+  const place = photo.location ? `${photo.location.city}, ${photo.location.country}` : null;
   // The description the photographer wrote reads better than anything derived
   // from it; the alt text is the honest fallback because it is always present.
-  const excerpt = endWithStop(
-    truncate(photo.description ?? photo.altText, 150),
-  );
+  const excerpt = endWithStop(truncate(photo.description ?? photo.altText, 150));
   const credit = place
-    ? t("meta.creditWithPlace", {
-        place,
-        photographer: photo.photographer.displayName,
-      })
-    : t("meta.credit", { photographer: photo.photographer.displayName });
+    ? t('meta.creditWithPlace', { place, photographer: photo.photographer.displayName })
+    : t('meta.credit', { photographer: photo.photographer.displayName });
 
   return buildMetadata({
     title: place ? `${photo.title} — ${place}` : photo.title,
@@ -136,10 +124,10 @@ export async function generateMetadata({
     path: `/photographs/${photo.slug}`,
     locale,
     image: { url: photo.image.displayUrl, alt: photo.altText },
-    type: "article",
+    type: 'article',
     // An unpublished frame is reachable only by its owner and by moderators,
     // and it has no business in an index.
-    noIndex: photo.status !== "published",
+    noIndex: photo.status !== 'published',
   });
 }
 
@@ -150,7 +138,7 @@ export default async function PhotographPage({ params }: PageProps) {
   const [photo, viewer, t] = await Promise.all([
     loadPhotograph(slug),
     getViewer(),
-    getTranslations({ locale, namespace: "photo" }),
+    getTranslations({ locale, namespace: 'photo' }),
   ]);
 
   if (!photo) notFound();
@@ -159,16 +147,14 @@ export default async function PhotographPage({ params }: PageProps) {
   // public reads to published rows; this is the check that stays correct if it
   // ever stops doing so, and hiding the page in the UI would not be one.
   const isOwner = viewer !== null && viewer.id === photo.photographer.id;
-  if (photo.status !== "published" && !isOwner && !isModerator(viewer))
-    notFound();
+  if (photo.status !== 'published' && !isOwner && !isModerator(viewer)) notFound();
 
-  const [sameLocation, byPhotographer, locationDetail, photographerProfile] =
-    await Promise.all([
-      getPhotographsAtSameLocation(photo.location?.id ?? null, photo.id),
-      getMoreByPhotographer(photo.photographer.id, photo.id),
-      photo.location ? getLocation(photo.location.slug) : Promise.resolve(null),
-      getPhotographer(photo.photographer.username),
-    ]);
+  const [sameLocation, byPhotographer, locationDetail, photographerProfile] = await Promise.all([
+    getPhotographsAtSameLocation(photo.location?.id ?? null, photo.id),
+    getMoreByPhotographer(photo.photographer.id, photo.id),
+    photo.location ? getLocation(photo.location.slug) : Promise.resolve(null),
+    getPhotographer(photo.photographer.username),
+  ]);
 
   const statusKey = STATUS_NOTE_KEY[photo.status];
   const place = photo.location
@@ -177,26 +163,17 @@ export default async function PhotographPage({ params }: PageProps) {
 
   // Member-authored text can contain "</script>", which would close this
   // element early. Escaping "<" is what keeps the block inert.
-  const jsonLd = JSON.stringify(photographJsonLd(photo, locale)).replace(
-    /</g,
-    "\\u003c",
-  );
+  const jsonLd = JSON.stringify(photographJsonLd(photo, locale)).replace(/</g, '\\u003c');
 
   return (
     <div className="site-container py-9 lg:py-14">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLd }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
 
-      <nav aria-label={t("breadcrumb.label")} className="mb-7">
+      <nav aria-label={t('breadcrumb.label')} className="mb-7">
         <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-meta text-muted">
           <li>
-            <Link
-              href="/discover"
-              className="transition-colors duration-150 hover:text-ink"
-            >
-              {t("breadcrumb.discover")}
+            <Link href="/discover" className="transition-colors duration-150 hover:text-ink">
+              {t('breadcrumb.discover')}
             </Link>
           </li>
           {photo.location ? (
@@ -220,8 +197,8 @@ export default async function PhotographPage({ params }: PageProps) {
       </nav>
 
       {statusKey ? (
-        <Notice tone="warning" title={t("status.noticeTitle")} className="mb-7">
-          {t("status.noticeBody", { note: t(statusKey) })}
+        <Notice tone="warning" title={t('status.noticeTitle')} className="mb-7">
+          {t('status.noticeBody', { note: t(statusKey) })}
         </Notice>
       ) : null}
 
@@ -239,10 +216,7 @@ export default async function PhotographPage({ params }: PageProps) {
           <CaptureSpecs capture={photo.capture} />
           <EditingNotes editing={photo.editing} capturedAt={photo.capturedAt} />
           <LocationPanel summary={photo.location} detail={locationDetail} />
-          <PhotographerPanel
-            photographer={photo.photographer}
-            profile={photographerProfile}
-          />
+          <PhotographerPanel photographer={photo.photographer} profile={photographerProfile} />
 
           {/* The owner manages their own work here; reporting it is for everyone else. */}
           {isOwner ? (
@@ -255,17 +229,15 @@ export default async function PhotographPage({ params }: PageProps) {
             </div>
           ) : (
             <div className="border-t border-line pt-6">
-              <p className="text-meta leading-relaxed text-muted">
-                {t("reportCta.intro")}
-              </p>
+              <p className="text-meta leading-relaxed text-muted">{t('reportCta.intro')}</p>
               <ReportDialog
                 subjectType="photograph"
                 subjectId={photo.id}
-                subjectLabel={t("reportCta.subject", {
+                subjectLabel={t('reportCta.subject', {
                   title: photo.title,
                   photographer: photo.photographer.displayName,
                 })}
-                triggerLabel={t("reportCta.trigger")}
+                triggerLabel={t('reportCta.trigger')}
                 triggerVariant="secondary"
                 className="mt-3"
               />
