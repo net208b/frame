@@ -764,3 +764,75 @@
   letter-spacing: normal;
   line-height: 1.35;
 }
+
+/* =========================================================================
+   MAPLIBRE'S OWN CHROME
+   The attribution line and the zoom buttons are rendered by MapLibre from its
+   own stylesheet, which paints them white with a dark glyph. On the light
+   basemap that is close enough to FRAME's surface to pass; on the dark one a
+   white bar sits across the corner of a near-black map, and it was the first
+   thing anyone noticed about the night theme.
+
+   So they are themed here rather than in the map components: the markup belongs
+   to the library, there is no prop for it, and a component cannot style a node
+   it does not render. These rules name only MapLibre's public class names and
+   set only colour, so a MapLibre upgrade can change the geometry of the
+   controls without this fighting it.
+
+   TWO THINGS LEARNED THE HARD WAY, both of which cost a silent half-failure:
+
+   1. `maplibre-gl.css` is imported by the map components, so Next emits it
+      after this file and its rules win any tie on order. Its own selectors
+      already name two classes — `.maplibregl-ctrl.maplibregl-ctrl-attrib` is
+      MapLibre's, not an escalation of ours — so a class is repeated below to
+      get ahead of them. It is the one specificity trick here, and it is
+      preferred to `!important`, which the next rule to touch these controls
+      would then have to match.
+   2. No `color-mix()` around a theme token. Tailwind resolves the token inside
+      it at build time, which bakes in whichever value `:root` carried — the
+      light one — and the dark theme then has no effect. The first version of
+      this file mixed the surface colour with transparent and produced a white
+      bar in the dark theme while looking correct in the source. Plain
+      `var(--color-surface)` is substituted by the browser, after the theme has
+      been applied, which is the whole point of the token.
+   ========================================================================= */
+
+.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-ctrl-attrib {
+  background-color: var(--color-surface);
+  color: var(--color-muted);
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-soft);
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-group.maplibregl-ctrl-group {
+  background-color: var(--color-surface);
+  /* MapLibre draws the group's edge with a shadow; FRAME uses hairlines. */
+  border: 1px solid var(--color-line);
+  box-shadow: none;
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-group.maplibregl-ctrl-group button + button {
+  border-top-color: var(--color-line);
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-group.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  /* The icons are background SVGs with a hard-coded near-black fill, so the
+     only way to lift them on a dark control is to invert them. */
+  filter: var(--map-control-icon-filter, none);
+}
+
+.maplibregl-ctrl.maplibregl-ctrl-group.maplibregl-ctrl-group button:not(:disabled):hover {
+  background-color: var(--color-surface-sunken);
+}
+
+:root[data-theme='dark'] {
+  --map-control-icon-filter: invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --map-control-icon-filter: invert(1);
+  }
+}
