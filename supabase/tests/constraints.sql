@@ -828,6 +828,142 @@ begin
   raise notice 'storage ok    the photographs bucket is public, capped at 25 MiB, and writable only inside the owner prefix';
 end $$;
 
+-- --------------------------------------------------- review before publishing
+-- Migration 0012. Run as `authenticated`, for the same reason as the account
+-- settings block: the rule is a trigger reading who is writing.
+
+reset "app.current_user_id";
+
+insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data) values
+  ('eeeeeeee-0000-4000-8000-000000000001', 'uploader@example.test',
+   '{"username":"review_uploader","display_name":"Uploader"}', '{"provider":"email"}'),
+  ('eeeeeeee-0000-4000-8000-000000000002', 'reviewer@example.test',
+   '{"username":"review_mod","display_name":"Reviewer"}', '{"provider":"email"}'),
+  ('eeeeeeee-0000-4000-8000-000000000003', 'chief@example.test',
+   '{"username":"review_admin","display_name":"Chief"}', '{"provider":"email"}'),
+  ('eeeeeeee-0000-4000-8000-000000000004', 'newcomer@example.test',
+   '{"username":"review_newcomer","display_name":"Newcomer"}', '{"provider":"email"}');
+
+update public.profiles set role = 'moderator' where id = 'eeeeeeee-0000-4000-8000-000000000002';
+update public.profiles set role = 'admin'     where id = 'eeeeeeee-0000-4000-8000-000000000003';
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, rights_confirmed_at,
+   image_width, image_height)
+values
+  ('eeeeeeee-1111-4000-8000-000000000001', 'review-pending',
+   'eeeeeeee-0000-4000-8000-000000000001', 'Waiting for review',
+   'A cyclist crossing a wet zebra crossing under a single orange street lamp.',
+   'street', 'draft', now(), 2400, 1600),
+  ('eeeeeeee-1111-4000-8000-000000000002', 'review-removed',
+   'eeeeeeee-0000-4000-8000-000000000001', 'Removed earlier',
+   'A shuttered market stall photographed straight on in flat morning light.',
+   'street', 'draft', now(), 2400, 1600);
+
+update public.photographs
+   set status = 'removed', removed_reason = 'Not the uploader''s own work.'
+ where id = 'eeeeeeee-1111-4000-8000-000000000002';
+
+-- The owner submits, and cannot publish.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+
+select public.test_accepts('an owner sending their photograph to review',
+  $$update public.photographs set status = 'under_review'
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$);
+
+select public.test_rejects('an owner publishing their own photograph',
+  $$update public.photographs set status = 'published', published_at = now()
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '42501');
+
+select public.test_rejects('an owner setting a publication date',
+  $$update public.photographs set published_at = now()
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '42501');
+
+select public.test_rejects('an owner resubmitting a removed photograph',
+  $$update public.photographs set status = 'under_review'
+     where id = 'eeeeeeee-1111-4000-8000-000000000002'$$, '42501');
+
+select public.test_rejects('a member calling set_member_role',
+  $$select public.set_member_role('review_newcomer', 'moderator')$$, '42501');
+commit;
+
+-- A moderator publishes it.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000002';
+
+select public.test_accepts('a moderator publishing a reviewed photograph',
+  $$update public.photographs set status = 'published', published_at = now()
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$);
+
+select public.test_rejects('a moderator calling set_member_role',
+  $$select public.set_member_role('review_newcomer', 'moderator')$$, '42501');
+
+select public.test_rejects('a moderator writing a role change into the trail by hand',
+  $$insert into public.moderation_actions (decision, subject_type, subject_id, reason, moderator_id)
+    values ('change_role', 'profile', 'eeeeeeee-0000-4000-8000-000000000004',
+            'Role changed from member to admin.', 'eeeeeeee-0000-4000-8000-000000000002')$$, '42501');
+
+select public.test_rejects('a moderator changing a role directly',
+  $$update public.profiles set role = 'moderator'
+     where id = 'eeeeeeee-0000-4000-8000-000000000004'$$, '42501');
+commit;
+
+-- The owner can still edit it once it is published.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+
+select public.test_accepts('an owner retitling their published photograph',
+  $$update public.photographs set title = 'Waiting for review, retitled'
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$);
+commit;
+
+-- An administrator manages roles.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000003';
+
+select public.test_accepts('an administrator appointing a moderator',
+  $$select public.set_member_role('review_newcomer', 'moderator')$$);
+
+select public.test_rejects('an administrator changing their own role',
+  $$select public.set_member_role('review_admin', 'member')$$, '42501');
+
+select public.test_rejects('a role that does not exist',
+  $$select public.set_member_role('review_newcomer', 'owner')$$, '22023');
+
+select public.test_rejects('a username that does not exist',
+  $$select public.set_member_role('nobody_by_this_name', 'moderator')$$, 'P0002');
+commit;
+
+do $$
+declare v_role text; v_trail integer; v_status text;
+begin
+  select role into v_role from public.profiles where id = 'eeeeeeee-0000-4000-8000-000000000004';
+  if v_role is distinct from 'moderator' then
+    raise exception 'ROLE BUG  set_member_role did not appoint the moderator (role is %)', v_role;
+  end if;
+
+  select count(*) into v_trail
+    from public.moderation_actions
+   where decision = 'change_role'
+     and subject_id = 'eeeeeeee-0000-4000-8000-000000000004'
+     and moderator_id = 'eeeeeeee-0000-4000-8000-000000000003';
+  if v_trail <> 1 then
+    raise exception 'AUDIT GAP  the role change left % rows in the moderation trail, not 1', v_trail;
+  end if;
+
+  select status into v_status from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000001';
+  if v_status <> 'published' then
+    raise exception 'REVIEW BUG  the approved photograph is %, not published', v_status;
+  end if;
+
+  raise notice 'review ok     uploads wait for a moderator, and only an administrator changes roles, on the record';
+end $$;
+
 
 -- ------------------------------------------------------------------ summary
 do $$

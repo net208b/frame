@@ -1170,7 +1170,7 @@
       "signalCountryUnknown": "No bounding box on file for {countryCode}, so the country could not be cross-checked.",
       "signalPossibleDuplicate": "Within {metres, number} m of an existing location.",
       "proposalNoticeTitle": "What happens to a proposed place",
-      "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes now, with the place marked pending, and is credited to the location once it is approved.",
+      "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph is reviewed separately, and once it is approved it is credited to the location as soon as the place is approved too.",
       "proposalNoticePrecision": "A published point is rounded to {precision} rather than shown exactly, and further still for anywhere a moderator marks as sensitive. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
       "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them."
     },
@@ -1212,7 +1212,7 @@
       "editingNotesHint": "What you changed and why. This is the part other photographers read most closely.",
       "editingNotesPlaceholder": "Lifted the shadows about a stop, pulled the greens out of the fluorescent light, no crop.",
       "captureDateHeading": "The date in the file",
-      "captureDateNone": "This file does not say when it was taken, so there is no date to publish or withhold. The date FRAME shows on the photograph is the day you published it.",
+      "captureDateNone": "This file does not say when it was taken, so there is no date to publish or withhold. The date FRAME shows on the photograph is the day it was published.",
       "captureDateBody": "Your camera recorded this frame as taken on {date}. A capture date can place a person somewhere on a particular evening, so FRAME leaves it out unless you ask for it. The camera carries no time zone, so the date is read as your camera’s own clock.",
       "captureDatePublish": "Publish the capture date, {date}",
       "captureDateDescription": "Leave this unticked and the date stays off the photograph and out of its record."
@@ -1255,8 +1255,8 @@
       "valueDimensions": "{width} × {height} pixels, as the file reports them",
       "valueFocalLength": "{value} mm",
       "valueAperture": "f/{value}",
-      "valueProposalStatus": "Queued for a moderator. Your photograph publishes now; the place appears once it is approved.",
-      "valueNoPlace": "None. The photograph publishes without a location, and you can add one later without re-uploading.",
+      "valueProposalStatus": "Queued for a moderator. The place appears once it is approved.",
+      "valueNoPlace": "None. The photograph goes to review without a location, and you can add one later without re-uploading.",
       "valueCaptureDateWithheld": "Withheld. The file records a date and you chose not to publish it.",
       "valueGpsUsed": "The file records a position and you used it to start your proposal. It is stored with your consent recorded against it, and it is never published as an exact point.",
       "valueGpsDeclined": "The file records a position. You chose to leave it out, so it is not stored.",
@@ -1272,7 +1272,7 @@
       "rightsConfirm": "I am the photographer or hold permission to publish this work, and I grant FRAME the licence described above.",
       "rightsConfirmDescription": "FRAME records the moment you tick this and checks it again on the server before anything is published.",
       "twoThingsTitle": "Two things are being sent",
-      "twoThingsBody": "Your photograph, which publishes as soon as it has been processed, and your proposed place, which waits for a moderator. A published point is rounded to {precision} rather than shown exactly."
+      "twoThingsBody": "Your photograph and your proposed place each go to a moderator, and each appears once it is approved. A published point is rounded to {precision} rather than shown exactly."
     },
     "submit": {
       "heading": "Send it",
@@ -1289,10 +1289,10 @@
       "stageUploadDetail": "The bytes go straight to storage rather than through FRAME.",
       "stageProcessTitle": "Check and resize",
       "stageProcessDetail": "The server decodes the file that actually arrived, refuses anything that is not a photograph it can publish, then builds the sizes the site serves and strips every tag from each of them.",
-      "stagePublishTitle": "Publish",
-      "stagePublishDetail": "Your declaration is recorded and the photograph is written to the gallery.",
+      "stagePublishTitle": "Send for review",
+      "stagePublishDetail": "Your declaration is recorded and the photograph joins the review queue. A moderator publishes it.",
       "stagePlaceTitle": "Queue the proposed place",
-      "stagePlaceDetail": "Your proposal goes to a moderator. Your photograph does not wait for it.",
+      "stagePlaceDetail": "Your proposal goes to a moderator too, separately from the photograph.",
       "stateDone": "done",
       "stateActive": "in progress",
       "stateFailed": "stopped here",
@@ -1325,18 +1325,18 @@
       "outcomePublishedTitle": "Published",
       "outcomePublishedBody": "Your photograph is live, the sizes FRAME serves have been generated from it, and every tag has been stripped from each of them. The original is kept privately as the source for re-processing.",
       "outcomeReviewTitle": "Uploaded, and with a moderator before it appears",
-      "outcomeReviewBody": "Your photograph has been stored and processed, and one of the automated checks asked for a person to look at it. A moderator reads it, usually within a day, and you will see it in your portfolio either way — published, or with the reason it was not.",
+      "outcomeReviewBody": "Your photograph has been stored and processed, and it is waiting for a moderator — every photograph on FRAME is looked at by a person before it appears. That usually happens within a day, and you will see it in your portfolio either way: published, or with the reason it was not.",
       "signalsHeading": "What the checks noticed",
       "signalHigh": "Held for review",
       "signalWarn": "Worth knowing",
       "signalInfo": "For information",
       "signalsNote": "These are checks with an opinion, not verdicts. A moderator sees the same list.",
       "placeQueued": "Your proposed place is queued for a moderator and will appear once it is approved.",
-      "placeFailedNote": "Your photograph published normally. You can propose the place again from the location index without re-uploading.",
+      "placeFailedNote": "Your photograph went to review normally. You can propose the place again from the location index without re-uploading.",
       "seePhotograph": "See the photograph",
       "uploadAnother": "Upload another photograph",
       "backToReview": "Back to review",
-      "uploadAndPublish": "Upload and publish",
+      "uploadAndPublish": "Upload and send for review",
       "discard": "Discard this upload",
       "retryNote": "Submitting again after a failure reuses the same record rather than starting a second one, so a retry cannot leave a half-finished upload behind. Nothing is kept in this browser between visits: leaving the page loses what you have typed, which is why FRAME asks before you go.",
       "discardDialogTitle": "Discard this upload?",
@@ -1573,9 +1573,9 @@
         "countCapped": "at least {count, number} reports still open"
       },
       "uploads": {
-        "label": "Uploads to review",
-        "count": "{count, plural, =0 {no uploads awaiting a decision} one {# upload awaiting a decision} other {# uploads awaiting a decision}}",
-        "countCapped": "at least {count, number} uploads awaiting a decision"
+        "label": "Photographs to review",
+        "count": "{count, plural, =0 {no photographs awaiting review} one {# photograph awaiting review} other {# photographs awaiting review}}",
+        "countCapped": "at least {count, number} photographs awaiting review"
       },
       "duplicates": {
         "label": "Possible duplicates",
@@ -1586,6 +1586,11 @@
         "label": "Recent decisions",
         "count": "{count, plural, =0 {no decisions recorded recently} one {# decision recorded recently} other {# decisions recorded recently}}",
         "countCapped": "at least {count, number} decisions recorded recently"
+      },
+      "team": {
+        "label": "Team",
+        "count": "{count, plural, =0 {no staff} one {# member of staff} other {# members of staff}}",
+        "countCapped": "at least {count, number} members of staff"
       }
     },
     "severity": {
@@ -1615,7 +1620,8 @@
       "request_changes": "Ask for changes",
       "remove_content": "Remove the content",
       "suspend_account": "Suspend the account",
-      "dismiss": "Dismiss the report"
+      "dismiss": "Dismiss the report",
+      "change_role": "Change the role"
     },
     "reportReason": {
       "copyright": "Copyright infringement",
@@ -1785,15 +1791,15 @@
     },
     "uploads": {
       "eyebrow": "Queue",
-      "title": "Uploads to review",
-      "description": "Held before publication. Every signal below is a reason to look, not a finding.",
-      "emptyTitle": "Nothing is held for review",
-      "emptyDescription": "No upload is waiting on a decision. Flagged uploads arrive here oldest first.",
+      "title": "Photographs to review",
+      "description": "Every new photograph waits here until a moderator approves it. Check the image against what the member wrote. Signals below are reasons to look, not findings.",
+      "emptyTitle": "Nothing is waiting for review",
+      "emptyDescription": "No photograph is waiting on a decision. New uploads arrive here oldest first.",
       "thumbAlt": "Upload held for review: {title}",
       "uploadedAt": "Uploaded <time>{when}</time>",
       "notPublishedYet": "not published, so it has no public page yet",
       "uploadedBy": "Uploaded by <link>{name}</link>",
-      "noSignals": "No automated check flagged this upload. It is here because its status is still under review.",
+      "noSignals": "No automated check flagged this upload. It is here because every new photograph is reviewed before it is published.",
       "hashCaveatHeadline": "A similarity match is a signal for review, not evidence of infringement.",
       "hashCaveatBody": "Two photographers can stand in the same place on different days and produce near-identical frames. Compare the files and ask the uploader before deciding anything from this signal alone.",
       "subject": "“{title}” by {name}",
@@ -1810,6 +1816,20 @@
           "label": "Remove the upload",
           "effect": "Takes it out of FRAME. The reason is stored on the photograph, so the member reads it."
         }
+      },
+      "openLarge": "Open {title} at full display size in a new tab",
+      "details": {
+        "none": "Not given",
+        "description": "Description",
+        "altText": "Alt text",
+        "category": "Category",
+        "location": "Place",
+        "camera": "Camera",
+        "lens": "Lens",
+        "settings": "Settings",
+        "capturedAt": "Taken",
+        "editing": "Editing",
+        "size": "Stored size"
       }
     },
     "duplicates": {
@@ -1857,6 +1877,41 @@
       },
       "noneNeeded": "None needed",
       "noneRecorded": "None recorded"
+    },
+    "team": {
+      "eyebrow": "Administration",
+      "title": "Team and roles",
+      "description": "Who can review photographs and decide on places, and who can appoint them. Only administrators see this tab.",
+      "matrixCaption": "What each role can do",
+      "matrix": {
+        "can": "Can",
+        "yes": "yes",
+        "no": "no",
+        "upload": "Upload photographs (each one waits for review)",
+        "review": "Approve, hold or remove photographs",
+        "places": "Decide on proposed places, reports and duplicates",
+        "suspendMembers": "Suspend a member",
+        "suspendStaff": "Suspend a moderator or administrator",
+        "appoint": "Appoint or remove moderators and administrators"
+      },
+      "roles": {
+        "member": "Member",
+        "moderator": "Moderator",
+        "admin": "Administrator"
+      },
+      "staffTitle": "Current staff",
+      "emptyTitle": "No moderators yet",
+      "emptyDescription": "Appoint one below by their username.",
+      "you": "(you)",
+      "changeTitle": "Change a role",
+      "changeDescription": "Type the member's username and choose a role. Every change is recorded under Recent decisions. You cannot change your own role, and a suspended account cannot be given a staff role.",
+      "usernameLabel": "Username",
+      "usernameHint": "As in their profile address, without the @.",
+      "roleLabel": "New role",
+      "submit": "Change role",
+      "saving": "Changing…",
+      "saved": "The role is changed.",
+      "transportFailure": "The connection dropped, so it is not known whether the role changed. Reload the page to see."
     }
   },
   "legal": {

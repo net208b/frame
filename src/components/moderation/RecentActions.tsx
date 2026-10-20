@@ -31,6 +31,7 @@ const DECISION_TONES: Record<ModerationAction['decision'], string> = {
   reject: 'text-danger',
   remove_content: 'text-danger',
   suspend_account: 'text-danger',
+  change_role: 'text-ink',
 };
 
 export async function RecentActions({
