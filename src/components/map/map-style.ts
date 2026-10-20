@@ -4,36 +4,78 @@ import type {
   LayerSpecification,
 } from 'maplibre-gl';
 
-import { publicEnv } from '@/lib/config';
+import { isMapConfigured, MAP_DISABLED, publicEnv } from '@/lib/config';
+import type { BasemapTheme, BasemapVariant } from '@/lib/map/basemap';
 
 /**
- * Every assumption FRAME makes about its map provider.
+ * Everything FRAME's map surfaces assume about the map under the pins, and
+ * every paint property of the pins themselves.
  *
- * Changing provider should be a configuration change rather than a rewrite, so
- * nothing outside this module names a tile host, a glyph set or a paint colour.
- * Two rules shape it:
+ * FRAME draws its own basemap — see `src/lib/map/basemap.ts` for the style and
+ * `src/app/basemap/[variant]/route.ts` for the four URLs it is served at — so
+ * the default here is a map rather than an apology. Two rules still shape this
+ * module:
  *
- * 1. There is no default style URL. MapLibre's demo tiles are licensed for
- *    evaluation only, so shipping them as a fallback would put every FRAME
- *    deployment in breach of those terms on first load. Without a configured
- *    style the map surfaces render MapUnavailable and say what is missing.
- * 2. Attribution is usually a licence condition rather than a courtesy, so the
- *    configured attribution is handed to MapLibre's own attribution control,
- *    and its absence is stated in the interface rather than quietly ignored.
+ * 1. Nothing outside it names a tile host, a glyph set or a paint colour, so
+ *    moving to a paid provider stays a configuration change. Setting
+ *    `NEXT_PUBLIC_MAP_STYLE_URL` to that provider's style replaces FRAME's own,
+ *    and setting it to `off` draws no map at all — for an operator who does not
+ *    want the browser calling a tile host they have not chosen.
+ * 2. Attribution is a licence condition rather than a courtesy. The built-in
+ *    basemap's credit arrives with its tiles and MapLibre shows it unprompted,
+ *    so FRAME adds nothing to it. A configured provider is a different matter:
+ *    only the operator knows what that provider requires, so a style URL with
+ *    no `NEXT_PUBLIC_MAP_ATTRIBUTION` beside it is called out in the interface
+ *    rather than quietly ignored.
  */
 
 export const MAP_STYLE_ENV_VAR = 'NEXT_PUBLIC_MAP_STYLE_URL';
 export const MAP_ATTRIBUTION_ENV_VAR = 'NEXT_PUBLIC_MAP_ATTRIBUTION';
 export const MAP_PROVIDER_DOC = 'docs/EXTERNAL-SERVICES.md';
 
-/** The provider's style document. Null means no map may be drawn at all. */
-export function mapStyleUrl(): string | null {
-  return publicEnv().mapStyleUrl;
+/** True when neither a provider's style nor `off` was configured. */
+function usingBuiltInBasemap(): boolean {
+  return publicEnv().mapStyleUrl === null;
 }
 
-/** Plain text or markup supplied by the operator, e.g. the provider's credit. */
+/**
+ * The style document for a variant, or null when maps are switched off.
+ *
+ * The variant is a parameter rather than a module-level constant because the
+ * right style depends on the reader: their language, and whether they are
+ * reading the light theme or the dark one.
+ */
+export function mapStyleUrl(variant: BasemapVariant): string | null {
+  const configured = publicEnv().mapStyleUrl;
+  if (configured === MAP_DISABLED) return null;
+  return configured ?? `/basemap/${variant}`;
+}
+
+/**
+ * The operator's own credit line, added to whatever the map's source already
+ * carries — nothing when they have not set one.
+ *
+ * The built-in basemap deliberately gets none from here. Its tiles arrive with
+ * the OpenFreeMap / OpenMapTiles / OpenStreetMap credit in their TileJSON and
+ * MapLibre's attribution control prints it; anything added here would print
+ * beside it rather than instead of it, and the map would carry the same credit
+ * twice.
+ */
 export function mapAttribution(): string | null {
   return publicEnv().mapAttribution;
+}
+
+/**
+ * Whether the interface should say that a credit is missing.
+ *
+ * Only for a map pointed at a provider's own style with no attribution beside
+ * it: that is the case where FRAME cannot know the licence condition and the
+ * operator has to be told. The built-in basemap is never missing a credit, and
+ * a map that is switched off has nothing to credit.
+ */
+export function isAttributionMissing(): boolean {
+  if (!isMapConfigured()) return false;
+  return !usingBuiltInBasemap() && publicEnv().mapAttribution === null;
 }
 
 /**
@@ -66,10 +108,24 @@ export const MAP_SOURCE_ID = 'frame-locations';
 export const MAP_LAYERS = {
   clusters: 'frame-clusters',
   clusterCount: 'frame-cluster-count',
+  /** The soft glow under every pin, which is what makes a lime dot read as lit. */
+  glow: 'frame-glow',
   /** Drawn under the pins so a selected pin keeps its own colour. */
   selection: 'frame-selection',
+  /** Between selection and points: a pointer-only echo of the selection ring. */
+  hover: 'frame-hover',
   points: 'frame-points',
 } as const;
+
+/** Every overlay layer, bottom to top, as `addLayer` must be called. */
+export const MAP_OVERLAY_ORDER = [
+  MAP_LAYERS.glow,
+  MAP_LAYERS.clusters,
+  MAP_LAYERS.clusterCount,
+  MAP_LAYERS.selection,
+  MAP_LAYERS.hover,
+  MAP_LAYERS.points,
+] as const;
 
 export const MAP_CLUSTER = {
   radius: 48,
@@ -86,24 +142,52 @@ export const MAP_SELECTION_ZOOM = MAP_CLUSTER.maxZoom + 1;
 
 /**
  * Glyph names, not font files: MapLibre asks the style's own glyph endpoint for
- * these. Most providers serve the MapLibre/Mapbox defaults below; a provider
- * that names its fonts differently is a one-line change here.
+ * these. This is the font FRAME's basemap serves, and the one its glyph host
+ * actually has — the MapLibre/Mapbox default `Open Sans Regular` is not there,
+ * and a missing glyph range is a 404 per tile rather than a fallback. A
+ * provider that names its fonts differently is a one-line change here.
  */
-export const MAP_FONT_STACK: string[] = ['Open Sans Regular', 'Arial Unicode MS Regular'];
+export const MAP_FONT_STACK: string[] = ['Noto Sans Regular'];
 
 /**
  * A WebGL paint property cannot read a CSS custom property, so the tokens from
- * `globals.css` are mirrored here. These five values are the only hard-coded
- * colours in the map layer; keep them in step with the `@theme` block.
+ * `globals.css` are mirrored here — both themes, because the pins sit on
+ * FRAME's own basemap and have to hold against either ground.
+ *
+ * The lime is the accent at the strength each theme uses it: full `#d9ff56` on
+ * paper, taken down to `#c8ea4e` on the night ground, where full strength is a
+ * highlighter. The ring is what separates a pin from the map under it, so it is
+ * the page's own surface colour rather than a fixed white: a white ring on the
+ * dark basemap reads as a second, brighter dot.
  */
-const COLOUR = {
-  accent: '#d9ff56',
-  accentStrong: '#c2e63d',
-  ink: '#171815',
-  inkSurface: '#1c1e19',
-  onInk: '#f8f8f2',
-  surface: '#ffffff',
-} as const;
+const PIN_COLOURS: Record<BasemapTheme, {
+  accent: string;
+  accentStrong: string;
+  ring: string;
+  cluster: string;
+  clusterRing: string;
+  clusterText: string;
+  selection: string;
+}> = {
+  light: {
+    accent: '#d9ff56',
+    accentStrong: '#c2e63d',
+    ring: '#ffffff',
+    cluster: '#1c1e19',
+    clusterRing: '#ffffff',
+    clusterText: '#f8f8f2',
+    selection: '#171815',
+  },
+  dark: {
+    accent: '#c8ea4e',
+    accentStrong: '#b7db44',
+    ring: '#1c1e17',
+    cluster: '#f2f2ea',
+    clusterRing: '#141610',
+    clusterText: '#171815',
+    selection: '#f2f2ea',
+  },
+};
 
 /**
  * Whether this feature's position is deliberately imprecise.
@@ -120,8 +204,70 @@ const IS_APPROXIMATE: ExpressionSpecification = [
   ['to-boolean', ['get', 'isApproximate']],
 ];
 
-/** Clusters: ink discs with a white ring, sized by how much they hold. */
-export function clusterLayers(): LayerSpecification[] {
+/** Radius of the exact dot and of the approximate disc, at the middle zoom. */
+const PIN_RADIUS = { exact: 6, approximate: 13 } as const;
+
+/**
+ * One measurement of a pin — a radius, a ring width — in the two sizes the two
+ * kinds of pin need, growing as the viewer comes in.
+ *
+ * A pin sized for the world view is a speck on a street, and one sized for a
+ * street is a blot on the world, so every part of the pin runs through here and
+ * they keep their proportions at every zoom.
+ *
+ * The nesting is the only order the style spec allows: one zoom interpolation
+ * at the top, with the per-precision choice inside each of its outputs. The
+ * reverse — a `case` picking between two interpolations — is rejected, because
+ * a paint property may hold exactly one zoom curve. (The MapLibre validator in
+ * `npm run check:map-style` is what says so; the layer simply fails to paint at
+ * runtime, taking every pin with it.)
+ */
+function byPrecision(exact: number, approximate: number): ExpressionSpecification {
+  const at = (factor: number): ExpressionSpecification => [
+    'case',
+    IS_APPROXIMATE,
+    approximate * factor,
+    exact * factor,
+  ];
+
+  return ['interpolate', ['linear'], ['zoom'], 3, at(0.8), 10, at(1), 16, at(1.45)];
+}
+
+/**
+ * The glow.
+ *
+ * A blurred disc of the accent colour under every single pin, which is what
+ * stops a 6-pixel dot disappearing into a street grid of the same value, and
+ * what makes the night theme look lit rather than merely dark. `circle-blur`
+ * is a cheap GPU gradient — no second source, no sprite, no image to load.
+ *
+ * It is drawn under the clusters as well so that a cluster of pins carries the
+ * same warmth, but it is not drawn *for* clusters: the cluster disc is opaque
+ * and would hide it anyway.
+ */
+export function glowLayer(theme: BasemapTheme): LayerSpecification {
+  const colour = PIN_COLOURS[theme];
+
+  return {
+    id: MAP_LAYERS.glow,
+    type: 'circle',
+    source: MAP_SOURCE_ID,
+    filter: ['!', ['has', 'point_count']],
+    paint: {
+      'circle-color': colour.accent,
+      'circle-radius': byPrecision(PIN_RADIUS.exact * 2.6, PIN_RADIUS.approximate * 1.5),
+      'circle-blur': 1,
+      // Stronger on the night ground, where there is more darkness for it to
+      // bloom into, and where the accent is a step quieter to begin with.
+      'circle-opacity': theme === 'dark' ? 0.45 : 0.28,
+    },
+  };
+}
+
+/** Clusters: a filled disc with a ring, sized by how much it holds. */
+export function clusterLayers(theme: BasemapTheme): LayerSpecification[] {
+  const colour = PIN_COLOURS[theme];
+
   return [
     {
       id: MAP_LAYERS.clusters,
@@ -129,10 +275,10 @@ export function clusterLayers(): LayerSpecification[] {
       source: MAP_SOURCE_ID,
       filter: ['has', 'point_count'],
       paint: {
-        'circle-color': COLOUR.inkSurface,
+        'circle-color': colour.cluster,
         'circle-radius': ['step', ['get', 'point_count'], 15, 10, 19, 50, 24],
         'circle-stroke-width': 2,
-        'circle-stroke-color': COLOUR.surface,
+        'circle-stroke-color': colour.clusterRing,
         'circle-stroke-opacity': 0.9,
       },
     },
@@ -149,7 +295,7 @@ export function clusterLayers(): LayerSpecification[] {
         'text-ignore-placement': true,
       },
       paint: {
-        'text-color': COLOUR.onInk,
+        'text-color': colour.clusterText,
       },
     },
   ];
@@ -158,49 +304,83 @@ export function clusterLayers(): LayerSpecification[] {
 /**
  * The single points.
  *
- * An exact pin is the prototype's lime dot with a white ring. An approximate
+ * An exact pin is a lime dot with a ring the colour of the page. An approximate
  * one is deliberately not that: it is a wider, softer disc, because the point
  * stands for an area the member asked us not to pin down. Size and density
  * carry the difference as well as colour, and the legend names both.
  */
-export function pointLayer(): LayerSpecification {
+export function pointLayer(theme: BasemapTheme): LayerSpecification {
+  const colour = PIN_COLOURS[theme];
+
   return {
     id: MAP_LAYERS.points,
     type: 'circle',
     source: MAP_SOURCE_ID,
     filter: ['!', ['has', 'point_count']],
     paint: {
-      'circle-color': COLOUR.accent,
-      'circle-radius': ['case', IS_APPROXIMATE, 13, 6],
+      'circle-color': colour.accent,
+      'circle-radius': byPrecision(PIN_RADIUS.exact, PIN_RADIUS.approximate),
       'circle-opacity': ['case', IS_APPROXIMATE, 0.32, 1],
-      'circle-stroke-width': ['case', IS_APPROXIMATE, 1.5, 3],
-      'circle-stroke-color': ['case', IS_APPROXIMATE, COLOUR.accentStrong, COLOUR.surface],
+      'circle-stroke-width': byPrecision(3, 1.5),
+      'circle-stroke-color': ['case', IS_APPROXIMATE, colour.accentStrong, colour.ring],
       'circle-stroke-opacity': ['case', IS_APPROXIMATE, 0.9, 1],
     },
   };
 }
 
 /** A ring around the selected pin, so selection is not carried by colour alone. */
-export function selectionLayer(): LayerSpecification {
+export function selectionLayer(theme: BasemapTheme): LayerSpecification {
   return {
     id: MAP_LAYERS.selection,
     type: 'circle',
     source: MAP_SOURCE_ID,
-    filter: selectionFilter(null),
+    filter: idFilter(null),
     paint: {
-      'circle-color': COLOUR.ink,
+      'circle-color': PIN_COLOURS[theme].selection,
       'circle-opacity': 0,
-      'circle-radius': ['case', IS_APPROXIMATE, 21, 14],
+      'circle-radius': byPrecision(PIN_RADIUS.exact + 8, PIN_RADIUS.approximate + 8),
       'circle-stroke-width': 2,
-      'circle-stroke-color': COLOUR.ink,
+      'circle-stroke-color': PIN_COLOURS[theme].selection,
     },
   };
 }
 
-export function selectionFilter(selectedId: string | null): FilterSpecification {
-  // An id no feature carries is how "nothing selected" is expressed, which
-  // keeps the layer in the style instead of adding and removing it.
-  return ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], selectedId ?? '\u0000']];
+/**
+ * The same ring, thinner, under the pointer.
+ *
+ * It exists because the cursor change alone does not say *which* pin is about
+ * to be chosen when two overlap, and because a map whose pins do not respond to
+ * the pointer feels like an image. It is pointer-only by nature, so it carries
+ * no information a keyboard or screen-reader user needs — the list beside the
+ * map is the route for them, and the selection ring above is the state that
+ * matters.
+ */
+export function hoverLayer(theme: BasemapTheme): LayerSpecification {
+  return {
+    id: MAP_LAYERS.hover,
+    type: 'circle',
+    source: MAP_SOURCE_ID,
+    filter: idFilter(null),
+    paint: {
+      'circle-color': PIN_COLOURS[theme].selection,
+      'circle-opacity': 0,
+      'circle-radius': byPrecision(PIN_RADIUS.exact + 5, PIN_RADIUS.approximate + 5),
+      'circle-stroke-width': 1.5,
+      'circle-stroke-color': PIN_COLOURS[theme].selection,
+      'circle-stroke-opacity': 0.55,
+    },
+  };
+}
+
+/**
+ * Matches the one unclustered feature carrying this id, and nothing when there
+ * is none.
+ *
+ * An id no feature carries is how "nothing selected" is expressed, which keeps
+ * the layer in the style instead of adding and removing it.
+ */
+export function idFilter(id: string | null): FilterSpecification {
+  return ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], id ?? '\u0000']];
 }
 
 /* ------------------------------------------------------------------------ */

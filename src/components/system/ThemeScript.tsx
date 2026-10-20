@@ -37,6 +37,19 @@ export const THEME_STORAGE_KEY = 'frame-theme';
  */
 export type ThemeChoice = 'light' | 'dark' | 'system';
 
+/**
+ * Dispatched on `window` whenever the applied theme changes, by the only thing
+ * that changes it: `ThemeToggle`. It lets the two mounted toggles stay in step
+ * with each other, and lets anything that has to reproduce a colour outside CSS
+ * — the map's WebGL layers, through `useResolvedTheme` — repaint when the
+ * palette under it does.
+ *
+ * It lives in this module, rather than in the toggle that fires it, because
+ * this is the module both sides of that relationship already import, and it has
+ * no `'use client'` directive to drag a listener into the server layer.
+ */
+export const THEME_CHANGE_EVENT = 'frame:themechange';
+
 // Minified by hand rather than by a build step, because it is inlined as a
 // string: an attribute read, one comparison and a `setAttribute`. Anything
 // longer than this does not belong in front of the first paint.

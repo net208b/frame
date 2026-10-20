@@ -971,9 +971,9 @@ clustered pins navigable.
 places behind the photographs.
 
 **The fix.** Already applied, and the pattern to keep: every page that renders a
-map also renders the same places as a list, and `MapUnavailable` — the state an
-unconfigured deployment shows — offers the location index, which does the same
-job without a map. Any new map surface must do the same.
+map also renders the same places as a list, and `MapUnavailable` — the state a
+deployment with maps switched off shows — offers the location index, which does
+the same job without a map. Any new map surface must do the same.
 
 ### `lucide-react` pulls a client boundary into Server Components
 

@@ -78,6 +78,14 @@ jobs:
       - name: Confirm the cookie-reading routes are still dynamic
         run: ./scripts/assert-dynamic-routes.sh build.log
 
+      # The map is drawn from a style document of FRAME's own. An invalid layer
+      # in it is not a build error: MapLibre drops that layer at runtime and
+      # draws the rest, so a broken paint property reaches production as a map
+      # with no roads on it. The prerendered documents only exist after the
+      # build above.
+      - name: Validate the basemap style
+        run: npm run check:map-style
+
   # ---------------------------------------------------------------------------
   # The database guarantees in supabase/tests.
   #

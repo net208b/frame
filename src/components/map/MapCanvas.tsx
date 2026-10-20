@@ -1,16 +1,21 @@
 'use client';
 
 import type { GeoJSONSource, Map as MapLibreMap, MapGeoJSONFeature, MapMouseEvent } from 'maplibre-gl';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { useResolvedTheme } from '@/components/system/use-theme';
 import { isMapConfigured } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
+import { basemapVariant, type BasemapLanguage } from '@/lib/map/basemap';
 import { cn } from '@/lib/utils';
 
 import { MapLoadFailure, MapUnavailable } from './MapUnavailable';
 import {
   clusterLayers,
+  glowLayer,
+  hoverLayer,
+  idFilter,
   MAP_ATTRIBUTION_ENV_VAR,
   MAP_CLUSTER,
   MAP_DEFAULT_CENTER,
@@ -20,11 +25,11 @@ import {
   MAP_MOVE_DURATION_MS,
   MAP_SELECTION_ZOOM,
   MAP_SOURCE_ID,
+  isAttributionMissing,
   mapAttribution,
   mapStyleUrl,
   pointCollection,
   pointLayer,
-  selectionFilter,
   selectionLayer,
 } from './map-style';
 
@@ -141,10 +146,16 @@ export function MapCanvas({
   const pinsRef = useRef(pins);
   const onSelectRef = useRef(onSelect);
   const onVisibleChangeRef = useRef(onVisibleChange);
+  // The selection is here as well as in the effect below because a rebuilt map
+  // starts with a style that has never been told about it: the effect that
+  // applies it watches `selectedId`, which has not changed, so without this the
+  // ring would be missing until the viewer chose something else.
+  const selectedIdRef = useRef(selectedId);
   useEffect(() => {
     pinsRef.current = pins;
     onSelectRef.current = onSelect;
     onVisibleChangeRef.current = onVisibleChange;
+    selectedIdRef.current = selectedId;
   });
 
   // Captured once: these are the *initial* camera, so a parent re-render with a
@@ -159,7 +170,16 @@ export function MapCanvas({
   // snap back every time the filtered pin set changes.
   const lastCameraSelectionRef = useRef<string | null>(null);
 
-  const styleUrl = mapStyleUrl();
+  // The basemap follows the page: its palette from the applied theme, its
+  // labels from the reader's language. Both are part of the style document
+  // rather than of anything paintable afterwards, so a change to either rebuilds
+  // the map — see the build effect, which carries the camera across.
+  const theme = useResolvedTheme();
+  // Narrowed rather than cast: the basemap has a Thai label set and an English
+  // one, and a third locale added to the app would have to choose between them
+  // here instead of failing at a tile request.
+  const language: BasemapLanguage = useLocale() === 'th' ? 'th' : 'en';
+  const styleUrl = mapStyleUrl(basemapVariant(theme, language));
   const attribution = mapAttribution();
 
   const reportVisible = useCallback((instance: MapLibreMap, current: readonly MapPin[]) => {
@@ -280,9 +300,15 @@ export function MapCanvas({
           clusterMaxZoom: MAP_CLUSTER.maxZoom,
         });
 
-        for (const layer of clusterLayers()) instance.addLayer(layer);
-        instance.addLayer(selectionLayer());
-        instance.addLayer(pointLayer());
+        // Bottom to top: the glow under everything, then the clusters, then the
+        // two rings, then the pins themselves on top.
+        instance.addLayer(glowLayer(theme));
+        for (const layer of clusterLayers(theme)) instance.addLayer(layer);
+        instance.addLayer(selectionLayer(theme));
+        instance.addLayer(hoverLayer(theme));
+        instance.addLayer(pointLayer(theme));
+
+        instance.setFilter(MAP_LAYERS.selection, idFilter(selectedIdRef.current ?? null));
 
         for (const layerId of [MAP_LAYERS.clusters, MAP_LAYERS.points]) {
           instance.on('mouseenter', layerId, () => {
@@ -292,6 +318,17 @@ export function MapCanvas({
             instance.getCanvas().style.cursor = '';
           });
         }
+
+        // Which single pin the pointer is over. Tracked on the map rather than
+        // in React state: it changes on every mouse move, and a re-render per
+        // frame to repaint one ring is a bad trade.
+        instance.on('mousemove', MAP_LAYERS.points, (event) => {
+          const [hit] = event.features ?? [];
+          instance.setFilter(MAP_LAYERS.hover, idFilter(readPinId(hit?.properties)));
+        });
+        instance.on('mouseleave', MAP_LAYERS.points, () => {
+          instance.setFilter(MAP_LAYERS.hover, idFilter(null));
+        });
 
         instance.on('click', handleClick);
         instance.on('moveend', () => {
@@ -309,10 +346,24 @@ export function MapCanvas({
 
     return () => {
       disposed = true;
+
+      // A theme or language change replaces the style document, which means a
+      // new map. Carrying the camera over is what keeps that from throwing the
+      // viewer back to the world view mid-browse: the rebuild reopens on the
+      // same ground, and `explicit` stops it refitting to the pins.
+      if (created) {
+        const centre = created.getCenter();
+        initialViewRef.current = {
+          center: [centre.lng, centre.lat],
+          zoom: created.getZoom(),
+          explicit: true,
+        };
+      }
+
       created?.remove();
       if (mapRef.current === created) mapRef.current = null;
     };
-  }, [accessibleName, attribution, reportVisible, styleUrl, zoomInLabel, zoomOutLabel]);
+  }, [accessibleName, attribution, reportVisible, styleUrl, theme, zoomInLabel, zoomOutLabel]);
 
   // Filter changes replace the source data rather than rebuilding the map.
   useEffect(() => {
@@ -328,7 +379,7 @@ export function MapCanvas({
     const instance = mapRef.current;
     if (!instance || phase !== 'ready' || !instance.getLayer(MAP_LAYERS.selection)) return;
 
-    instance.setFilter(MAP_LAYERS.selection, selectionFilter(selectedId ?? null));
+    instance.setFilter(MAP_LAYERS.selection, idFilter(selectedId ?? null));
 
     if (lastCameraSelectionRef.current === (selectedId ?? null)) return;
     lastCameraSelectionRef.current = selectedId ?? null;
@@ -374,17 +425,18 @@ export function MapCanvas({
         {phase === 'failed' ? t('canvas.statusFailed') : null}
       </p>
 
-      {attribution ? null : (
-        // The provider's own credit line is passed through untouched (it is a
-        // licence condition); this is FRAME's own sentence about its absence,
-        // so it is translated. The variable name is not.
+      {isAttributionMissing() ? (
+        // Only when a provider's style was configured without their credit
+        // beside it. The credit itself is passed through untouched wherever it
+        // comes from (it is a licence condition); this is FRAME's own sentence
+        // about its absence, so it is translated. The variable name is not.
         <p className="px-3 py-2 text-meta text-muted">
           {t.rich('attribution.missing', {
             variable: MAP_ATTRIBUTION_ENV_VAR,
             code: (chunks) => <code className="font-mono font-semibold">{chunks}</code>,
           })}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
