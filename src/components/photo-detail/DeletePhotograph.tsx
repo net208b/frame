@@ -39,8 +39,10 @@ export function DeletePhotograph({
       if (result.ok) {
         setOpen(false);
         toast.show(t('done'), 'success');
+        // replace alone: a refresh() straight after re-renders the page being
+        // left and wins the race, so the owner stayed on a deleted photograph.
+        // The profile is rendered on demand, so it arrives without the photograph.
         router.replace(`/photographers/${ownerUsername}`);
-        router.refresh();
         return;
       }
       setOpen(false);
