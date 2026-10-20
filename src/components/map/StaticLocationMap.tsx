@@ -2,16 +2,20 @@
 
 import { CircleDashed } from 'lucide-react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 
+import { useResolvedTheme } from '@/components/system/use-theme';
 import { isMapConfigured, LOCATION_POLICY } from '@/lib/config';
+import { basemapVariant, type BasemapLanguage } from '@/lib/map/basemap';
 import { cn, formatCoordinates } from '@/lib/utils';
 
 import { MapLoadFailure, MapUnavailable } from './MapUnavailable';
 import {
+  glowLayer,
   MAP_ATTRIBUTION_ENV_VAR,
   MAP_SOURCE_ID,
+  isAttributionMissing,
   mapAttribution,
   mapStyleUrl,
   pointCollection,
@@ -60,7 +64,12 @@ export function StaticLocationMap({
 
   const t = useTranslations('map');
 
-  const styleUrl = mapStyleUrl();
+  // As on the explorer: the basemap's palette follows the applied theme and its
+  // labels the reader's language, and a change to either rebuilds this map. A
+  // reference map has a fixed camera, so there is nothing to carry across.
+  const theme = useResolvedTheme();
+  const language: BasemapLanguage = useLocale() === 'th' ? 'th' : 'en';
+  const styleUrl = mapStyleUrl(basemapVariant(theme, language));
   const attribution = mapAttribution();
 
   // Never assume more precision than the caller proved. Without an explicit
@@ -144,7 +153,8 @@ export function StaticLocationMap({
           type: 'geojson',
           data: pointCollection([{ id: 'location', latitude, longitude, isApproximate }]),
         });
-        instance.addLayer(pointLayer());
+        instance.addLayer(glowLayer(theme));
+        instance.addLayer(pointLayer(theme));
 
         setPhase('ready');
       });
@@ -164,6 +174,7 @@ export function StaticLocationMap({
     longitude,
     mapTitle,
     styleUrl,
+    theme,
     zoomInLabel,
     zoomOutLabel,
   ]);
@@ -200,17 +211,18 @@ export function StaticLocationMap({
         </p>
       ) : null}
 
-      {attribution ? null : (
-        // The provider's own credit line is passed through untouched above (it
-        // is a licence condition); this is FRAME's own sentence about its
-        // absence, so it is translated. The variable name is not.
+      {isAttributionMissing() ? (
+        // Only when a provider's style was configured without their credit
+        // beside it. The credit itself is passed through untouched above (it is
+        // a licence condition); this is FRAME's own sentence about its absence,
+        // so it is translated. The variable name is not.
         <p className="mt-2 text-meta text-muted">
           {t.rich('attribution.missing', {
             variable: MAP_ATTRIBUTION_ENV_VAR,
             code: (chunks) => <code className="font-mono font-semibold">{chunks}</code>,
           })}
         </p>
-      )}
+      ) : null}
     </div>
   );
 }

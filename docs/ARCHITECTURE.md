@@ -205,7 +205,7 @@ capabilities() // { database, auth, uploads, maps, demoMode }
 | `database` | `NEXT_PUBLIC_SUPABASE_URL` + publishable key | The demo dataset answers reads; every write refuses with `NOT_CONFIGURED_MESSAGE` |
 | `auth` | the same two variables | `getViewer()` returns `null`; the viewer is permanently signed out |
 | `uploads` | `database` and `STORAGE_PROVIDER` | Refused, with the missing variable named |
-| `maps` | `NEXT_PUBLIC_MAP_STYLE_URL` | Map surfaces render `MapUnavailable`; no tile request is made |
+| `maps` | nothing — FRAME serves its own basemap; `NEXT_PUBLIC_MAP_STYLE_URL=off` is the opt-out | Map surfaces render `MapUnavailable`; no tile request is made |
 
 ### Why the UI is required to admit a missing capability
 
@@ -408,19 +408,31 @@ is not.
 
 [`src/components/map/map-style.ts`](../src/components/map/map-style.ts) holds
 every assumption FRAME makes about a map provider: the style URL, the
-attribution, the camera defaults, the cluster configuration and the layer
-paint. Nothing outside that module names a tile host or a colour.
+attribution, the camera defaults, the cluster configuration and the paint of the
+pins. [`src/lib/map/basemap.ts`](../src/lib/map/basemap.ts) holds the map under
+them. Nothing outside those two modules names a tile host or a colour.
 
-Two rules shape it:
+Three rules shape them:
 
-1. **There is no default style URL.** MapLibre's demo tiles are licensed for
-   evaluation only, so shipping them as a fallback would put every deployment
-   in breach on first load. Without `NEXT_PUBLIC_MAP_STYLE_URL`, every map
-   surface renders [`MapUnavailable`](../src/components/map/MapUnavailable.tsx),
-   which names the variable, points at
-   [`docs/EXTERNAL-SERVICES.md`](EXTERNAL-SERVICES.md) and offers the location
-   list, which does the same job without a map.
-2. **Attribution is a licence condition, not a courtesy.** The configured
+1. **The default is a basemap of FRAME's own.** MapLibre's demo tiles are
+   licensed for evaluation only, so shipping them as a fallback would put every
+   deployment in breach on first load — but shipping no map at all meant every
+   deployment without a tile subscription showed an apology where its map
+   should be. `basemap.ts` builds a complete style instead: land, water,
+   planting, buildings, the street grid, boundaries and labels, over
+   OpenFreeMap's planet-wide tiles, which need no account and no key.
+   `src/app/basemap/[variant]/route.ts` serves it, prerendered, at one URL per
+   theme and language. `NEXT_PUBLIC_MAP_STYLE_URL` still replaces it with a
+   provider's own style, and the value `off` draws no map at all — the case
+   [`MapUnavailable`](../src/components/map/MapUnavailable.tsx) is now for.
+2. **The map follows the interface.** The basemap exists in a light and a dark
+   palette, mirrored from the `@theme` tokens in `globals.css`, and with labels
+   in English or Thai. `useResolvedTheme()` and the active locale choose the
+   variant, and a change to either rebuilds the map with its camera carried
+   across — a style document cannot be recoloured in place.
+3. **Attribution is a licence condition, not a courtesy.** The built-in
+   basemap's credit arrives in its TileJSON and MapLibre prints it unprompted,
+   so FRAME adds no second copy. For a configured provider, the configured
    attribution is handed to MapLibre's own control, and its absence is stated
    in the interface rather than ignored.
 

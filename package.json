@@ -2,7 +2,7 @@
   "name": "frame",
   "version": "0.1.0",
   "private": true,
-  "description": "FRAME — a street photography community. Discover places. Capture moments.",
+  "description": "FRAME \u2014 a street photography community. Discover places. Capture moments.",
   "license": "MIT",
   "engines": {
     "node": ">=22"
@@ -13,7 +13,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "check:map-style": "node scripts/assert-map-style.mjs"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.4.1",
@@ -39,6 +40,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^26.4.4",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",

@@ -337,19 +337,29 @@ during the build.
 `next.config.mjs` is on the do-not-modify list for this project. If you need a
 fourth host permanently, that is a change to discuss rather than a local edit.
 
-### The map shows a panel saying no style URL is configured
+### The map shows a panel instead of a map
 
-That is the intended behaviour with `NEXT_PUBLIC_MAP_STYLE_URL` unset. FRAME
-ships no default style on purpose: the demo tile endpoints in MapLibre's
-examples are for evaluation only, and defaulting to one would put every
-deployment in breach of someone's terms on day one.
+With `NEXT_PUBLIC_MAP_STYLE_URL` unset there should be a map: FRAME serves its
+own basemap and needs no provider. A panel in its place means one of three
+things.
 
-Pick a provider, read its terms, paste its style URL, and set
-`NEXT_PUBLIC_MAP_ATTRIBUTION` to the wording that provider requires. Then
-rebuild — it is a `NEXT_PUBLIC_` variable, and the map is a client component.
+The variable is set to `off`, which is the switch that turns maps off
+deliberately. Unset it to get the basemap back.
 
-If the panel persists with the variable set, the value almost certainly reached
-the server only. See the first troubleshooting entry.
+The variable is set to a provider's style URL that is not loading — a wrong key,
+a referrer restriction, or a URL that 404s. The browser console carries
+MapLibre's own error.
+
+Or the value reached the server only. It is a `NEXT_PUBLIC_` variable and the
+map is a client component, so the build has to see it. See the first
+troubleshooting entry.
+
+### The map's palette does not match the page
+
+The basemap exists per theme, and the browser caches each style document for an
+hour in production. A theme change inside the page swaps it immediately; a
+palette you have just edited and deployed can take that hour to reach a
+returning visitor. Development is served `no-store`, so an edit shows on reload.
 
 A different message — *"The map could not be loaded"* — means the opposite: the
 variable arrived and the style did not. A wrong URL, a revoked or

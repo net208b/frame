@@ -4,7 +4,11 @@ import { Monitor, Moon, Sun } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useSyncExternalStore, type ComponentType } from 'react';
 
-import { THEME_STORAGE_KEY, type ThemeChoice } from '@/components/system/ThemeScript';
+import {
+  THEME_CHANGE_EVENT,
+  THEME_STORAGE_KEY,
+  type ThemeChoice,
+} from '@/components/system/ThemeScript';
 import { cn } from '@/lib/utils';
 
 /**
@@ -39,18 +43,9 @@ const ICONS: Record<ThemeChoice, ComponentType<{ className?: string; 'aria-hidde
   system: Monitor,
 };
 
-/**
- * Lets the two mounted instances — the header and the mobile panel — stay in
- * step. They are never visible at the same time, but they are both mounted at
- * all times, so without this the hidden one carries a stale accessible name
- * until the next navigation and is wrong the moment the viewport crosses the
- * breakpoint. It is also what makes the external store above re-read.
- */
-const CHANGE_EVENT = 'frame:themechange';
-
 function subscribe(onStoreChange: () => void): () => void {
-  window.addEventListener(CHANGE_EVENT, onStoreChange);
-  return () => window.removeEventListener(CHANGE_EVENT, onStoreChange);
+  window.addEventListener(THEME_CHANGE_EVENT, onStoreChange);
+  return () => window.removeEventListener(THEME_CHANGE_EVENT, onStoreChange);
 }
 
 /** What is applied right now, read from the element that applies it. */
@@ -135,7 +130,7 @@ function applyChoice(choice: ThemeChoice) {
     // take, and a toast about storage permissions on a theme switch is noise.
   }
 
-  window.dispatchEvent(new CustomEvent(CHANGE_EVENT));
+  window.dispatchEvent(new CustomEvent(THEME_CHANGE_EVENT));
 }
 
 export function ThemeToggle({ className }: { className?: string }) {

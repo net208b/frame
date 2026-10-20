@@ -17,8 +17,9 @@ numbers. What will not drift is which lever reduces which cost, and that is the
 part worth reading.
 
 **Map tiles are the one dependency where the wrong choice is a licence problem
-rather than a bill.** Read that section before you set
-`NEXT_PUBLIC_MAP_STYLE_URL`.
+rather than a bill.** FRAME now ships a basemap of its own that is licensed for
+this use, so a deployment draws a map without configuring anything. Read that
+section before you replace it with `NEXT_PUBLIC_MAP_STYLE_URL`.
 
 ---
 
@@ -184,11 +185,25 @@ Read this section in full before setting `NEXT_PUBLIC_MAP_STYLE_URL`. It is the
 one place where a convenient default would make your deployment somebody else's
 problem.
 
-**FRAME ships no default style URL, deliberately.** `isMapConfigured()` in
-`src/lib/config.ts` returns false when the variable is unset, and `/map` and
-every location map render a panel saying that no style is configured. Nothing is
-requested from any tile server. That is the designed behaviour of an
-unconfigured deployment, not a bug to work around.
+**FRAME draws its own basemap, and that is the default.** `src/lib/map/basemap.ts`
+builds a complete MapLibre style — land, water, planting, buildings, the street
+grid, boundaries and labels, in a light and a dark palette taken from the same
+tokens as the interface, with labels in English or Thai — and
+`src/app/basemap/[variant]/route.ts` serves it at `/basemap/light-en` and its
+three siblings. The tiles under it come from **OpenFreeMap**, which serves a
+planet-wide OpenMapTiles basemap with no account, no API key and no quota,
+funded by donation. Its credit reaches the map on its own: the TileJSON carries
+an `attribution`, and MapLibre's attribution control prints it without being
+told. Nothing has to be configured for any of this, and nothing in it costs
+money.
+
+Two things follow that are worth knowing before you rely on it. It is a
+community-funded service with no service-level agreement, so a deployment that
+needs a contractual guarantee should point the variable at a provider that sells
+one. And it is a third party: a browser that loads a FRAME map requests tiles
+from `tiles.openfreemap.org`. A deployment that will not call a host it has not
+chosen can set `NEXT_PUBLIC_MAP_STYLE_URL=off`, which draws no map at all and
+falls back to the location list everywhere a map would have been.
 
 **The public demo tile servers are for evaluation only and must not be used in
 production.** The `demotiles` endpoints that appear in MapLibre's examples, and
@@ -196,11 +211,11 @@ the raster tiles from OpenStreetMap's own servers, exist so you can try a
 library. They are not production infrastructure, their operators say so, and
 pointing a public site at them is a terms violation and a cost imposed on a
 volunteer-funded project. There is no polite traffic level at which this becomes
-acceptable. FRAME will not fall back to one silently, which is why the variable
-has no default.
+acceptable. This is why the default above is a basemap FRAME is entitled to
+serve rather than the nearest convenient endpoint.
 
-**You have to choose a provider and read its terms.** The shape of the market,
-without an endorsement:
+**If you replace it, you have to read the new provider's terms.** The shape of
+the market, without an endorsement:
 
 - **Hosted vector tiles with a key.** Several providers sell a MapLibre-ready
   style JSON with a free tier measured in map loads or tile requests per month.
@@ -218,13 +233,19 @@ without an endorsement:
 **Attribution is a licence condition, not a design decision.** Essentially every
 usable basemap derives from OpenStreetMap, whose licence requires crediting
 `© OpenStreetMap contributors`, and your provider will require its own line
-alongside. `NEXT_PUBLIC_MAP_ATTRIBUTION` exists for exactly this, the value is
-handed to MapLibre's own attribution control, and the exact wording comes from
-your provider's documentation rather than from this file. An unattributed map is
-a licence breach even when it works perfectly.
+alongside. The built-in basemap needs nothing from you here — its credit travels
+in the TileJSON, which is why FRAME adds no second copy of it; a style-level
+attribution would print beside the provider's rather than instead of it, and the
+map would carry the same credit twice. A provider you configure yourself is the
+case `NEXT_PUBLIC_MAP_ATTRIBUTION` exists for: the value is handed to MapLibre's
+own attribution control, the exact wording comes from that provider's
+documentation rather than from this file, and a configured style URL with no
+attribution beside it makes every map say so in the interface. An unattributed
+map is a licence breach even when it works perfectly.
 
-**Which limit bites first.** Map loads, not tiles — most providers count a map
-initialisation. FRAME's map is a client component rendered on `/map` and in a
+**Which limit bites first.** Only once you are paying a provider: the built-in
+basemap has no limit to bite. Then it is map loads, not tiles — most providers
+count a map initialisation. FRAME's map is a client component rendered on `/map` and in a
 low-interaction, single-pin form on location and photograph pages, so a visitor
 who browses several places initialises several maps. If you are close to a
 free-tier ceiling, that is the number to model.
@@ -282,18 +303,29 @@ each driver, so a new driver inherits them: `parseStorageKey()` rejects any key
 that is not `owner/photograph/variant`, and `assertSignableUpload()` refuses to
 sign a derivative as the wrong media type or a grant above the policy ceiling.
 
-**The map sits behind the map-style module.** Everything the application assumes
-about a tile provider is in `src/components/map/map-style.ts`: the two variable
-names, the `mapStyleUrl()` and `mapAttribution()` readers, the camera defaults,
-the source and layer ids, and the paint. Nothing outside that module names a
-tile host, a glyph set or a paint colour, and `isMapConfigured()` is the single
-question the rest of the UI asks.
+**The map sits behind two modules.** Everything the application assumes about a
+tile provider is in `src/components/map/map-style.ts`: the two variable names,
+the `mapStyleUrl()` and `mapAttribution()` readers, the camera defaults, the
+source and layer ids, and the paint of the pins. `src/lib/map/basemap.ts` holds
+the default basemap itself — the only place that names a tile host, a glyph set
+or a basemap colour — and the components under `src/components/map/` read both
+through those two modules alone. `isMapConfigured()` is the single question the
+rest of the UI asks, and it now means "maps are switched on" rather than "a
+provider has been configured".
 
 So changing provider is changing two environment variables —
 `NEXT_PUBLIC_MAP_STYLE_URL` and `NEXT_PUBLIC_MAP_ATTRIBUTION` — and rebuilding
-so the new values reach the browser bundle. Anything beyond that, such as a
-different clustering strategy or pin rendering, is a change to that one module
-and the components under `src/components/map/` that consume it.
+so the new values reach the browser bundle. A provider's style replaces FRAME's
+basemap wholesale, including its two themes and its bilingual labels, so expect
+the map to stop following the interface's theme unless that provider offers a
+style per theme and you pick one. Anything beyond that, such as a different
+clustering strategy or pin rendering, is a change to those modules and the
+components that consume them.
+
+Editing the basemap itself is a change to `src/lib/map/basemap.ts` alone. Run
+`npm run build && npm run check:map-style` after one: an invalid layer is not a
+build error, and MapLibre's response to one is to drop that layer at runtime and
+draw the rest.
 
 **What is not swappable by configuration.** Supabase is the database, the auth
 provider and the RLS enforcement point all at once, and the repository layer

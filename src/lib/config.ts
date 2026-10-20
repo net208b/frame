@@ -78,14 +78,30 @@ export function isDemoMode(): boolean {
 }
 
 /**
- * A map needs a style URL from a provider whose terms allow this traffic.
- * We deliberately do not ship a default public tile server: the demo.tiles
- * endpoints that MapLibre's examples use are for evaluation only, and quietly
- * shipping them would push the project into a terms violation on first launch.
+ * The one value of `NEXT_PUBLIC_MAP_STYLE_URL` that is not a style URL: it
+ * switches the map off instead of replacing it. Declared here rather than
+ * beside the map code because `isMapConfigured` below is what reads it, and the
+ * map modules import this one, not the other way round.
+ */
+export const MAP_DISABLED = 'off';
+
+/**
+ * Whether a map may be drawn at all.
+ *
+ * It normally may. FRAME serves its own basemap style over tiles it is licensed
+ * to use (`src/lib/map/basemap.ts`), so a deployment needs no tile subscription
+ * and no API key to show a map — which is why this no longer asks whether a
+ * provider has been configured. What it asks is whether the operator has turned
+ * maps off, by setting the style variable to the one value that means that.
+ *
+ * An operator might: the basemap's tiles come from a third party, and a
+ * deployment that will not call a host it did not choose should be able to say
+ * so and fall back to the location list. Pointing the variable at a provider's
+ * own style instead replaces FRAME's basemap and still draws a map.
  * See docs/EXTERNAL-SERVICES.md.
  */
 export function isMapConfigured(): boolean {
-  return Boolean(publicEnv().mapStyleUrl);
+  return publicEnv().mapStyleUrl !== MAP_DISABLED;
 }
 
 export interface Capabilities {
