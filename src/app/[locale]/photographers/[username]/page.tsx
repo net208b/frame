@@ -11,11 +11,9 @@ import { ProfileHeader } from '@/components/photographer/ProfileHeader';
 import { ProfileStats } from '@/components/photographer/ProfileStats';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
-import { LOCALES, type Locale } from '@/i18n/locales';
 import {
   getCollections,
   getPhotographer,
-  getPhotographerUsernames,
   getPortfolio,
 } from '@/lib/data/repository';
 import { buildMetadata } from '@/lib/seo';
@@ -43,13 +41,27 @@ const loadProfile = cache(async (username: string) => {
   return { photographer, portfolio, collections };
 });
 
-/** Every member profile in every language. */
-export async function generateStaticParams(): Promise<
-  Array<{ locale: Locale; username: string }>
-> {
-  const usernames = await getPhotographerUsernames();
-  return LOCALES.flatMap((locale) => usernames.map((username) => ({ locale, username })));
-}
+/**
+ * Rendered on demand, never prerendered.
+ *
+ * Every read in this route goes through the cookie-bound Supabase client, so
+ * row-level security answers as whoever is reading rather than as the public.
+ * That makes `cookies()` part of loading the page, whether or not anything on
+ * it differs between two viewers.
+ *
+ * A dynamic segment with `generateStaticParams` serves an address that was not
+ * in that list by rendering it once and caching the result, and a cached
+ * render may not read cookies — Next.js raises DYNAMIC_SERVER_USAGE and the
+ * request becomes a 500. Which is to say: with a database behind it, this page
+ * returned 500 for anything published since the last deployment, and a
+ * missing member returned 500 instead of its not-found page.
+ *
+ * So the route says plainly that it is dynamic, and `generateStaticParams` is
+ * gone rather than left to look like it still prerenders something. Putting it
+ * back without first moving the per-viewer parts behind their own boundary
+ * brings the 500 back with it.
+ */
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: ProfilePageProps): Promise<Metadata> {
   const { locale, username } = await readLocaleParams(params);

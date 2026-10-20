@@ -1,4 +1,5 @@
 import { serverEnv } from '@/lib/config';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import {
@@ -98,6 +99,66 @@ export function supabaseStorageDriver(): StorageDriver {
         throw new StorageRequestError('Supabase Storage refused to delete those objects.', {
           cause: error,
         });
+      }
+
+      /*
+       * "No error" does not mean "deleted". Storage applies the bucket's RLS
+       * policies to a delete, and an object the policy does not let this member
+       * delete is not refused — it is simply left out, and the call succeeds
+       * with nothing removed. Without the delete policy (migration 0008), every
+       * removal here would report success and leave the files publicly
+       * reachable; deleting an account would then tell a member their
+       * photographs were gone while their old addresses still served them.
+       * That is not hypothetical: it is what happened, in a local test, before
+       * this check existed.
+       *
+       * So the folders are listed afterwards and any key still there is an
+       * error. The response's own list of deleted objects cannot answer this:
+       * a key that never existed is absent from it too, and a draft has no
+       * derivatives yet.
+       *
+       * The listing uses the service role, which RLS does not filter. Listed
+       * as the member, it would go through the read policy, and a bucket
+       * missing that too would list as empty and pass — the same false success
+       * one step later. This is the one read in the app that has to see past
+       * the policies, because its whole job is to check what they did; it
+       * reads, and writes nothing. Without a service-role key the member's own
+       * client is used, and the log says the check is weaker.
+       */
+      let verifier: typeof supabase = supabase;
+      try {
+        verifier = createAdminClient();
+      } catch {
+        console.warn(
+          'FRAME storage: no service-role key, so deletions are confirmed through the read policy and cannot see past it. Set SUPABASE_SERVICE_ROLE_KEY.',
+        );
+      }
+
+      const byFolder = new Map<string, Set<string>>();
+      for (const key of keys) {
+        const parsed = parseStorageKey(key);
+        if (!parsed) continue;
+        const folder = `${parsed.ownerId}/${parsed.photographId}`;
+        const leaves = byFolder.get(folder) ?? new Set<string>();
+        leaves.add(parsed.leaf);
+        byFolder.set(folder, leaves);
+      }
+
+      for (const [folder, leaves] of byFolder) {
+        const { data: listed, error: listError } = await verifier.storage
+          .from(bucket)
+          .list(folder, { limit: 100 });
+        if (listError !== null) {
+          throw new StorageRequestError(`Could not confirm the objects in ${folder} were deleted.`, {
+            cause: listError,
+          });
+        }
+        const remaining = (listed ?? []).filter((object) => leaves.has(object.name));
+        if (remaining.length > 0) {
+          throw new StorageRequestError(
+            `Supabase Storage reported ${folder} deleted, but ${remaining.length} object(s) remain. Check the bucket's delete policy.`,
+          );
+        }
       }
     },
   };

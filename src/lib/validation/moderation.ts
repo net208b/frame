@@ -63,6 +63,7 @@ export const MODERATION_DECISION_MESSAGE_KEYS: Record<ModerationDecision, string
   remove_content: 'decision.remove_content',
   suspend_account: 'decision.suspend_account',
   dismiss: 'decision.dismiss',
+  change_role: 'decision.change_role',
 };
 
 const decisions = Object.keys(MODERATION_DECISION_MESSAGE_KEYS) as [

@@ -49,14 +49,34 @@ jobs:
       # the behaviour a check wants.
       - run: npm ci
 
+      # The Join form and handle_new_user() each keep a list of reserved
+      # usernames, and a name missing from either can be taken through it.
+      # Seconds to run, and the only thing that keeps the two in step.
+      - name: Reserved usernames match the trigger
+        run: node scripts/assert-reserved-usernames.mjs
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
+      # The log is kept because the step below reads it: next build's own route
+      # summary is the only place the render mode of each route is reported.
       - name: Build
-        run: npm run build
+        # The default shell has no pipefail, so without this a failed build
+        # would be hidden by tee's own exit status.
+        run: |
+          set -o pipefail
+          npm run build | tee build.log
+
+      # Four routes read the request's cookies and must therefore be rendered on
+      # demand. Prerendering any of them returns 500 for every address published
+      # since the last deployment, which no other check here would notice: this
+      # job builds in demo mode, where nothing reads a cookie and the mistake is
+      # invisible until it reaches a deployment with a database.
+      - name: Confirm the cookie-reading routes are still dynamic
+        run: ./scripts/assert-dynamic-routes.sh build.log
 
   # ---------------------------------------------------------------------------
   # The database guarantees in supabase/tests.

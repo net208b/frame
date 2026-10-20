@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { DuplicateLocationQueue } from '@/components/moderation/DuplicateLocationQueue';
 import {
+  ADMIN_ONLY_QUEUES,
   DEFAULT_QUEUE,
   isQueueKey,
   QueueTabs,
@@ -12,11 +13,12 @@ import { RecentActions } from '@/components/moderation/RecentActions';
 import { ReportQueue } from '@/components/moderation/ReportQueue';
 import { SubmissionQueue } from '@/components/moderation/SubmissionQueue';
 import { SuspiciousUploadQueue } from '@/components/moderation/SuspiciousUploadQueue';
+import { TeamPanel } from '@/components/moderation/TeamPanel';
 import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Eyebrow } from '@/components/ui/SectionHead';
-import { getViewer, isModerator, requireModerator } from '@/lib/auth';
+import { getViewer, isAdmin, isModerator, requireModerator } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
-import { getMapPins, getModerationQueues } from '@/lib/data/repository';
+import { getMapPins, getModerationQueues, getStaffMembers } from '@/lib/data/repository';
 
 /**
  * The moderation dashboard.
@@ -36,6 +38,10 @@ import { getMapPins, getModerationQueues } from '@/lib/data/repository';
  * and counts on these rows are formatted in the reader's language, which is the
  * part of a translation that is easiest to leave half-done.
  */
+
+// Staff pages are per-viewer and change with every decision: never served
+// from a prerendered copy or a cache.
+export const dynamic = 'force-dynamic';
 
 /** Takes the first value, because `?queue=a&queue=b` is one choice, not two. */
 function firstValue(value: string | string[] | undefined): string | undefined {
@@ -72,8 +78,13 @@ export default async function ModerationPage({
   const locationSlugById: Record<string, string> = {};
   for (const pin of pins) locationSlugById[pin.id] = pin.slug;
 
+  // The team tab belongs to administrators. Anyone else who asks for it by URL
+  // gets the default queue, exactly as for a queue name that does not exist.
+  const admin = isAdmin(viewer);
   const requested = firstValue(resolved.queue);
-  const active: QueueKey = isQueueKey(requested) ? requested : DEFAULT_QUEUE;
+  const active: QueueKey =
+    isQueueKey(requested) && (admin || !ADMIN_ONLY_QUEUES.has(requested)) ? requested : DEFAULT_QUEUE;
+  const staff = active === 'team' ? await getStaffMembers() : [];
 
   const counts: Record<QueueKey, number> = {
     submissions: queues.submissions.length,
@@ -81,6 +92,7 @@ export default async function ModerationPage({
     uploads: queues.suspiciousUploads.length,
     duplicates: queues.possibleDuplicates.length,
     actions: queues.recentActions.length,
+    team: staff.length,
   };
 
   const outstanding = counts.submissions + counts.reports + counts.uploads;
@@ -121,7 +133,13 @@ export default async function ModerationPage({
         />
       </header>
 
-      <QueueTabs locale={locale} active={active} counts={counts} className="mt-9" />
+      <QueueTabs
+        locale={locale}
+        active={active}
+        counts={counts}
+        showAdminQueues={admin}
+        className="mt-9"
+      />
 
       <div className="pt-9">
         {active === 'submissions' && (
@@ -145,6 +163,9 @@ export default async function ModerationPage({
           <DuplicateLocationQueue locale={locale} pairs={queues.possibleDuplicates} />
         )}
         {active === 'actions' && <RecentActions locale={locale} actions={queues.recentActions} />}
+        {active === 'team' && admin && (
+          <TeamPanel locale={locale} staff={staff} viewerId={viewer?.id ?? null} />
+        )}
       </div>
     </div>
   );

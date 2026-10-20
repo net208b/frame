@@ -186,19 +186,20 @@ by design — `handle_new_user()` always inserts `'member'` and a guard trigger
 refuses a self-promotion even for an admin. The statement is in
 `supabase/README.md`; run it as `postgres` from the SQL editor.
 
-### 4. Create the storage bucket and its policies
+### 4. Check the storage bucket and its policies
 
-The local stack creates the bucket from `supabase/config.toml`. A hosted project
-does not. Run the `insert into storage.buckets …` statement from
-`supabase/README.md`, which sets:
+`supabase db push` in step 2 applied `0008_storage.sql`, which creates the
+bucket and its policies; there is nothing to run by hand here. It is worth
+knowing what that migration put there, because the upload path depends on all
+of it. The bucket is created with:
 
 - `public = true`, because every derivative is served straight to a browser from
   a public photograph page,
 - `file_size_limit = 26214400` (25 MiB), matching `UPLOAD_POLICY.maxFileBytes`,
 - `allowed_mime_types` matching `UPLOAD_POLICY.acceptedMimeTypes`.
 
-Then apply the four storage policies from the same file: public read, and
-insert, update and delete restricted to `(storage.foldername(name))[1] =
+The same migration creates four policies on `storage.objects`: public read,
+and insert, update and delete restricted to `(storage.foldername(name))[1] =
 auth.uid()::text`. Storage keys are `<owner_id>/<photograph_id>/<variant>`, and
 `/api/uploads/sign` derives the owner segment from the session rather than from
 the request, so that prefix rule and the endpoint agree on who may write where.
@@ -256,6 +257,12 @@ While you are there, set **minimum password length to 10** to match
 `@/lib/validation/auth` and `supabase/config.toml`. If the two disagree, a form
 will accept a password that the auth service then refuses, and the member is
 told two different things.
+
+Signing in with Google, Apple, Facebook or X needs no extra entry here: every
+provider returns to the bare `/auth/callback`, which the list above already
+covers. Each provider does need its own setup in that company's developer
+console, and migration 0009 applied before any of them is switched on —
+[`SOCIAL-SIGN-IN.md`](SOCIAL-SIGN-IN.md) has both.
 
 ### 6. Add the image host to the remote patterns
 

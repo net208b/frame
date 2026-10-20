@@ -5,6 +5,7 @@ import { cache } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CaptureSpecs } from '@/components/photo-detail/CaptureSpecs';
+import { DeletePhotograph } from '@/components/photo-detail/DeletePhotograph';
 import { EditingNotes } from '@/components/photo-detail/EditingNotes';
 import { LocationPanel } from '@/components/photo-detail/LocationPanel';
 import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
@@ -13,7 +14,6 @@ import { PhotoStage } from '@/components/photo-detail/PhotoStage';
 import { RelatedStrip } from '@/components/photo-detail/RelatedStrip';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Notice } from '@/components/ui/states';
-import { LOCALES, type Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { getViewer, isModerator } from '@/lib/auth';
 import {
@@ -21,7 +21,6 @@ import {
   getMoreByPhotographer,
   getPhotograph,
   getPhotographer,
-  getPhotographSlugs,
   getPhotographsAtSameLocation,
 } from '@/lib/data/repository';
 import { buildMetadata, photographJsonLd } from '@/lib/seo';
@@ -37,17 +36,6 @@ import type { PublicationStatus } from '@/types/domain';
  * pinned — a tall portrait frame and a sticky sidebar fight each other, and the
  * photograph wins that argument every time.
  */
-
-/**
- * Five minutes.
- *
- * Appreciation totals move on their own, and `toggleAppreciation` revalidates
- * this path when a member changes one, so a short window is only a backstop. It
- * applies where the page can actually be cached: a deployment with a database
- * reads per-viewer appreciation state through the request's cookies, which
- * makes this route dynamic whatever this number says.
- */
-export const revalidate = 300;
 
 interface PageProps {
   params: LocaleParams<{ slug: string }>;
@@ -82,14 +70,26 @@ const STATUS_NOTE_KEY: Record<PublicationStatus, string | null> = {
 };
 
 /**
- * Every published photograph in every language. The locale is part of the
- * returned params rather than inherited, so this list stays correct whether or
- * not the locale layout above also enumerates them.
+ * Rendered on demand, never prerendered.
+ *
+ * Every read in this route goes through the cookie-bound Supabase client, so
+ * row-level security answers as whoever is reading rather than as the public.
+ * That makes `cookies()` part of loading the page, whether or not anything on
+ * it differs between two viewers.
+ *
+ * A dynamic segment with `generateStaticParams` serves an address that was not
+ * in that list by rendering it once and caching the result, and a cached
+ * render may not read cookies — Next.js raises DYNAMIC_SERVER_USAGE and the
+ * request becomes a 500. Which is to say: with a database behind it, this page
+ * returned 500 for anything published since the last deployment, and a
+ * missing photograph returned 500 instead of its not-found page.
+ *
+ * So the route says plainly that it is dynamic, and `generateStaticParams` is
+ * gone rather than left to look like it still prerenders something. Putting it
+ * back without first moving the per-viewer parts behind their own boundary
+ * brings the 500 back with it.
  */
-export async function generateStaticParams(): Promise<Array<{ locale: Locale; slug: string }>> {
-  const slugs = await getPhotographSlugs();
-  return LOCALES.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
-}
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { locale, slug } = await readLocaleParams(params);
@@ -218,20 +218,31 @@ export default async function PhotographPage({ params }: PageProps) {
           <LocationPanel summary={photo.location} detail={locationDetail} />
           <PhotographerPanel photographer={photo.photographer} profile={photographerProfile} />
 
-          <div className="border-t border-line pt-6">
-            <p className="text-meta leading-relaxed text-muted">{t('reportCta.intro')}</p>
-            <ReportDialog
-              subjectType="photograph"
-              subjectId={photo.id}
-              subjectLabel={t('reportCta.subject', {
-                title: photo.title,
-                photographer: photo.photographer.displayName,
-              })}
-              triggerLabel={t('reportCta.trigger')}
-              triggerVariant="secondary"
-              className="mt-3"
-            />
-          </div>
+          {/* The owner manages their own work here; reporting it is for everyone else. */}
+          {isOwner ? (
+            <div className="border-t border-line pt-6">
+              <DeletePhotograph
+                photographId={photo.id}
+                title={photo.title}
+                ownerUsername={photo.photographer.username}
+              />
+            </div>
+          ) : (
+            <div className="border-t border-line pt-6">
+              <p className="text-meta leading-relaxed text-muted">{t('reportCta.intro')}</p>
+              <ReportDialog
+                subjectType="photograph"
+                subjectId={photo.id}
+                subjectLabel={t('reportCta.subject', {
+                  title: photo.title,
+                  photographer: photo.photographer.displayName,
+                })}
+                triggerLabel={t('reportCta.trigger')}
+                triggerVariant="secondary"
+                className="mt-3"
+              />
+            </div>
+          )}
         </div>
       </article>
 

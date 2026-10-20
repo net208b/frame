@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import Image from 'next/image';
+import type { ReactNode } from 'react';
 
 import { DecisionForm, type DecisionOption } from '@/components/moderation/DecisionForm';
 import { QueueCapNote } from '@/components/moderation/QueueTabs';
@@ -10,7 +11,7 @@ import { EmptyState } from '@/components/ui/states';
 import { INTL_LOCALES, type Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { formatDate, formatRelative } from '@/lib/utils';
-import type { SuspiciousUpload } from '@/types/domain';
+import type { SuspiciousUpload, UploadReviewDetails } from '@/types/domain';
 
 /**
  * Uploads held for review.
@@ -103,16 +104,26 @@ async function UploadRow({ locale, upload }: { locale: Locale; upload: Suspiciou
     <li className="border-b border-line py-7 last:border-b-0">
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_minmax(0,23rem)]">
         <div className="flex min-w-0 gap-5">
-          <Image
-            src={upload.thumbUrl}
-            // SuspiciousUpload carries no alt text, so this names what the
-            // image is rather than claiming to describe what is in it.
-            alt={t('uploads.thumbAlt', { title: upload.title })}
-            width={160}
-            height={160}
-            sizes="160px"
-            className="size-20 shrink-0 rounded-media border border-line object-cover sm:size-[120px]"
-          />
+          {/* The larger size opens in a new tab: a reviewer has to be able to
+              look closely, and a 120px square hides most of what matters. */}
+          <a
+            href={upload.details?.displayUrl ?? upload.thumbUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 self-start"
+            aria-label={t('uploads.openLarge', { title: upload.title })}
+          >
+            <Image
+              src={upload.thumbUrl}
+              // Named rather than described: the member's own alt text is shown
+              // below as something to check, not trusted as a description.
+              alt={t('uploads.thumbAlt', { title: upload.title })}
+              width={320}
+              height={320}
+              sizes="(min-width: 640px) 200px, 112px"
+              className="size-28 rounded-media border border-line object-cover sm:size-[200px]"
+            />
+          </a>
 
           <div className="min-w-0">
             <h3 className="text-title font-bold">{upload.title}</h3>
@@ -150,6 +161,10 @@ async function UploadRow({ locale, upload }: { locale: Locale; upload: Suspiciou
                 })}
               </span>
             </p>
+
+            {upload.details ? (
+              <UploadDetails locale={locale} details={upload.details} />
+            ) : null}
 
             {upload.signals.length > 0 ? (
               <ul className="mt-4 flex flex-col gap-2">
@@ -194,5 +209,76 @@ async function UploadRow({ locale, upload }: { locale: Locale; upload: Suspiciou
         </div>
       </div>
     </li>
+  );
+}
+
+/**
+ * What the member entered, laid out for checking against the image: does the
+ * title fit, does the alt text describe what is there, is the place plausible,
+ * do the settings look like a real exposure. Empty fields say so rather than
+ * disappearing, because "no description" is itself something to notice.
+ */
+async function UploadDetails({ locale, details }: { locale: Locale; details: UploadReviewDetails }) {
+  const t = await getTranslations({ locale, namespace: 'moderation' });
+  const intlLocale = INTL_LOCALES[locale];
+  const none = <span className="text-muted-soft">{t('uploads.details.none')}</span>;
+
+  const settings = [
+    details.focalLengthMm !== null ? `${details.focalLengthMm} mm` : null,
+    details.aperture !== null ? `ƒ/${details.aperture}` : null,
+    details.shutterSpeed ? `${details.shutterSpeed} s` : null,
+    details.iso !== null ? `ISO ${details.iso}` : null,
+  ].filter(Boolean);
+
+  const rows: Array<{ key: string; value: ReactNode }> = [
+    { key: 'description', value: details.description ?? none },
+    { key: 'altText', value: details.altText ?? none },
+    { key: 'category', value: details.category ?? none },
+    {
+      key: 'location',
+      value: details.location ? (
+        details.location.slug ? (
+          <Link
+            href={`/locations/${details.location.slug}`}
+            className="underline decoration-line-strong underline-offset-2 hover:decoration-ink"
+          >
+            {details.location.name}
+          </Link>
+        ) : (
+          details.location.name
+        )
+      ) : (
+        none
+      ),
+    },
+    { key: 'camera', value: details.camera ?? none },
+    { key: 'lens', value: details.lens ?? none },
+    { key: 'settings', value: settings.length > 0 ? settings.join(' · ') : none },
+    {
+      key: 'capturedAt',
+      value: details.capturedAt ? (formatDate(details.capturedAt, intlLocale) ?? details.capturedAt) : none,
+    },
+    {
+      key: 'editing',
+      value:
+        details.editingSoftware || details.editingNotes
+          ? [details.editingSoftware, details.editingNotes].filter(Boolean).join(' — ')
+          : none,
+    },
+    {
+      key: 'size',
+      value: details.width !== null && details.height !== null ? `${details.width} × ${details.height} px` : none,
+    },
+  ];
+
+  return (
+    <dl className="mt-4 grid gap-x-5 gap-y-2 text-caption sm:grid-cols-[9rem_minmax(0,1fr)]">
+      {rows.map((row) => (
+        <div key={row.key} className="contents">
+          <dt className="font-semibold text-muted">{t(`uploads.details.${row.key}`)}</dt>
+          <dd className="min-w-0 break-words whitespace-pre-line text-ink-soft">{row.value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }

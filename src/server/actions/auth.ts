@@ -3,13 +3,23 @@
 import { createHash } from 'node:crypto';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { fail, ok, type ActionResult } from '@/lib/action-result';
 import { isDemoMode, siteUrl } from '@/lib/config';
+import { enabledSignInProviders } from '@/lib/enabled-sign-in-providers';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { safeNextPath } from '@/lib/safe-redirect';
+import {
+  isSignInProvider,
+  PROVIDER_FLOW_COOKIE,
+  PROVIDER_FLOW_COOKIE_PATH,
+  PROVIDER_FLOW_MAX_AGE_SECONDS,
+  SIGN_IN_PROVIDER_NAMES,
+  writeProviderFlow,
+} from '@/lib/sign-in-providers';
 import { createClient } from '@/lib/supabase/server';
 import { parseForm } from '@/lib/validation';
 import {
@@ -243,6 +253,82 @@ export async function signIn(
   // Validated here as well as in the page: the hidden field is as editable as
   // the query string it came from.
   redirect(safeNextPath(formData.get('next')));
+}
+
+/* ------------------------------------------------------------------------ */
+/* Sign in with another account                                              */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Send the member to Google, Apple, Facebook or X, and back to /auth/callback.
+ *
+ * One action serves signing in and joining alike: the provider decides which it
+ * was, and the identity service creates the account on first use, at which
+ * point `handle_new_user()` gives it a profile like any other. That is why the
+ * buttons carry the same consent sentence on both pages.
+ *
+ * There is no rate limit here, unlike every other action in this file, because
+ * there is nothing to limit. Building the provider's URL makes no request — the
+ * client derives it locally — and writes nothing but two cookies to the
+ * caller's own browser. The step that does work, exchanging the returned code
+ * for a session, happens in /auth/callback against the identity service, which
+ * limits it itself.
+ */
+export async function signInWithProvider(
+  _state: PreviousState,
+  formData: FormData,
+): Promise<ActionResult<void>> {
+  const t = await authMessages();
+
+  if (isDemoMode()) return fail(t('actions.notConfigured'), 'not_configured');
+
+  const provider = formData.get('provider');
+  if (!isSignInProvider(provider)) return fail(t('actions.providerUnknown'), 'validation');
+
+  const name = SIGN_IN_PROVIDER_NAMES[provider];
+
+  // Asked again rather than trusted from the page, which may have been rendered
+  // before somebody switched the provider off.
+  if (!(await enabledSignInProviders()).includes(provider)) {
+    return fail(t('actions.providerUnavailable', { provider: name }), 'forbidden');
+  }
+
+  const next = safeNextPath(formData.get('next'));
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      // The bare callback, matched exactly by the redirect allow-list. The
+      // destination travels in the marker cookie instead — see
+      // PROVIDER_FLOW_COOKIE for why it is kept out of this URL.
+      redirectTo: `${siteUrl()}/auth/callback`,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error || !data.url) {
+    logProviderFailure(
+      `starting a ${name} sign-in`,
+      error?.message ?? 'no authorisation URL was returned',
+      error?.code,
+    );
+    return fail(t('actions.providerFailed', { provider: name }), 'unknown');
+  }
+
+  const cookieStore = await cookies();
+  cookieStore.set(PROVIDER_FLOW_COOKIE, writeProviderFlow({ provider, next }), {
+    httpOnly: true,
+    // Lax, not strict: the request that reads it is a top-level navigation
+    // arriving from the identity service's domain, which a strict cookie
+    // would not accompany.
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: PROVIDER_FLOW_COOKIE_PATH,
+    maxAge: PROVIDER_FLOW_MAX_AGE_SECONDS,
+  });
+
+  redirect(data.url);
 }
 
 /* ------------------------------------------------------------------------ */

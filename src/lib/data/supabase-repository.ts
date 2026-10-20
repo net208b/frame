@@ -37,6 +37,7 @@ import {
   type ReportSubjectType,
   type SubmissionSignal,
   type SubmissionStatus,
+  type StaffMember,
   type SuspiciousUpload,
   type UploadSignal,
 } from '@/types/domain';
@@ -238,6 +239,7 @@ const MODERATION_DECISIONS: readonly ModerationDecision[] = [
   'remove_content',
   'suspend_account',
   'dismiss',
+  'change_role',
 ];
 
 const RESTRICTION_KINDS: readonly LocationRestriction['kind'][] = [
@@ -1809,19 +1811,30 @@ type SuspiciousMetadataColumns = Nullable<
     Tables<'photograph_metadata'>,
     | 'camera_brand_text'
     | 'camera_model_text'
+    | 'lens_brand_text'
+    | 'lens_model_text'
+    | 'focal_length_mm'
+    | 'aperture'
+    | 'shutter_speed'
+    | 'iso'
+    | 'editing_software'
+    | 'editing_notes'
     | 'exif_source'
-    | 'exif_gps_latitude'
-    | 'exif_gps_longitude'
   >
 >;
 
 type SuspiciousLocationColumns = Nullable<
-  Pick<Tables<'locations'>, 'name' | 'latitude' | 'longitude'>
+  Pick<Tables<'locations'>, 'name' | 'slug' | 'latitude' | 'longitude'>
 >;
 
 interface SuspiciousJoined {
   id: string | null;
   title: string | null;
+  description: string | null;
+  alt_text: string | null;
+  category: string | null;
+  captured_at: string | null;
+  publish_captured_at: boolean | null;
   created_at: string | null;
   image_width: number | null;
   image_height: number | null;
@@ -1829,6 +1842,12 @@ interface SuspiciousJoined {
   photograph_images: ImageColumns[] | null;
   photograph_metadata: SuspiciousMetadataColumns | SuspiciousMetadataColumns[] | null;
   locations: SuspiciousLocationColumns | SuspiciousLocationColumns[] | null;
+  photograph_content_checks: ContentCheckColumns | ContentCheckColumns[] | null;
+}
+
+interface ContentCheckColumns {
+  verdict: string | null;
+  note: string | null;
 }
 
 /** How far EXIF may sit from the stated location before it is worth a look. */
@@ -1851,16 +1870,43 @@ async function suspiciousUploads(
     await supabase
       .from('photographs')
       .select(
-        `id, title, created_at, image_width, image_height,
+        `id, title, description, alt_text, category, captured_at, publish_captured_at,
+         created_at, image_width, image_height,
          profiles(${PROFILE_SUMMARY_FIELDS}),
          photograph_images(${IMAGE_FIELDS}),
-         photograph_metadata(camera_brand_text, camera_model_text, exif_source, exif_gps_latitude, exif_gps_longitude),
-         locations(name, latitude, longitude)`,
+         photograph_metadata(camera_brand_text, camera_model_text, lens_brand_text, lens_model_text,
+           focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes,
+           exif_source),
+         locations(name, slug, latitude, longitude),
+         photograph_content_checks(verdict, note)`,
       )
       .eq('status', 'under_review')
       .order('created_at', { ascending: true })
       .limit(PAGE_SIZE.moderation),
   );
+
+  // The raw camera position is not readable column by column (0015); moderators
+  // read it through photograph_exif_positions(), once for the whole queue.
+  const positionById = new Map<string, { latitude: number; longitude: number }>();
+  const queuedIds = rows.map((row) => toText(row.id)).filter((id): id is string => Boolean(id));
+  if (queuedIds.length > 0) {
+    const { data: positions, error: positionsError } = await supabase.rpc('photograph_exif_positions', {
+      p_photograph_ids: queuedIds,
+    });
+    if (positionsError) {
+      console.error(`FRAME data: reading camera positions for the review queue failed — ${positionsError.message}`);
+    } else {
+      for (const position of (positions ?? []) as Array<{
+        photograph_id: string | null;
+        latitude: number | null;
+        longitude: number | null;
+      }>) {
+        if (position.photograph_id && position.latitude !== null && position.longitude !== null) {
+          positionById.set(position.photograph_id, { latitude: position.latitude, longitude: position.longitude });
+        }
+      }
+    }
+  }
 
   const uploadsPerOwner = new Map<string, string[]>();
   for (const row of rows) {
@@ -1892,6 +1938,25 @@ async function suspiciousUploads(
     const location = firstOf<SuspiciousLocationColumns>(row.locations);
     const signals: UploadSignal[] = [];
 
+    // The automated content check comes first: when it is why the upload is
+    // here, it is what the moderator needs to read before anything else.
+    const contentCheck = firstOf<ContentCheckColumns>(row.photograph_content_checks);
+    const checkVerdict = toText(contentCheck?.verdict);
+    if (checkVerdict === 'review') {
+      signals.push({
+        kind: 'content-flagged',
+        severity: 'high',
+        message: toText(contentCheck?.note) ?? 'The automated content check held this image.',
+      });
+    } else if (checkVerdict !== 'clear') {
+      signals.push({
+        kind: 'content-unchecked',
+        severity: 'info',
+        message:
+          toText(contentCheck?.note) ?? 'No automated content check was recorded, so it needs a person.',
+      });
+    }
+
     const width = toNumber(row.image_width);
     const height = toNumber(row.image_height);
     if (
@@ -1914,8 +1979,8 @@ async function suspiciousUploads(
       });
     }
 
-    const exifLatitude = toNumber(metadata?.exif_gps_latitude);
-    const exifLongitude = toNumber(metadata?.exif_gps_longitude);
+    const exifLatitude = positionById.get(id)?.latitude ?? null;
+    const exifLongitude = positionById.get(id)?.longitude ?? null;
     const locationLatitude = toNumber(location?.latitude);
     const locationLongitude = toNumber(location?.longitude);
     if (
@@ -1957,6 +2022,13 @@ async function suspiciousUploads(
       }
     }
 
+    const displayKey = toText(images.find((image) => image.variant === 'display')?.storage_key);
+    const joinText = (...parts: Array<string | null | undefined>): string | null => {
+      const text = parts.map((part) => toText(part)).filter(Boolean).join(' ');
+      return text.length > 0 ? text : null;
+    };
+    const locationName = toText(location?.name);
+
     uploads.push({
       // There is no separate queue table, so the photograph identifies the entry.
       id,
@@ -1966,6 +2038,24 @@ async function suspiciousUploads(
       uploader,
       createdAt: createdAt ?? '',
       signals,
+      details: {
+        displayUrl: displayKey ? storagePublicUrl(displayKey) : null,
+        description: toText(row.description),
+        altText: toText(row.alt_text),
+        category: toText(row.category),
+        location: locationName ? { name: locationName, slug: toText(location?.slug) } : null,
+        camera: joinText(metadata?.camera_brand_text, metadata?.camera_model_text),
+        lens: joinText(metadata?.lens_brand_text, metadata?.lens_model_text),
+        focalLengthMm: toNumber(metadata?.focal_length_mm),
+        aperture: toNumber(metadata?.aperture),
+        shutterSpeed: toText(metadata?.shutter_speed),
+        iso: toNumber(metadata?.iso),
+        capturedAt: row.publish_captured_at ? toText(row.captured_at) : null,
+        editingSoftware: toText(metadata?.editing_software),
+        editingNotes: toText(metadata?.editing_notes),
+        width,
+        height,
+      },
     });
   }
 
@@ -2091,6 +2181,32 @@ async function possibleDuplicateLocations(
  * on the route decides what the page renders; the database decides what can be
  * read at all.
  */
+/**
+ * Moderators and administrators, administrators first. Read with the
+ * caller's own session: role is a public column on profiles, and the team
+ * panel that shows this list is only rendered for administrators.
+ */
+export async function staffMembers(): Promise<StaffMember[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<ProfileColumns & { role: string | null }>(
+    'reading the staff list',
+    await supabase
+      .from('profiles')
+      .select(`${PROFILE_SUMMARY_FIELDS}, role`)
+      .in('role', ['moderator', 'admin'])
+      .order('role', { ascending: true })
+      .order('username', { ascending: true }),
+  );
+
+  const staff: StaffMember[] = [];
+  for (const row of rows) {
+    const member = mapPhotographerSummary(row);
+    if (!member) continue;
+    staff.push({ member, role: row.role === 'admin' ? 'admin' : 'moderator' });
+  }
+  return staff;
+}
+
 export async function moderationQueues(): Promise<ModerationQueues> {
   const supabase = await createClient();
 

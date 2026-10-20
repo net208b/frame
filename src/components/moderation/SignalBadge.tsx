@@ -46,6 +46,8 @@ export const SUBMISSION_SIGNAL_MESSAGE_KEYS: Record<SubmissionSignal['kind'], st
 
 export const UPLOAD_SIGNAL_MESSAGE_KEYS: Record<UploadSignal['kind'], string> = {
   'perceptual-hash-match': 'uploadSignal.perceptual-hash-match',
+  'content-flagged': 'uploadSignal.content-flagged',
+  'content-unchecked': 'uploadSignal.content-unchecked',
   'exif-missing': 'uploadSignal.exif-missing',
   'exif-conflict': 'uploadSignal.exif-conflict',
   'burst-upload': 'uploadSignal.burst-upload',

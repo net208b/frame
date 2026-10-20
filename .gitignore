@@ -26,3 +26,6 @@ supabase/.temp/
 # `.env.example`. The explicit list above already covers the real ones, so the
 # blanket rule is narrowed to the local files Vercel actually writes.
 .env*.local
+
+# Kept only long enough for the route-mode check in CI.
+build.log
