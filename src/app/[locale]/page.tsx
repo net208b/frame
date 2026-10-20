@@ -5,8 +5,8 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CommunityCta } from '@/components/home/CommunityCta';
 import { CuratedGallery } from '@/components/home/CuratedGallery';
 import { FeaturedPhotographers } from '@/components/home/FeaturedPhotographers';
+import { CityMap } from '@/components/home/CityMap';
 import { Hero, type HeroCover } from '@/components/home/Hero';
-import { MapTeaser } from '@/components/home/MapTeaser';
 import { PlatformStatsRow } from '@/components/home/PlatformStatsRow';
 import { TrendingLocations } from '@/components/home/TrendingLocations';
 import { getViewer } from '@/lib/auth';
@@ -19,6 +19,7 @@ import {
   getPlatformStats,
   normaliseDiscoverQuery,
 } from '@/lib/data/repository';
+import { visitorPlace } from '@/lib/geo/visitor';
 import { buildMetadata, siteJsonLd } from '@/lib/seo';
 
 /** How many editor-picked frames the curated gallery shows. */
@@ -26,8 +27,8 @@ const CURATED_SIZE = 8;
 /** The pool the cover frame is chosen from, and the denominator of its pill. */
 const COVER_POOL_SIZE = 8;
 const TRENDING_LOCATION_COUNT = 3;
-/** A teaser only needs a handful of pins; /map carries the full set. */
-const MAP_TEASER_PINS = 12;
+/** The opening band only needs a handful of pins; /map carries the full set. */
+const CITY_MAP_PINS = 12;
 const FEATURED_PHOTOGRAPHER_COUNT = 4;
 
 /**
@@ -62,7 +63,7 @@ export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await readLocaleParams(params);
   setRequestLocale(locale);
 
-  const [editorsPicks, trending, stats, photographers, locationPage, pins, viewer, t] =
+  const [editorsPicks, trending, stats, photographers, locationPage, pins, viewer, place, t] =
     await Promise.all([
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'editors', pageSize: CURATED_SIZE })),
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'trending', pageSize: COVER_POOL_SIZE })),
@@ -71,6 +72,11 @@ export default async function HomePage({ params }: HomePageProps) {
       getLocations({ page: 1 }),
       getMapPins(),
       getViewer(),
+      // Reads the request's geolocation headers, which makes this page vary by
+      // reader. It already did: `getViewer()` reads the session cookie, so the
+      // page was rendered on demand before this and nothing about its caching
+      // changes here.
+      visitorPlace(),
       getTranslations({ locale, namespace: 'home' }),
     ]);
 
@@ -113,6 +119,17 @@ export default async function HomePage({ params }: HomePageProps) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       <Hero cover={cover} signedIn={viewer !== null} locale={locale} />
 
+      {/* Second on the page, not last. The map is the one thing FRAME can show
+          a first-time reader before anybody has uploaded anything — their own
+          city — and the sections below it are all empty until somebody has. */}
+      <CityMap
+        pins={pins.slice(0, CITY_MAP_PINS)}
+        totalPinCount={pins.length}
+        place={place}
+        signedIn={viewer !== null}
+        locale={locale}
+      />
+
       <PlatformStatsRow stats={stats} locale={locale} className="mt-9" />
 
       <CuratedGallery photos={curated} locale={locale} />
@@ -124,8 +141,6 @@ export default async function HomePage({ params }: HomePageProps) {
       />
 
       <FeaturedPhotographers photographers={photographers} locale={locale} />
-
-      <MapTeaser pins={pins.slice(0, MAP_TEASER_PINS)} totalPinCount={pins.length} locale={locale} />
 
       <CommunityCta signedIn={viewer !== null} locale={locale} />
     </div>

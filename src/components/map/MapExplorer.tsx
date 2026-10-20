@@ -60,11 +60,24 @@ function matchesFilters(pin: MapPin, filters: Filters): boolean {
 export function MapExplorer({
   pins,
   initialSelectedSlug = null,
+  fallbackCamera,
   className,
 }: {
   pins: MapPin[];
   /** Read from the query string on the server, so a shared link arrives whole. */
   initialSelectedSlug?: string | null;
+  /**
+   * Where to open when there are no pins to frame — the reader's own city, from
+   * `visitorPlace()`.
+   *
+   * Only then. With pins on the map, fitting to them is what the index of every
+   * place should do: a reader in Bangkok opening a map whose places are all in
+   * Europe would otherwise be shown an empty Bangkok and would reasonably
+   * conclude the map was broken. The opening band on the home page makes the
+   * opposite choice for the opposite reason — it is about *here*, not about
+   * everything.
+   */
+  fallbackCamera?: { centre: [number, number]; zoom: number };
   className?: string;
 }) {
   const baseId = useId();
@@ -204,12 +217,15 @@ export function MapExplorer({
       >
         <MapCanvas
           pins={filtered}
+          initialCenter={pins.length === 0 ? fallbackCamera?.centre : undefined}
+          initialZoom={pins.length === 0 ? fallbackCamera?.zoom : undefined}
           selectedId={selectedPin?.id ?? null}
           onSelect={handleSelect}
           onVisibleChange={handleVisibleChange}
           heightClassName={MAP_HEIGHT}
         />
         {mapConfigured ? <PinLegend /> : null}
+        {mapConfigured && pins.length === 0 ? <NothingPinned /> : null}
       </div>
 
       <aside
@@ -302,6 +318,30 @@ export function MapExplorer({
 }
 
 /** Size and density, not colour alone, separate an exact pin from a vague one. */
+/**
+ * Said on the map, not instead of it.
+ *
+ * With nothing approved anywhere, this page used to render an empty-state panel
+ * where the map goes, so the one page about places showed no places and no map
+ * either. The map is worth drawing on its own — it opens on the reader's own
+ * city — and the fact that nothing is pinned yet is a note on top of it.
+ *
+ * The copy is the same pair the panel used, so this is a change of where it is
+ * said rather than of what it says.
+ */
+function NothingPinned() {
+  const t = useTranslations('map');
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-5">
+      <div className="w-[min(26rem,100%)] rounded-panel border border-line bg-surface p-5 text-center shadow-popover">
+        <p className="text-body font-semibold">{t('page.emptyTitle')}</p>
+        <p className="mt-1.5 text-meta leading-relaxed text-muted">{t('page.emptyDescription')}</p>
+      </div>
+    </div>
+  );
+}
+
 function PinLegend() {
   const t = useTranslations('map');
 

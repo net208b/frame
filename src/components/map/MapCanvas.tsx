@@ -110,6 +110,7 @@ export function MapCanvas({
   selectedId,
   onSelect,
   onVisibleChange,
+  scrollZoom = true,
   className,
   heightClassName = 'h-[70vh]',
 }: {
@@ -123,6 +124,14 @@ export function MapCanvas({
    * inside the viewport so a panel beside the map can list what is in view.
    */
   onVisibleChange?: (visibleIds: string[]) => void;
+  /**
+   * Whether the wheel zooms the map. Off for a map used as the backdrop of a
+   * section: a reader scrolling past a full-width map would otherwise have the
+   * page stop under the cursor and the map zoom instead, which reads as the
+   * page being broken. Panning, the zoom buttons and keyboard panning stay —
+   * the map is still explorable, it just does not capture the scroll.
+   */
+  scrollZoom?: boolean;
   className?: string;
   heightClassName?: string;
 }) {
@@ -233,6 +242,7 @@ export function MapCanvas({
         dragRotate: false,
         pitchWithRotate: false,
         touchPitch: false,
+        scrollZoom,
       });
 
       created = instance;
@@ -363,7 +373,16 @@ export function MapCanvas({
       created?.remove();
       if (mapRef.current === created) mapRef.current = null;
     };
-  }, [accessibleName, attribution, reportVisible, styleUrl, theme, zoomInLabel, zoomOutLabel]);
+  }, [
+    accessibleName,
+    attribution,
+    reportVisible,
+    scrollZoom,
+    styleUrl,
+    theme,
+    zoomInLabel,
+    zoomOutLabel,
+  ]);
 
   // Filter changes replace the source data rather than rebuilding the map.
   useEffect(() => {

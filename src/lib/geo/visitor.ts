@@ -30,7 +30,6 @@ import { headers } from 'next/headers';
 const HEADER = {
   city: 'x-vercel-ip-city',
   countryCode: 'x-vercel-ip-country',
-  region: 'x-vercel-ip-country-region',
   latitude: 'x-vercel-ip-latitude',
   longitude: 'x-vercel-ip-longitude',
 } as const;
@@ -50,8 +49,6 @@ export const CITY_ZOOM = 11.2;
 export interface VisitorPlace {
   /** The city as the edge spelled it, already percent-decoded. */
   city: string | null;
-  /** A state, province or region code — "Bangkok", "CA". Rarely useful alone. */
-  region: string | null;
   /** ISO 3166-1 alpha-2, uppercase. */
   countryCode: string | null;
   /** A point inside the city, or the world view's centre when there is none. */
@@ -69,7 +66,6 @@ export interface VisitorPlace {
 /** Where the map has always opened when there is nothing better: the whole world. */
 const WORLD: VisitorPlace = {
   city: null,
-  region: null,
   countryCode: null,
   centre: [8, 26],
   zoom: 1.3,
@@ -121,7 +117,6 @@ export async function visitorPlace(): Promise<VisitorPlace> {
 
   return {
     city,
-    region: received.get(HEADER.region)?.trim() || null,
     countryCode,
     centre: [longitude, latitude],
     zoom: CITY_ZOOM,

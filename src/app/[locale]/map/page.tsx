@@ -5,12 +5,10 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { MapExplorer } from '@/components/map/MapExplorer';
 import { SELECTED_PARAM } from '@/components/map/map-style';
 import { precisionParts } from '@/components/map/precision';
-import { Button } from '@/components/ui/Button';
 import { Eyebrow } from '@/components/ui/SectionHead';
-import { EmptyState } from '@/components/ui/states';
-import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
 import { getMapPins } from '@/lib/data/repository';
+import { visitorPlace } from '@/lib/geo/visitor';
 import { buildMetadata } from '@/lib/seo';
 import { formatCount } from '@/lib/utils';
 
@@ -55,7 +53,10 @@ export default async function MapPage({
   // rather than selecting itself a moment after hydration.
   const selectedSlug = firstValue(resolved[SELECTED_PARAM]);
 
-  const pins = await getMapPins();
+  // The geolocation headers make this page vary by reader, which it did not
+  // before. It is the camera for an empty map and nothing else — see
+  // `visitorPlace()` — so the cost is one header read per request.
+  const [pins, place] = await Promise.all([getMapPins(), visitorPlace()]);
   const approximateCount = pins.filter((pin) => pin.isApproximate).length;
 
   return (
@@ -95,25 +96,15 @@ export default async function MapPage({
         ) : null}
       </header>
 
-      {pins.length === 0 ? (
-        <section aria-labelledby="map-empty-heading">
-          {/* The empty state's own title is an h3, so this keeps the order sane. */}
-          <h2 id="map-empty-heading" className="sr-only">
-            {t('page.listHeading')}
-          </h2>
-          <EmptyState
-            title={t('page.emptyTitle')}
-            description={t('page.emptyDescription')}
-            action={
-              <Button asChild variant="secondary">
-                <Link href="/locations">{t('actions.browseList')}</Link>
-              </Button>
-            }
-          />
-        </section>
-      ) : (
-        <MapExplorer pins={pins} initialSelectedSlug={selectedSlug} />
-      )}
+      {/* Always the explorer, even with nothing pinned: the map opens on the
+          reader's own city and says on top of itself that no place has been
+          approved yet. Replacing it with a panel of prose, which is what this
+          did before, left the one page about places with no map on it. */}
+      <MapExplorer
+        pins={pins}
+        initialSelectedSlug={selectedSlug}
+        fallbackCamera={{ centre: place.centre, zoom: place.zoom }}
+      />
     </div>
   );
 }

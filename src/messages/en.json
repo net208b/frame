@@ -144,14 +144,29 @@
       "emptyTitle": "No profiles to show yet",
       "emptyDescription": "This surface fills in once members have published work for others to appreciate."
     },
-    "map": {
+    "city": {
       "eyebrow": "Explore by place",
-      "title": "Every pin is somewhere to stand.",
-      "description": "Each pin is a place a member submitted and a moderator approved, with the photographs made there and any access notes on file.",
-      "open": "Open the map",
-      "pinCount": "{count, plural, one {{formatted} approved place is pinned on the full map.} other {{formatted} approved places are pinned on the full map.}}",
-      "noPins": "No places have been approved yet, so the map has nothing to show.",
-      "sample": "A sample of {count, plural, one {# place} other {# places}}"
+      "heading": "{precision, select, city {What do locals photograph in {city}?} country {What do locals photograph near you?} other {What do locals photograph here?}}",
+      "lead": "{precision, select, city {The map opened on {city}, worked out from your network rather than from your device — pan anywhere you like. Every pin is a place a member submitted and a moderator approved.} country {The map opened near you, worked out from your network rather than from your device — pan anywhere you like. Every pin is a place a member submitted and a moderator approved.} other {Pan and zoom anywhere. Every pin is a place a member submitted and a moderator approved.}}",
+      "openedOn": "{precision, select, city {Opened on {city}} country {Opened near you} other {The world, to start with}}",
+      "openMap": "Open the full map",
+      "addPlace": "Add a place",
+      "emptyTitle": "{precision, select, city {Nothing pinned in {city} yet} other {Nothing pinned yet}}",
+      "emptyBody": "No place has been approved anywhere on FRAME so far. The first could be yours: upload a frame, say where you stood, and a moderator will take a look.",
+      "notes": {
+        "moderated": {
+          "title": "A person approves every place",
+          "body": "A place appears on the map once a moderator has read what was submitted and agreed with it."
+        },
+        "rounded": {
+          "title": "A sensitive position is an area",
+          "body": "Where an exact point should not be published, the pin is drawn as the area it really is, and says so."
+        },
+        "gear": {
+          "title": "The gear is on every frame",
+          "body": "Camera, lens, focal length, aperture, shutter and ISO, so you can work out how the picture was made."
+        }
+      }
     },
     "cta": {
       "eyebrow": "Contribute",
