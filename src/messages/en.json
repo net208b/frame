@@ -1062,6 +1062,8 @@
       "gear": "Gear you usually carry",
       "gearHint": "One per line, up to {count}, each up to {length} characters.",
       "avatar": "Profile picture",
+      "avatarDrop": "Drag a picture here, or choose a file",
+      "avatarDropReplace": "Drag another picture, or choose a file",
       "avatarHint": "A square crop of the middle of the picture is what gets stored, at 256 pixels. JPEG, PNG, WebP or AVIF, up to {size}.",
       "avatarSubmit": "Save picture",
       "avatarSaving": "Saving…",

@@ -1,13 +1,14 @@
 'use client';
 
+import { ImageUp } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useEffect, useId, useRef, useState, type DragEvent } from 'react';
 
 import { FormStatus } from '@/components/auth/AuthStatus';
 import { Avatar } from '@/components/photographer/Avatar';
 import { Button } from '@/components/ui/Button';
 import { UPLOAD_POLICY } from '@/lib/config';
-import { formatFileSize } from '@/lib/utils';
+import { cn, formatFileSize } from '@/lib/utils';
 import { removeAvatar, updateAvatar } from '@/server/actions/account';
 
 /**
@@ -25,6 +26,12 @@ import { removeAvatar, updateAvatar } from '@/server/actions/account';
  * it, and re-crops it itself: a browser that cannot do any of this — or a
  * submission made before this script runs — posts the original file and is
  * refused only if it is over the stated limit.
+ *
+ * THE FIELD IS A DROP ZONE, with the real file input hidden behind the label
+ * that draws it — the same arrangement as the upload wizard, so dragging a
+ * picture onto it works and a keyboard still lands on a real input. A bare
+ * `<input type="file">` does not accept a file dropped anywhere near it, which
+ * is the first thing anybody tries.
  *
  * THE PREVIEW IS THE RESULT, not a thumbnail of the chosen file. It is the same
  * centre-cropped square the server will store, drawn at the size the profile
@@ -100,7 +107,9 @@ export function AvatarForm({
     null,
   );
 
+  const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [chosen, setChosen] = useState<{ blob: Blob; url: string; name: string } | null>(null);
 
   // Revoke the object URL when it is replaced or the component goes, so a
@@ -174,18 +183,46 @@ export function AvatarForm({
           <fieldset disabled={disabled || saving || removing} className="space-y-3">
             <input
               ref={inputRef}
+              id={inputId}
               type="file"
               name="avatar"
               accept={UPLOAD_POLICY.acceptedMimeTypes.join(',')}
               onChange={(event) => void pick(event.currentTarget.files?.[0] ?? null)}
-              className="block w-full text-caption text-muted file:mr-3 file:rounded-field file:border file:border-line file:bg-surface file:px-3 file:py-1.5 file:text-caption file:font-semibold file:text-ink hover:file:border-line-strong"
+              // Visually hidden, not disabled: the label below is the control a
+              // pointer uses, and this is the one a keyboard and a screen reader
+              // reach. The same arrangement as the upload wizard's drop zone.
+              className="peer sr-only"
             />
 
-            <p className="text-meta leading-relaxed text-muted">
-              {t('profile.avatarHint', {
-                size: formatFileSize(UPLOAD_POLICY.maxAvatarBytes),
-              })}
-            </p>
+            <label
+              htmlFor={inputId}
+              onDragOver={(event: DragEvent<HTMLElement>) => {
+                event.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(event: DragEvent<HTMLElement>) => {
+                event.preventDefault();
+                setDragging(false);
+                void pick(event.dataTransfer.files[0] ?? null);
+              }}
+              className={cn(
+                'flex cursor-pointer flex-col items-start rounded-panel border border-dashed px-4 py-5',
+                'transition-colors duration-150',
+                'peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-ink',
+                dragging ? 'border-ink bg-surface' : 'border-line-strong bg-surface hover:border-ink',
+              )}
+            >
+              <span className="flex items-center gap-2 text-caption font-semibold">
+                <ImageUp aria-hidden className="size-4 text-muted" />
+                {pending ? t('profile.avatarDropReplace') : t('profile.avatarDrop')}
+              </span>
+              <span className="mt-1.5 text-meta leading-relaxed text-muted">
+                {t('profile.avatarHint', {
+                  size: formatFileSize(UPLOAD_POLICY.maxAvatarBytes),
+                })}
+              </span>
+            </label>
 
             <div className="flex flex-wrap items-center gap-2.5">
               <Button type="submit" loading={saving} disabled={!pending}>
