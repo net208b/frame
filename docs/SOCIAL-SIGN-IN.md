@@ -45,13 +45,16 @@ the trigger in force is the one from 0006, which does not refuse reserved
 usernames: a Gmail address beginning `admin@`, or an X handle of `moderator`,
 would become that username on the first sign-in.
 
-Migrations are applied in order, and production already has 0008 (the storage
-bucket, from the storage-migration pull request). So merge that pull request
-before this one, then, from an up-to-date `main`:
+Production already has 0010 (the username guard), which was shipped on its
+own ahead of this. 0009 therefore sorts *before* a migration the database has
+already recorded, and a plain `supabase db push` refuses to apply it. From an
+up-to-date `main`:
 
 ```bash
-supabase db push
+supabase db push --include-all
 ```
+
+Run it with `--dry-run` first: the only migration it should list is 0009.
 
 and confirm the trigger in force is the new one — this prints `t`:
 
