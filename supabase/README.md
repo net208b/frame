@@ -20,6 +20,7 @@ real data.
 | `migrations/0005_indexes.sql` | Every index, each with the query it exists for |
 | `migrations/0006_functions_and_triggers.sql` | `updated_at`, the derived `geog` column, profile creation on signup, the column guards, the counters, `toggle_appreciation`, `check_rate_limit`, `approve_location_submission`, `trending_score`, `is_moderator` |
 | `migrations/0007_row_level_security.sql` | Grants and policies for every table |
+| `migrations/0008_storage.sql` | The `photographs` storage bucket and the four `storage.objects` policies |
 | `seed.sql` | Camera and lens reference data, and fifteen approved places. No profiles, no photographs, no appreciation counts |
 
 They must run in that order: later files reference earlier tables. Every file is
@@ -92,10 +93,13 @@ psql postgresql://postgres:postgres@127.0.0.1:54322/postgres
    Postgres version before pushing, or the shadow database used to verify the
    diff will not match the real one.
 
-## Creating the storage bucket
+## The storage bucket
 
-The local stack creates it from `config.toml` (`[storage.buckets.photographs]`).
-On a hosted project, create it once:
+`migrations/0008_storage.sql` creates it, so there is no manual step: a
+`supabase db push` or a `supabase db reset` produces the bucket and its four
+policies. The local stack also declares it in `config.toml`
+(`[storage.buckets.photographs]`); keep the two in step. What follows is what
+0008 does and why, not something to run by hand.
 
 ```sql
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
