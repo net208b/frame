@@ -43,6 +43,8 @@ export interface ProfileRow extends Timestamps {
   critique_preference: string | null;
   /** Up to four http(s) links (migration 0016). */
   social_links: string[] | null;
+  /** One of the member's own published photographs (migration 0017). */
+  cover_photograph_id: string | null;
   usual_gear: string[] | null;
   role: 'member' | 'moderator' | 'admin';
   is_suspended: boolean;

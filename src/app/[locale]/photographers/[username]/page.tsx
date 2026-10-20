@@ -10,6 +10,11 @@ import { ProfileCollections } from '@/components/photographer/ProfileCollections
 import { ProfileFootprints } from '@/components/photographer/ProfileFootprints';
 import { ProfileHeader } from '@/components/photographer/ProfileHeader';
 import { ProfileStats } from '@/components/photographer/ProfileStats';
+import {
+  ProfileTabs,
+  readProfileView,
+  type ProfileView,
+} from '@/components/photographer/ProfileTabs';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
 import { getViewer } from '@/lib/auth';
@@ -24,6 +29,12 @@ import { cn, formatCount, truncate } from '@/lib/utils';
 
 interface ProfilePageProps {
   params: LocaleParams<{ username: string }>;
+  /**
+   * `?view=` picks which part of the profile is shown. Only the page reads it:
+   * `generateMetadata` deliberately does not, so every view declares the same
+   * canonical address and the three of them are one page to a search engine.
+   */
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 /**
@@ -117,7 +128,10 @@ export async function generateMetadata({ params }: ProfilePageProps): Promise<Me
   });
 }
 
-export default async function PhotographerProfilePage({ params }: ProfilePageProps) {
+export default async function PhotographerProfilePage({
+  params,
+  searchParams,
+}: ProfilePageProps) {
   const { locale, username } = await readLocaleParams(params);
   setRequestLocale(locale);
 
@@ -149,6 +163,31 @@ export default async function PhotographerProfilePage({ params }: ProfilePagePro
   // drops to one column rather than keeping an empty second one open.
   const hasGear = photographer.usualGear.some((entry) => entry.trim().length > 0);
 
+  /*
+   * Which views this profile actually has, and which one was asked for.
+   *
+   * Frames is always there — it is what a profile is for, and it says so
+   * itself when there is nothing published yet. The other two appear only when
+   * there is something in them, with one exception: the member looking at
+   * their own page sees Footprints regardless, because its empty state tells
+   * them how a place gets there, which is something they can act on.
+   *
+   * The collections filter is repeated from `ProfileCollections`, which filters
+   * again on its own. That duplication is deliberate there and the reason holds
+   * here too: a private collection appearing on a public profile is a mistake
+   * that cannot be taken back.
+   */
+  const publicCollections = collections.filter(
+    (collection) => collection.visibility === 'public',
+  ).length;
+
+  const views: ProfileView[] = [
+    'frames',
+    ...(footprints.length > 0 || isSelf ? (['footprints'] as const) : []),
+    ...(publicCollections > 0 ? (['collections'] as const) : []),
+  ];
+  const view = readProfileView((await searchParams)?.view, views);
+
   return (
     <div className="site-container pt-10 pb-20 lg:pt-14">
       <ProfileHeader photographer={photographer} isSelf={isSelf} />
@@ -165,39 +204,47 @@ export default async function PhotographerProfilePage({ params }: ProfilePagePro
         ) : null}
       </div>
 
-      <section className="mt-14">
-        <SectionHead
-          eyebrow={t('portfolio.eyebrow')}
-          title={t('portfolio.title')}
-          action={
-            shown > 0 ? (
-              <p className="text-meta text-muted tabular-nums">{portfolioCount}</p>
-            ) : null
-          }
-        />
+      <ProfileTabs username={photographer.username} active={view} views={views} className="mt-14" />
 
-        {shown > 0 ? (
-          <MasonryGallery photos={portfolio} showPhotographer={false} priorityCount={4} />
-        ) : (
-          <EmptyState
-            title={t('portfolio.emptyTitle')}
-            description={t('portfolio.emptyDescription', { name: photographer.displayName })}
+      {view === 'frames' ? (
+        <section className="mt-10">
+          <SectionHead
+            eyebrow={t('portfolio.eyebrow')}
+            title={t('portfolio.title')}
+            action={
+              shown > 0 ? (
+                <p className="text-meta text-muted tabular-nums">{portfolioCount}</p>
+              ) : null
+            }
           />
-        )}
-      </section>
 
-      <ProfileFootprints
-        pins={footprints}
-        photographerName={photographer.displayName}
-        isSelf={isSelf}
-        className="mt-16"
-      />
+          {shown > 0 ? (
+            <MasonryGallery photos={portfolio} showPhotographer={false} priorityCount={4} />
+          ) : (
+            <EmptyState
+              title={t('portfolio.emptyTitle')}
+              description={t('portfolio.emptyDescription', { name: photographer.displayName })}
+            />
+          )}
+        </section>
+      ) : null}
 
-      <ProfileCollections
-        collections={collections}
-        photographerName={photographer.displayName}
-        className="mt-16"
-      />
+      {view === 'footprints' ? (
+        <ProfileFootprints
+          pins={footprints}
+          photographerName={photographer.displayName}
+          isSelf={isSelf}
+          className="mt-10"
+        />
+      ) : null}
+
+      {view === 'collections' ? (
+        <ProfileCollections
+          collections={collections}
+          photographerName={photographer.displayName}
+          className="mt-10"
+        />
+      ) : null}
     </div>
   );
 }

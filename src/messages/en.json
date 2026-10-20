@@ -657,6 +657,12 @@
     "critique": {
       "label": "Critique"
     },
+    "tabs": {
+      "label": "Profile sections",
+      "frames": "Frames",
+      "footprints": "Footprints",
+      "collections": "Collections"
+    },
     "reportAccount": "Report this account",
     "role": {
       "moderator": "Community moderator",
@@ -954,6 +960,9 @@
       "styles": {
         "tooMany": "Choose up to 5 styles."
       },
+      "cover": {
+        "invalid": "Choose a photograph from the list."
+      },
       "collaboration": {
         "invalid": "Choose one of the options, or leave it unset."
       },
@@ -1025,6 +1034,10 @@
     "profile": {
       "heading": "Profile",
       "intro": "Shown on your public profile, in your own words. Only the display name is required.",
+      "cover": "Cover photograph",
+      "coverHint": "One of your published photographs, shown across the top of your profile.",
+      "coverUnset": "No cover",
+      "coverNone": "A cover is one of your own published photographs, so there is nothing to choose from yet.",
       "displayName": "Display name",
       "displayNameHint": "How your name appears beside your photographs. Up to 60 characters.",
       "biography": "Biography",
@@ -1082,6 +1095,7 @@
       "suspended": "A suspended account can’t edit its profile.",
       "profileSaved": "Profile saved.",
       "profileRefused": "One of these values wasn’t accepted. Check each field and try again.",
+      "coverRefused": "That cover has to be one of your own published photographs. If you just took it down, choose another.",
       "profileFailed": "Your profile couldn’t be saved. Try again in a moment.",
       "usernameTaken": "That username is taken.",
       "usernameTakenField": "Somebody already has this username. Try another.",

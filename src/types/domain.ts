@@ -126,6 +126,20 @@ export interface PhotographerSummary {
   basedIn: string | null;
 }
 
+/**
+ * The photograph a member chose to stand at the top of their profile.
+ *
+ * A reference to one of their own published frames, never an uploaded banner —
+ * see migration 0017 for why. It carries the photograph's own alt text and slug
+ * because it *is* a photograph: it is described in the member's words and it
+ * links to itself.
+ */
+export interface ProfileCover {
+  imageUrl: string;
+  altText: string;
+  slug: string;
+}
+
 export interface PhotographerProfile extends PhotographerSummary {
   biography: string | null;
   website: string | null;
@@ -143,6 +157,11 @@ export interface PhotographerProfile extends PhotographerSummary {
   critique: CritiquePreference | null;
   /** Other places they publish. Already filtered to http(s). */
   socialLinks: string[];
+  /**
+   * The cover, or null — which is also what a cover whose photograph is no
+   * longer published resolves to, so the band simply does not appear.
+   */
+  cover: ProfileCover | null;
   /** Gear the member chose to show. Absent when they have not filled it in. */
   usualGear: string[];
   photographCount: number;

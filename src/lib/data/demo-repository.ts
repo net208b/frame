@@ -300,9 +300,49 @@ export function demoPhotographerMapPins(photographerId: string): DemoMapPin[] {
 /* People                                                                    */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Which demo members have chosen a cover, by the photograph's slug.
+ *
+ * It lives here rather than on the records in `demo/photographers.ts` because
+ * `demo/photographs.ts` imports that file — writing a photograph into a
+ * photographer would be a cycle. Resolving it here also means demo mode obeys
+ * the live rule rather than restating it: `withCover` looks the slug up among
+ * the member's *own published* photographs, which is exactly what the trigger
+ * in migration 0017 and the repository's `mapProfileCover` enforce.
+ *
+ * Deliberately not everybody. Half the demo profiles have a cover and half do
+ * not, because both are what the page has to look right with.
+ */
+const DEMO_COVERS: Record<string, string> = {
+  kenjiwatanabe: 'the-street-that-only-exists-after-dark',
+  mayachen: 'everything-arriving-at-once',
+  annakeller: 'a-wall-made-entirely-of-type',
+};
+
+function withCover(person: PhotographerProfile): PhotographerProfile {
+  const slug = DEMO_COVERS[person.username];
+  if (!slug) return person;
+
+  const photograph = DEMO_PHOTOGRAPHS.find(
+    (photo) =>
+      photo.slug === slug && photo.photographer.id === person.id && photo.status === 'published',
+  );
+  if (!photograph) return person;
+
+  return {
+    ...person,
+    cover: {
+      imageUrl: photograph.image.displayUrl,
+      altText: photograph.altText,
+      slug: photograph.slug,
+    },
+  };
+}
+
 export function demoPhotographer(username: string): PhotographerProfile | null {
   const needle = username.toLowerCase();
-  return DEMO_PHOTOGRAPHERS.find((person) => person.username.toLowerCase() === needle) ?? null;
+  const person = DEMO_PHOTOGRAPHERS.find((entry) => entry.username.toLowerCase() === needle);
+  return person ? withCover(person) : null;
 }
 
 export function demoPhotographerUsernames(): string[] {
@@ -318,7 +358,8 @@ export function demoPortfolio(photographerId: string): PhotographDetail[] {
 export function demoFeaturedPhotographers(limit = 4): PhotographerProfile[] {
   return [...DEMO_PHOTOGRAPHERS]
     .sort((a, b) => b.appreciationsReceived - a.appreciationsReceived)
-    .slice(0, limit);
+    .slice(0, limit)
+    .map(withCover);
 }
 
 /* ------------------------------------------------------------------------ */

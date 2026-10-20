@@ -133,8 +133,19 @@ export async function updateProfile(
   const limited = await limit('profile-update', member.id);
   if (limited) return limited;
 
-  const { displayName, biography, basedIn, countryCode, website, socialLinks, styles, collaboration, critique, gear } =
-    parsed.data;
+  const {
+    displayName,
+    biography,
+    basedIn,
+    countryCode,
+    website,
+    socialLinks,
+    styles,
+    collaboration,
+    critique,
+    coverPhotographId,
+    gear,
+  } = parsed.data;
   const { error } = await supabase
     .from('profiles')
     .update({
@@ -147,12 +158,22 @@ export async function updateProfile(
       style_tags: styles,
       collaboration_status: collaboration,
       critique_preference: critique,
+      cover_photograph_id: coverPhotographId,
       usual_gear: gear,
     })
     .eq('id', member.id);
 
   if (error) {
     log('saving a profile', error.message, error.code);
+    // 42501 is the cover trigger (0017): the chosen photograph is not this
+    // member's own published one. That is a real thing a form can get wrong —
+    // the frame was unpublished in another tab — so it has its own sentence.
+    if (error.code === '42501') {
+      return fail(t('actions.coverRefused'), 'validation', {
+        coverPhotographId: t('actions.coverRefused'),
+      });
+    }
+
     // 23514 is a check constraint. The schema above is written to refuse
     // everything they refuse first, so this means the two have drifted apart.
     return fail(

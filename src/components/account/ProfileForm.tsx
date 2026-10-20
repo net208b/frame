@@ -44,6 +44,8 @@ export interface ProfileFormValues {
   socialLinks: string;
   /** The styles already ticked. */
   styles: string[];
+  /** The photograph already chosen as the cover, by id, or ''. */
+  coverPhotographId: string;
   collaboration: string;
   critique: string;
   gear: string;
@@ -53,6 +55,7 @@ export function ProfileForm({
   username,
   initial,
   countries,
+  coverCandidates,
   disabled = false,
 }: {
   username: string;
@@ -63,6 +66,12 @@ export function ProfileForm({
    * field works before hydration, like every other field here.
    */
   countries: readonly CountryOption[];
+  /**
+   * The member's own published photographs, newest first — the only frames a
+   * cover may be. An empty list means there is nothing to choose from yet, and
+   * the field says so instead of offering an empty select.
+   */
+  coverCandidates: readonly { id: string; title: string }[];
   disabled?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(updateProfile, null);
@@ -88,6 +97,34 @@ export function ProfileForm({
       </FormStatus>
 
       <fieldset disabled={disabled} className="space-y-6">
+        {coverCandidates.length > 0 ? (
+          <SelectField
+            label={t('profile.cover')}
+            name="coverPhotographId"
+            defaultValue={initial.coverPhotographId}
+            hint={t('profile.coverHint')}
+            error={errorFor('coverPhotographId')}
+          >
+            <option value="">{t('profile.coverUnset')}</option>
+            {coverCandidates.map((photograph) => (
+              <option key={photograph.id} value={photograph.id}>
+                {photograph.title}
+              </option>
+            ))}
+          </SelectField>
+        ) : (
+          <>
+            {/*
+              Nothing published yet, so there is nothing a cover could be. The
+              hidden field keeps the saved value — there should not be one, but
+              a form that silently clears a column it did not show would be the
+              kind of bug nobody notices until the frame comes back.
+            */}
+            <input type="hidden" name="coverPhotographId" value={initial.coverPhotographId} />
+            <p className="text-caption text-muted">{t('profile.coverNone')}</p>
+          </>
+        )}
+
         <TextField
           label={t('profile.displayName')}
           name="displayName"

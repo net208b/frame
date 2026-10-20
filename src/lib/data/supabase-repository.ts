@@ -32,6 +32,7 @@ import {
   type LocationSubmission,
   type LocationSummary,
   type PhotographyStyle,
+  type ProfileCover,
   type ModerationAction,
   type ModerationDecision,
   type Paginated,
@@ -432,7 +433,17 @@ type ProfileDetailColumns = Nullable<
     | 'member_since'
     | 'created_at'
   >
->;
+> & {
+  cover?: ProfileCoverColumns | ProfileCoverColumns[] | null;
+};
+
+interface ProfileCoverColumns {
+  slug: string | null;
+  alt_text: string | null;
+  owner_id: string | null;
+  status: string | null;
+  photograph_images: ImageColumns[] | null;
+}
 
 type LocationSummaryColumns = Nullable<
   Pick<
@@ -470,11 +481,30 @@ type RestrictionColumns = Nullable<
 >;
 
 const PROFILE_SUMMARY_FIELDS = 'id, username, display_name, avatar_url, based_in';
+const IMAGE_FIELDS = 'variant, storage_key, width, height';
+
+/**
+ * The cover is embedded rather than resolved in a second query, which it can be
+ * because `profiles.cover_photograph_id` is a declared foreign key (0017) —
+ * unlike `collections.cover_photograph_id`, which is not and therefore is not.
+ *
+ * The relationship has to be named. `profiles` and `photographs` are joined
+ * twice over — a photograph has an owner, and a profile has a cover — so
+ * PostgREST cannot guess which one `photographs(...)` means and refuses the
+ * request until it is told.
+ *
+ * `owner_id` and `status` come back so the mapper can check them. The trigger
+ * already refuses a cover that is not the member's own published photograph,
+ * but a photograph unpublished *after* it was chosen keeps the reference, and a
+ * cover is a public image: it is checked where it is read, every time.
+ */
+const PROFILE_COVER_FIELDS = `cover:photographs!profiles_cover_photograph_id_fkey(
+  slug, alt_text, owner_id, status, photograph_images(${IMAGE_FIELDS}))`;
+
 const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, country_code,
   style_tags, collaboration_status, critique_preference, social_links, usual_gear, role,
-  member_since, created_at`;
+  member_since, created_at, ${PROFILE_COVER_FIELDS}`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
-const IMAGE_FIELDS = 'variant, storage_key, width, height';
 const METADATA_FIELDS =
   'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes';
 
@@ -517,6 +547,34 @@ interface PhotographJoined extends PhotographColumns {
 /* ------------------------------------------------------------------------ */
 /* Mapping                                                                  */
 /* ------------------------------------------------------------------------ */
+
+/**
+ * The chosen photograph, if it is still one this profile may show.
+ *
+ * Two conditions, checked here because this is where the row becomes a page: it
+ * has to belong to this member, and it has to be published. The first cannot
+ * fail while the trigger in 0017 holds; the second can, the moment a frame is
+ * taken down for a day, and then the band quietly disappears until it is back.
+ */
+function mapProfileCover(row: ProfileDetailColumns, ownerId: string): ProfileCover | null {
+  const cover = firstOf<ProfileCoverColumns>(row.cover ?? null);
+  if (!cover) return null;
+  if (toText(cover.owner_id) !== ownerId || cover.status !== 'published') return null;
+
+  const slug = toText(cover.slug);
+  const altText = toText(cover.alt_text);
+  if (!slug || !altText) return null;
+
+  const images = asArray<ImageColumns>(cover.photograph_images);
+  // The band is as wide as the page, so the detail derivative is the one that
+  // holds up; a grid image stretched across 1,200 pixels is visibly soft.
+  const key =
+    toText(images.find((image) => image.variant === 'display')?.storage_key) ??
+    toText(images.find((image) => image.variant === 'grid')?.storage_key);
+  if (!key) return null;
+
+  return { imageUrl: storagePublicUrl(key), altText, slug };
+}
 
 function mapPhotographerSummary(row: ProfileColumns | null): PhotographerSummary | null {
   if (!row) return null;
@@ -1436,6 +1494,7 @@ async function buildProfiles(
       // constrained to http(s) by the database, and a value that somehow is not
       // would become an href on a public page.
       socialLinks: toStringList(row.social_links).filter(isHttpUrl),
+      cover: mapProfileCover(row, summary.id),
       usualGear: toStringList(row.usual_gear),
       photographCount: photographCounts.get(summary.id) ?? 0,
       appreciationsReceived: appreciationTotals.get(summary.id) ?? 0,

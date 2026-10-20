@@ -1313,6 +1313,64 @@ begin
 end $$;
 commit;
 
+-- ------------------------------------------------- 0017: the profile cover
+-- A cover is a reference to one of the member's own published photographs, so
+-- the two ways of getting that wrong — somebody else's frame, and one that is
+-- not published — are what these assert. Fixtures as the superuser; the
+-- assertions as the member, through the same path the Settings form uses.
+reset "app.current_user_id";
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, location_id, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('eeeeeeee-2222-4000-8000-000000000001', 'cover-candidate',
+   'dddddddd-0000-4000-8000-000000000004', 'Cover candidate',
+   'A pedestrian crossing an empty junction while the signals change behind them.',
+   'street', 'aaaaaaaa-0000-4000-8000-000000000001', 'published', now(), now(), 1600, 1200),
+  ('eeeeeeee-2222-4000-8000-000000000002', 'cover-draft',
+   'dddddddd-0000-4000-8000-000000000004', 'Cover draft',
+   'A half-finished frame of a market street, saved as a draft and never published.',
+   'street', 'aaaaaaaa-0000-4000-8000-000000000001', 'draft', null, null, 1600, 1200);
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_accepts('a cover that is the member''s own published photograph',
+  $$update public.profiles set cover_photograph_id = 'eeeeeeee-2222-4000-8000-000000000001'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$);
+
+select public.test_rejects('a cover that is their own draft',
+  $$update public.profiles set cover_photograph_id = 'eeeeeeee-2222-4000-8000-000000000002'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '42501');
+
+select public.test_rejects('a cover that is somebody else''s photograph',
+  $$update public.profiles set cover_photograph_id = 'eeeeeeee-0000-4000-8000-000000000001'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '42501');
+
+select public.test_accepts('clearing the cover',
+  $$update public.profiles set cover_photograph_id = null
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$);
+commit;
+
+-- Deleting the photograph clears the reference rather than leaving a profile
+-- pointing at a row that is gone.
+do $$
+declare v_cover uuid;
+begin
+  update public.profiles set cover_photograph_id = 'eeeeeeee-2222-4000-8000-000000000001'
+   where id = 'dddddddd-0000-4000-8000-000000000004';
+  delete from public.photographs where id = 'eeeeeeee-2222-4000-8000-000000000001';
+
+  select cover_photograph_id into v_cover
+    from public.profiles where id = 'dddddddd-0000-4000-8000-000000000004';
+  if v_cover is not null then
+    raise exception 'COVER GAP  deleting the photograph left the profile pointing at it (%)', v_cover;
+  end if;
+  raise notice 'cover ok      deleting the photograph clears the profile cover';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
