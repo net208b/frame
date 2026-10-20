@@ -1,5 +1,5 @@
 import { UPLOAD_POLICY } from '@/lib/config';
-import { IMAGE_VARIANTS } from '@/lib/images/variants';
+import { AVATAR_VARIANT, IMAGE_VARIANTS } from '@/lib/images/variants';
 
 /**
  * The storage contract: the shapes a driver speaks, and the invariants every
@@ -83,19 +83,32 @@ const LEAF_NAMES: ReadonlySet<string> = new Set<string>([
 const KEY_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
 
 /**
+ * The one account-level object: `<owner>/avatars/avatar.webp`.
+ *
+ * It is matched by its own rule rather than by widening the rule above, because
+ * `avatars` is a fixed word in a position that otherwise holds a photograph id.
+ * Anything else under that folder is not a key this app writes, and the driver
+ * refuses to sign or delete it.
+ */
+const AVATAR_FOLDER = 'avatars';
+const AVATAR_LEAF = `avatar.${AVATAR_VARIANT.format}`;
+
+/**
  * The content type each leaf must carry. `original` may be any accepted upload
  * type; a derivative must be in the format FRAME generated it in, so a grant
  * for `grid.webp` can never be used to write a PNG.
  */
 function expectedContentTypes(leaf: string): readonly string[] {
   if (leaf === 'original') return UPLOAD_POLICY.acceptedMimeTypes;
+  if (leaf === AVATAR_LEAF) return [AVATAR_VARIANT.contentType];
   const extension = leaf.slice(leaf.lastIndexOf('.') + 1);
   return [`image/${extension}`];
 }
 
 export interface ParsedStorageKey {
   ownerId: string;
-  photographId: string;
+  /** Null for an account-level object — today, only the avatar. */
+  photographId: string | null;
   leaf: string;
 }
 
@@ -111,7 +124,13 @@ export function parseStorageKey(key: string): ParsedStorageKey | null {
 
   const [ownerId, photographId, leaf] = segments;
   if (ownerId === undefined || photographId === undefined || leaf === undefined) return null;
-  if (!KEY_SEGMENT.test(ownerId) || !KEY_SEGMENT.test(photographId)) return null;
+  if (!KEY_SEGMENT.test(ownerId)) return null;
+
+  if (photographId === AVATAR_FOLDER) {
+    return leaf === AVATAR_LEAF ? { ownerId, photographId: null, leaf } : null;
+  }
+
+  if (!KEY_SEGMENT.test(photographId)) return null;
   if (!LEAF_NAMES.has(leaf)) return null;
 
   return { ownerId, photographId, leaf };
@@ -128,7 +147,7 @@ export function assertSignableUpload(input: SignedUploadRequest): ParsedStorageK
   const parsed = parseStorageKey(input.key);
   if (!parsed) {
     throw new StorageRequestError(
-      `Refusing to sign "${input.key}": a storage key must be owner/photograph/name as built by storageKeys().`,
+      `Refusing to sign "${input.key}": a storage key must be owner/photograph/name as built by storageKeys(), or owner/avatars/${AVATAR_LEAF}.`,
     );
   }
 

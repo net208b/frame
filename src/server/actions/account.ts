@@ -1,16 +1,19 @@
 'use server';
 
+import { createHash } from 'node:crypto';
+
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { DEFAULT_LOCALE, isLocale, withLocalePrefix } from '@/i18n/locales';
 import { fail, ok, type ActionResult } from '@/lib/action-result';
-import { isDemoMode } from '@/lib/config';
-import { storageKeys } from '@/lib/images/variants';
+import { isDemoMode, UPLOAD_POLICY } from '@/lib/config';
+import { buildAvatar, verifyImageBytes, AVATAR_LIMITS } from '@/lib/images/process';
+import { avatarPublicUrl, avatarStorageKey, storageKeys } from '@/lib/images/variants';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
-import { storageDriver } from '@/lib/storage';
+import { putObject, StorageConfigurationError, storageDriver } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/server';
 import { parseForm } from '@/lib/validation';
 import {
@@ -39,6 +42,7 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 /** Per account, per window. Loose for editing, tight for the irreversible. */
 const LIMITS = {
   'profile-update': { seconds: 3600, max: 30 },
+  'avatar-update': { seconds: 3600, max: UPLOAD_POLICY.maxAvatarChangesPerHour },
   'username-change': { seconds: 3600, max: 10 },
   'account-delete': { seconds: 3600, max: 5 },
 } as const;
@@ -187,6 +191,151 @@ export async function updateProfile(
 }
 
 /* ------------------------------------------------------------------------ */
+/* Avatar                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The avatar: posted here as a file, cropped, stored, and named on the profile.
+ *
+ * WHY THE BYTES COME THROUGH THE SERVER, when a photograph's never do. A
+ * photograph is up to 25 MB of camera output and goes straight to the provider
+ * with a signed grant, because passing it through this process would cost
+ * memory and time for nothing. An avatar is the other case entirely: the
+ * browser has already shrunk it to a 512-pixel square before submitting, so
+ * what arrives is a couple of hundred kilobytes, and one request that ends with
+ * the profile updated is both simpler and leaves nothing half-finished behind
+ * if the member closes the tab. The ceiling on that request body is
+ * `maxAvatarBytes`, stated in the form.
+ *
+ * WHAT IS STORED is never what was sent. The bytes are decoded by sharp,
+ * squared to {@link AVATAR_VARIANT}, and re-encoded as WebP, which also means
+ * every EXIF tag the source carried — camera, timestamp, GPS — is gone, because
+ * sharp keeps none of it unless asked. The object is written under a key
+ * derived from the account, so a member can neither name the key nor write over
+ * anybody else's.
+ *
+ * ONE OBJECT PER ACCOUNT, replaced in place, so removing the avatar or deleting
+ * the account can find the file from the member id alone. The URL on the profile
+ * carries a fingerprint of the bytes, which is what makes a replacement visible
+ * through a year of cache headers.
+ *
+ * NOT REVIEWED BY A MODERATOR, deliberately. An avatar waiting days in a queue
+ * is a profile with a hole in it, and the profile report button already exists
+ * for a picture that should not be there. A moderator suspending the account
+ * hides it, as it hides everything else.
+ */
+export async function updateAvatar(
+  _state: PreviousState,
+  formData: FormData,
+): Promise<ActionResult<void>> {
+  const t = await messages();
+  if (isDemoMode()) return fail(t('actions.notConfigured'), 'not_configured');
+
+  const supabase = await createClient();
+  const member = await signedIn(supabase);
+  if (!member) return fail(t('actions.signedOut'), 'unauthenticated');
+  if (member.isSuspended) return fail(t('actions.suspended'), 'forbidden');
+
+  const file = formData.get('avatar');
+  if (!(file instanceof File) || file.size === 0) {
+    return fail(t('actions.avatarMissing'), 'validation', {
+      avatar: t('actions.avatarMissing'),
+    });
+  }
+
+  if (file.size > UPLOAD_POLICY.maxAvatarBytes) {
+    return fail(t('actions.avatarTooLarge'), 'validation', {
+      avatar: t('actions.avatarTooLarge'),
+    });
+  }
+
+  const limited = await limit('avatar-update', member.id);
+  if (limited) return limited;
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+
+  // Everything the browser said about this file is a claim; this reads the
+  // bytes. The reason is the member's to act on, so it is returned as given.
+  const verified = await verifyImageBytes(bytes, AVATAR_LIMITS);
+  if (!verified.ok) {
+    return fail(verified.reason, 'validation', { avatar: verified.reason });
+  }
+
+  let url: string;
+  try {
+    const avatar = await buildAvatar(bytes);
+    const fingerprint = createHash('sha256').update(avatar.bytes).digest('hex').slice(0, 16);
+    const stored = await putObject(avatarStorageKey(member.id), avatar.bytes, avatar.contentType);
+    url = avatarPublicUrl(stored, fingerprint);
+  } catch (cause) {
+    if (cause instanceof StorageConfigurationError) {
+      return fail(t('actions.notConfigured'), 'not_configured');
+    }
+    log('storing an avatar', cause instanceof Error ? cause.message : String(cause));
+    return fail(t('actions.avatarFailed'), 'unknown');
+  }
+
+  // The file is written before the column, which is the order that fails
+  // safely: a column pointing at a file that is not there shows a broken image
+  // on every page the member appears on, while a file nothing points at is
+  // invisible and is overwritten by the next save.
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: url })
+    .eq('id', member.id);
+
+  if (error) {
+    log('saving an avatar', error.message, error.code);
+    return fail(t('actions.avatarFailed'), 'unknown');
+  }
+
+  revalidateProfile(member.username);
+  return ok(undefined, t('actions.avatarSaved'));
+}
+
+/** Clears the column and deletes the file. Both, or the next save is confusing. */
+export async function removeAvatar(
+  _state: PreviousState,
+  _formData: FormData,
+): Promise<ActionResult<void>> {
+  const t = await messages();
+  if (isDemoMode()) return fail(t('actions.notConfigured'), 'not_configured');
+
+  const supabase = await createClient();
+  const member = await signedIn(supabase);
+  if (!member) return fail(t('actions.signedOut'), 'unauthenticated');
+  if (member.isSuspended) return fail(t('actions.suspended'), 'forbidden');
+
+  const limited = await limit('avatar-update', member.id);
+  if (limited) return limited;
+
+  // The column first this time, for the same reason in reverse: once it is
+  // null, nothing renders the file, and a file left behind by a failed delete
+  // is invisible rather than broken.
+  const { error } = await supabase
+    .from('profiles')
+    .update({ avatar_url: null })
+    .eq('id', member.id);
+
+  if (error) {
+    log('clearing an avatar', error.message, error.code);
+    return fail(t('actions.avatarFailed'), 'unknown');
+  }
+
+  try {
+    await storageDriver().remove([avatarStorageKey(member.id)]);
+  } catch (cause) {
+    // The profile already shows no avatar, which is what was asked for. The
+    // orphan file is logged rather than reported: telling the member their
+    // removal failed would be untrue.
+    log('removing an avatar file', cause instanceof Error ? cause.message : String(cause));
+  }
+
+  revalidateProfile(member.username);
+  return ok(undefined, t('actions.avatarRemoved'));
+}
+
+/* ------------------------------------------------------------------------ */
 /* Username                                                                  */
 /* ------------------------------------------------------------------------ */
 
@@ -270,7 +419,10 @@ async function ownImageKeys(supabase: SupabaseClient, ownerId: string): Promise<
     for (const row of (data ?? []) as { id: string }[]) {
       keys.push(...Object.values(storageKeys(row.id, ownerId)));
     }
-    if (!data || data.length < PAGE) return keys;
+    // The avatar is an account-level object, not a photograph's, so it is not
+    // in any of these pages. Deleting an account has to take it too, or a
+    // member's face outlives their account in a public bucket.
+    if (!data || data.length < PAGE) return [...keys, avatarStorageKey(ownerId)];
   }
 }
 

@@ -12,6 +12,8 @@ import { createClient } from '@/lib/supabase/server';
 export interface OwnSettings {
   username: string;
   displayName: string;
+  /** The stored URL of the member's avatar, with its cache-busting version. */
+  avatarUrl: string | null;
   biography: string | null;
   basedIn: string | null;
   /** ISO 3166-1 alpha-2, chosen by the member. */
@@ -46,6 +48,7 @@ export interface OwnSettings {
 interface ProfileRow {
   username: string;
   display_name: string;
+  avatar_url: string | null;
   biography: string | null;
   based_in: string | null;
   country_code: string | null;
@@ -71,7 +74,7 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
     supabase
       .from('profiles')
       .select(
-        `username, display_name, biography, based_in, country_code, website, social_links,
+        `username, display_name, avatar_url, biography, based_in, country_code, website, social_links,
          style_tags, collaboration_status, critique_preference, cover_photograph_id, usual_gear,
          username_changed_at, is_suspended`,
       )
@@ -98,6 +101,7 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
   return {
     username: row.username,
     displayName: row.display_name,
+    avatarUrl: row.avatar_url,
     biography: row.biography,
     basedIn: row.based_in,
     countryCode: row.country_code,

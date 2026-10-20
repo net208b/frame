@@ -187,6 +187,17 @@ export const UPLOAD_POLICY = {
   maxUploadsPerDay: 20,
   maxUploadsPerHour: 6,
   maxPendingUploads: 30,
+  /**
+   * An avatar, which is posted to a server action rather than sent straight to
+   * storage with a grant. Two megabytes is the ceiling on that request body
+   * (`serverActions.bodySizeLimit`), and the browser shrinks a picture to a
+   * couple of hundred kilobytes before sending it, so this limit is only ever
+   * met by a submission made without JavaScript.
+   */
+  maxAvatarBytes: 2 * 1024 * 1024,
+  /** Below this there is nothing to crop a 256-pixel square out of. */
+  minAvatarPixels: 128,
+  maxAvatarChangesPerHour: 12,
 } as const;
 
 export const LOCATION_POLICY = {

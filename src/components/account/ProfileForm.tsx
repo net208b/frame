@@ -20,10 +20,11 @@ import {
 /**
  * The fields of the public profile a member writes themselves.
  *
- * Not the avatar: there is no way to upload one yet, and taking a URL instead
- * would put an image from any server on the internet onto FRAME's pages — and a
- * request to that server into every visitor's browser. The page says so rather
- * than offering a field that would do that.
+ * Not the avatar, which has its own form above this one: a picture is a file to
+ * be read, cropped and stored rather than a field to be saved with the rest, and
+ * it is never a URL a member types — a link to any server on the internet would
+ * put somebody else's image on FRAME's pages, and a request to their server into
+ * every visitor's browser.
  *
  * Fields are uncontrolled with their saved values as defaults, so the form
  * works before hydration. A failed save keeps what was typed because the
@@ -277,8 +278,6 @@ export function ProfileForm({
           })}
           error={errorFor('gear')}
         />
-
-        <p className="text-caption text-muted">{t('profile.avatarNote')}</p>
 
         <Button type="submit" size="lg" loading={pending}>
           {pending ? t('profile.submitPending') : t('profile.submit')}

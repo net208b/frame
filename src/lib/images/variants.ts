@@ -31,6 +31,49 @@ export function storageKeys(photographId: string, ownerId: string) {
 }
 
 /**
+ * The avatar, which is not one of the photograph derivatives above.
+ *
+ * One size, square, and small: it is drawn at 128px at the very largest (the
+ * profile masthead) and at 32px nearly everywhere else, so 256 covers a
+ * two-times display with nothing to spare. A member's face is not a photograph
+ * they published — it needs no gallery or detail derivative, and giving it one
+ * would be storing four files to answer a question nobody asks.
+ */
+export const AVATAR_VARIANT = {
+  size: 256,
+  quality: 82,
+  format: 'webp',
+  contentType: 'image/webp',
+} as const;
+
+/**
+ * Where a member's avatar lives: one object per account, replaced in place.
+ *
+ * DETERMINISTIC, unlike the photograph keys, which carry the photograph's id.
+ * That is what lets the account be tidied up without recording a key anywhere:
+ * removing the avatar, or deleting the account, can derive the object from the
+ * member id alone. The cost is that the public URL does not change when the
+ * picture does, and these objects are served with a year of cache — so the URL
+ * stored on the profile carries a version (see `avatarPublicUrl`), and the key
+ * stays stable underneath it.
+ */
+export function avatarStorageKey(ownerId: string): string {
+  return `${ownerId}/avatars/avatar.${AVATAR_VARIANT.format}`;
+}
+
+/**
+ * The URL written to `profiles.avatar_url`: the object's public URL with a
+ * fingerprint of the bytes on it.
+ *
+ * The query string is the cache-buster, and a content fingerprint rather than a
+ * timestamp so that saving the same picture twice does not change the address
+ * and re-download it for everybody who had it.
+ */
+export function avatarPublicUrl(publicUrl: string, fingerprint: string): string {
+  return `${publicUrl}?v=${fingerprint}`;
+}
+
+/**
  * `sizes` values matching the real layouts, so the browser downloads one
  * correctly-sized image instead of the widest candidate.
  */
