@@ -17,7 +17,7 @@ import { changeUsername } from '@/server/actions/account';
  * it. That is why the Join form says it does not change, and why it does not
  * here either, with one exception: an account made through Google, Apple,
  * Facebook or X was given a username it never chose, and may replace it once.
- * `change_username()` in migration 0010 enforces exactly that; this component
+ * `change_username()` in migration 0011 enforces exactly that; this component
  * only decides which of the three sentences to show.
  */
 

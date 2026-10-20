@@ -8,7 +8,7 @@
  *                                trigger chooses — those made through Google,
  *                                Apple, Facebook or X (migration 0009)
  *   is_reserved_username()       for change_username(), the one route by which
- *                                an existing username changes (migration 0010)
+ *                                an existing username changes (migration 0011)
  *
  * A name added to one and not the others is a reserved name that can be taken
  * by whichever path was missed. Each carries a "keep in step" comment; this is
@@ -17,7 +17,7 @@
  * For each SQL function the migration checked is the last one that defines it,
  * since that is the definition in force. A later redefinition without its list
  * fails here, which is the regression this exists to catch. A function no
- * migration defines yet is skipped, so the check can land before 0010 does.
+ * migration defines yet is skipped, so the check can land before 0011 does.
  *
  * Run from the repository root: node scripts/assert-reserved-usernames.mjs
  */

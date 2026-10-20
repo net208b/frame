@@ -448,7 +448,7 @@ begin
 end $$;
 
 -- ----------------------------------------------------------- account settings
--- Migration 0010. Unlike most of this file, these run as the `authenticated`
+-- Migration 0011. Unlike most of this file, these run as the `authenticated`
 -- role, not as the superuser: the rules under test are a trigger that reads
 -- who is writing, column grants, and EXECUTE grants, and a superuser walks
 -- straight past all three. Each block that switches role does so inside its
@@ -466,7 +466,7 @@ insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data) values
   ('dddddddd-0000-4000-8000-000000000004', 'e.member@example.test',
    '{"username":"email_member","display_name":"Email Member"}', '{"provider":"email"}');
 
--- The hole 0010 closes: a member writing their own row directly.
+-- The hole 0010 closed, still closed under 0011's fuller guard.
 begin;
 set local role authenticated;
 set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';

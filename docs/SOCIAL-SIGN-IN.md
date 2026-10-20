@@ -235,7 +235,7 @@ console is wrong — the runtime log names the reason as
 ## What is not covered yet
 
 - **No contact address is named.** Members can now delete their account from
-  **Settings** (migration 0010), so the data-deletion link given to Meta leads to
+  **Settings** (migration 0011), so the data-deletion link given to Meta leads to
   something that works. The privacy notice still says the contact route for a
   copy of one's data, or a correction, "must be named here before launch", and
   Meta's reviewers may look for one. Name a real address there before switching

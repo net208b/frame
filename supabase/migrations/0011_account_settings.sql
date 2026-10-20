@@ -1,18 +1,18 @@
 -- =============================================================================
--- FRAME — 0010  Account settings: profile edits, one username change, deletion
+-- FRAME — 0011  Account settings: profile edits, one username change, deletion
 -- =============================================================================
 -- The privacy notice told members they could edit their profile and delete
 -- their account themselves. Neither existed. This migration is the database
--- half of making that true, and it closes a hole found on the way.
+-- half of making that true.
 --
--- THE HOLE. profiles_update_own (0007) lets a member write their own row, and
--- profiles_guard_privileged_columns (0006) stopped them changing their role or
--- suspension — but not their username. Any signed-in member could rename
--- themselves at will with one request using the public key, including to a
--- reserved name such as "admin" or "support", which is exactly the
--- impersonation the reserved list exists to prevent. The Join form's promise
--- that a username "cannot be changed" was enforced by the absence of a form,
--- not by the database. The guard now refuses a direct username change.
+-- It builds on 0010, the username guard. Until 0010, profiles_update_own (0007)
+-- let a member write their own row and profiles_guard_privileged_columns (0006)
+-- did not stop them changing their username — any signed-in member could
+-- rename themselves with one request, reserved names included. 0010 shipped on
+-- its own, ahead of this, to close that. This migration redefines the guard
+-- again: it keeps 0010's rule, adds the record of a username change to what a
+-- member cannot write, and lets the two functions below through. It must sort
+-- after 0010, which is why it is 0011.
 --
 -- What this adds:
 --
@@ -109,7 +109,7 @@ begin
     return new;
   end if;
 
-  -- NEW in 0010. change_username() and delete_own_account() have done their own
+  -- NEW in 0011. change_username() and delete_own_account() have done their own
   -- authorisation and are the only routes by which a member's request may change
   -- these columns. Each switches this on around its own write and off again
   -- straight after; a client cannot set it, because PostgREST exposes no way to
@@ -124,7 +124,7 @@ begin
   new.id = old.id;
   new.created_at = old.created_at;
   new.member_since = old.member_since;
-  new.username_changed_at = old.username_changed_at;   -- NEW in 0010
+  new.username_changed_at = old.username_changed_at;   -- NEW in 0011
 
   if new.role is distinct from old.role
      and not (public.current_profile_role() = 'admin' and v_actor <> old.id) then
@@ -139,7 +139,7 @@ begin
       using errcode = '42501';
   end if;
 
-  -- NEW in 0010. Refused for everyone with a session, moderators included: a
+  -- From 0010, the username guard, with a fuller message. Refused for everyone with a session, moderators included: a
   -- username is a public address, and changing somebody else's is not a
   -- moderation tool this app offers. The service role can still do it.
   if new.username is distinct from old.username then

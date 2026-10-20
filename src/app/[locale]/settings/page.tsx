@@ -23,7 +23,7 @@ import { SIGN_IN_PROVIDER_NAMES, isSignInProvider } from '@/lib/sign-in-provider
  * be read together, and changed together.
  *
  * Every write here is also refused by the database when it should be — see
- * migration 0010 — so what this page shows or hides is a courtesy, not the
+ * migration 0011 — so what this page shows or hides is a courtesy, not the
  * rule.
  */
 

@@ -37,7 +37,7 @@ grant usage on schema public, extensions, auth to anon, authenticated, service_r
 -- Only the columns the migrations actually read.
 --
 -- raw_app_meta_data and banned_until are read and written by change_username()
--- and delete_own_account() (0010); auth.sessions exists so the latter can end a
+-- and delete_own_account() (0011); auth.sessions exists so the latter can end a
 -- retained account's sessions. Each mirrors the hosted column's type and its
 -- delete rule, since those are what the assertions depend on.
 create table if not exists auth.users (

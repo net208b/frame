@@ -7,7 +7,7 @@ import { validationCode } from './codes';
  * Settings schemas.
  *
  * Every limit here is also a check constraint on `profiles` (migrations 0002
- * and 0010), and has to be: a member can write their own row directly with the
+ * and 0011), and has to be: a member can write their own row directly with the
  * public key, so the form is a courtesy and the database is the rule. The two
  * are written to agree — when they differ, the stricter one is the form, so a
  * member is never told "saved" for a value the database then refuses.

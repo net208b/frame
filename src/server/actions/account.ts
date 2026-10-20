@@ -27,7 +27,7 @@ import {
  * demo mode every action refuses. Nothing overstates — a sentence is returned
  * only once the write it describes has happened. And none of these trusts the
  * form: the database refuses a username change, a malformed website or an
- * unconfirmed deletion on its own (migration 0010), so a request that skips
+ * unconfirmed deletion on its own (migration 0011), so a request that skips
  * this file is refused as firmly as one that goes through it. What this file
  * adds is the sentences, the rate limits, and removing image files, which the
  * database cannot do.

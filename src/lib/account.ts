@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
  * Read with the member's own session, so every row here is one RLS already lets
  * them see — nothing is fetched past a policy except the one yes/no answer that
  * `deletion_would_retain_account()` gives, for the reason written beside that
- * function in migration 0010.
+ * function in migration 0011.
  */
 
 export interface OwnSettings {
