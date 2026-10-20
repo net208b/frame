@@ -2,14 +2,10 @@
 
 import { randomUUID } from 'node:crypto';
 
+import { getTranslations } from 'next-intl/server';
 import { z } from 'zod';
 
-import {
-  fail,
-  NOT_CONFIGURED_MESSAGE,
-  ok,
-  type ActionResult,
-} from '@/lib/action-result';
+import { fail, ok, type ActionResult } from '@/lib/action-result';
 import { getViewer, getViewerSuspension, type Viewer } from '@/lib/auth';
 import { isDemoMode, UPLOAD_POLICY } from '@/lib/config';
 import { distanceMetres } from '@/lib/geo';
@@ -84,30 +80,50 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 type Guard = { ok: true; viewer: Viewer } | { ok: false; result: ActionResult<never> };
 
 /**
+ * What an action is doing, for the sentences that name it.
+ *
+ * A key rather than an English verb. The refusals used to be assembled —
+ * `Sign in to ${verb}.` — which reads fine in English and cannot be translated:
+ * Thai puts the verb somewhere else in the sentence, and a translator handed a
+ * fragment has nothing to work with. Each of these selects a whole sentence
+ * from `upload.actions.signedOut` and `upload.actions.suspended` instead.
+ */
+type UploaderAction = 'upload' | 'process' | 'publish' | 'discard' | 'delete';
+
+/** The upload surface's own messages, as `account` and `auth` already do it. */
+async function messages() {
+  return getTranslations('upload');
+}
+
+/**
  * Capability, identity and standing, in that order.
  *
  * A suspended member is returned by `getViewer()` on purpose — the pages they
  * can still reach have to be able to explain the suspension — so every write
  * path has to ask about it separately.
  */
-async function guardUploader(verb: string): Promise<Guard> {
+async function guardUploader(action: UploaderAction): Promise<Guard> {
+  const t = await messages();
+
   if (isDemoMode()) {
-    return { ok: false, result: fail(NOT_CONFIGURED_MESSAGE, 'not_configured') };
+    return { ok: false, result: fail(t('actions.notConfigured'), 'not_configured') };
   }
 
   const viewer = await getViewer();
   if (!viewer) {
-    return { ok: false, result: fail(`Sign in to ${verb}.`, 'unauthenticated') };
+    return { ok: false, result: fail(t('actions.signedOut', { action }), 'unauthenticated') };
   }
 
   const suspension = await getViewerSuspension();
   if (suspension?.isSuspended) {
+    // The reason is a moderator's own sentence, in whatever language they wrote
+    // it. It is appended rather than interpolated into the refusal so that the
+    // translated half stays one whole unit and the quoted half stays theirs.
+    const refusal = t('actions.suspended', { action });
     return {
       ok: false,
       result: fail(
-        suspension.reason
-          ? `This account is suspended, so it cannot ${verb}. ${suspension.reason}`
-          : `This account is suspended, so it cannot ${verb}.`,
+        suspension.reason ? `${refusal} ${suspension.reason}` : refusal,
         'forbidden',
       ),
     };
@@ -124,9 +140,9 @@ async function guardUploader(verb: string): Promise<Guard> {
  * where that is found out, and the member is told which variable is missing
  * rather than watching an upload fail for no stated reason.
  */
-function resolveDriver():
-  | { ok: true; driver: StorageDriver }
-  | { ok: false; result: ActionResult<never> } {
+async function resolveDriver(): Promise<
+  { ok: true; driver: StorageDriver } | { ok: false; result: ActionResult<never> }
+> {
   try {
     return { ok: true, driver: storageDriver() };
   } catch (error) {
@@ -134,7 +150,10 @@ function resolveDriver():
       return {
         ok: false,
         result: fail(
-          `Image storage is not configured, so nothing was uploaded. ${error.message}`,
+          // The driver's own sentence names the variable that is missing. It
+          // is an operator's message rather than a member's, so it is appended
+          // whole rather than translated.
+          (await messages())('actions.storageNotConfigured', { detail: error.message }),
           'not_configured',
         ),
       };
@@ -154,8 +173,9 @@ function resolveDriver():
 async function limitUploadOperation(
   operation: 'create' | 'process' | 'publish' | 'discard',
   viewerId: string,
-  noun: string,
 ): Promise<ActionResult<never> | null> {
+  const t = await messages();
+
   const perHour = await checkRateLimit(
     `upload:${operation}:hour:${viewerId}`,
     UPLOAD_POLICY.maxUploadsPerHour,
@@ -163,7 +183,11 @@ async function limitUploadOperation(
   );
   if (!perHour.allowed) {
     return fail(
-      `FRAME accepts ${UPLOAD_POLICY.maxUploadsPerHour} ${noun} an hour from one account. Try again in ${Math.ceil(perHour.retryAfterSeconds / 60)} minutes.`,
+      t('actions.rateLimitedHour', {
+        operation,
+        limit: UPLOAD_POLICY.maxUploadsPerHour,
+        minutes: Math.max(1, Math.ceil(perHour.retryAfterSeconds / 60)),
+      }),
       'rate_limited',
     );
   }
@@ -175,7 +199,11 @@ async function limitUploadOperation(
   );
   if (!perDay.allowed) {
     return fail(
-      `FRAME accepts ${UPLOAD_POLICY.maxUploadsPerDay} ${noun} a day from one account. Try again in ${Math.ceil(perDay.retryAfterSeconds / 3600)} hours.`,
+      t('actions.rateLimitedDay', {
+        operation,
+        limit: UPLOAD_POLICY.maxUploadsPerDay,
+        hours: Math.max(1, Math.ceil(perDay.retryAfterSeconds / 3600)),
+      }),
       'rate_limited',
     );
   }
@@ -193,6 +221,7 @@ async function pendingUploadGuard(
   supabase: SupabaseClient,
   viewerId: string,
 ): Promise<ActionResult<never> | null> {
+  const t = await messages();
   const { count, error } = await supabase
     .from('photographs')
     .select('id', { count: 'exact', head: true })
@@ -201,16 +230,13 @@ async function pendingUploadGuard(
 
   if (error) {
     console.error(`FRAME upload: counting uploads in progress failed — ${error.message}`);
-    return fail(
-      'Your uploads in progress could not be counted, so this upload was not started. Try again in a moment.',
-      'unknown',
-    );
+    return fail(t('actions.pendingCountFailed'), 'unknown');
   }
 
   const pending = count ?? 0;
   if (pending >= UPLOAD_POLICY.maxPendingUploads) {
     return fail(
-      `You have ${pending} uploads waiting to be finished or reviewed, which is the limit of ${UPLOAD_POLICY.maxPendingUploads}. Publish or discard one before starting another.`,
+      t('actions.pendingLimit', { pending, limit: UPLOAD_POLICY.maxPendingUploads }),
       'conflict',
     );
   }
@@ -247,6 +273,7 @@ async function loadOwnedPhotograph(
   photographId: string,
   viewerId: string,
 ): Promise<{ ok: true; photograph: OwnedPhotograph } | { ok: false; result: ActionResult<never> }> {
+  const t = await messages();
   const { data, error } = await supabase
     .from('photographs')
     .select('id, owner_id, slug, status, image_width, image_height')
@@ -257,7 +284,7 @@ async function loadOwnedPhotograph(
   if (error) {
     return {
       ok: false,
-      result: fail('That upload could not be read. Try again in a moment.', 'unknown'),
+      result: fail(t('actions.readFailed'), 'unknown'),
     };
   }
 
@@ -268,7 +295,7 @@ async function loadOwnedPhotograph(
   if (!row || row.owner_id !== viewerId) {
     return {
       ok: false,
-      result: fail('That upload was not found in your account.', 'not_found'),
+      result: fail(t('actions.notYours'), 'not_found'),
     };
   }
 
@@ -316,11 +343,12 @@ function slugAttempt(base: string, attempt: number): string {
 export async function createDraft(
   input: unknown,
 ): Promise<ActionResult<{ photographId: string; storagePrefix: string; slug: string }>> {
-  const guard = await guardUploader('upload a photograph');
+  const guard = await guardUploader('upload');
   if (!guard.ok) return guard.result;
+  const t = await messages();
   const { viewer } = guard;
 
-  const limited = await limitUploadOperation('create', viewer.id, 'uploads');
+  const limited = await limitUploadOperation('create', viewer.id);
   if (limited) return limited;
 
   const parsed = parseForm(input, createDraftSchema);
@@ -363,14 +391,14 @@ export async function createDraft(
     if (error.code !== UNIQUE_VIOLATION) {
       console.error(`FRAME upload: creating a draft failed — ${error.message}`);
       return fail(
-        'This upload could not be started. Nothing was saved, so you can try again.',
+        t('actions.createFailed'),
         'unknown',
       );
     }
   }
 
   return fail(
-    'A web address could not be reserved for this title. Try a slightly different title.',
+    t('actions.slugFailed'),
     'conflict',
     { title: 'This title could not be turned into a free web address.' },
   );
@@ -516,19 +544,20 @@ interface VariantRow {
 export async function attachVariants(
   input: unknown,
 ): Promise<ActionResult<{ variants: ImageVariantName[]; width: number; height: number }>> {
-  const guard = await guardUploader('process an upload');
+  const guard = await guardUploader('process');
   if (!guard.ok) return guard.result;
+  const t = await messages();
   const { viewer } = guard;
 
   // Processing is the expensive step — four encodes of a file up to 25 MB — so
   // it carries the upload policy's limits in its own right.
-  const limited = await limitUploadOperation('process', viewer.id, 'uploads');
+  const limited = await limitUploadOperation('process', viewer.id);
   if (limited) return limited;
 
   const parsed = parseForm(input, attachInputSchema);
   if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
 
-  const resolved = resolveDriver();
+  const resolved = await resolveDriver();
   if (!resolved.ok) return resolved.result;
   const driver = resolved.driver;
 
@@ -539,7 +568,7 @@ export async function attachVariants(
 
   if (photograph.status === 'published' || photograph.status === 'removed') {
     return fail(
-      'This photograph is no longer a draft, so its image cannot be replaced here.',
+      t('actions.notADraft'),
       'conflict',
     );
   }
@@ -588,7 +617,7 @@ export async function attachVariants(
     );
     await setStatus('draft');
     return fail(
-      'The sizes FRAME serves could not be generated from that file. Try exporting it again from your editor.',
+      t('actions.variantsFailed'),
       'unknown',
     );
   }
@@ -621,7 +650,7 @@ export async function attachVariants(
       );
       await setStatus('draft');
       return fail(
-        'Image storage refused to accept the generated sizes, so nothing was published.',
+        t('actions.storageRefused'),
         'unknown',
       );
     }
@@ -629,7 +658,7 @@ export async function attachVariants(
     if (!(await putWithGrant(grant, variant.bytes))) {
       await setStatus('draft');
       return fail(
-        `The ${variant.name} size could not be stored, so nothing was published. Try again in a moment.`,
+        t('actions.variantFailed', { variant: variant.name }),
         'unknown',
       );
     }
@@ -655,7 +684,7 @@ export async function attachVariants(
     console.error(`FRAME upload: recording derivatives failed — ${imagesError.message}`);
     await setStatus('draft');
     return fail(
-      'The generated sizes were stored but could not be recorded, so this upload is not ready to publish. Try again in a moment.',
+      t('actions.variantsNotRecorded'),
       'unknown',
     );
   }
@@ -680,7 +709,7 @@ export async function attachVariants(
   if (updateError) {
     console.error(`FRAME upload: recording image dimensions failed — ${updateError.message}`);
     return fail(
-      'The image sizes were stored but the photograph record could not be updated. Try processing it again.',
+      t('actions.recordNotUpdated'),
       'unknown',
     );
   }
@@ -1019,11 +1048,12 @@ function exifSourceRecord(
 export async function publishPhotograph(
   input: unknown,
 ): Promise<ActionResult<{ slug: string; status: PublicationStatus; signals: UploadSignal[] }>> {
-  const guard = await guardUploader('publish a photograph');
+  const guard = await guardUploader('publish');
   if (!guard.ok) return guard.result;
   const { viewer } = guard;
+  const t = await messages();
 
-  const limited = await limitUploadOperation('publish', viewer.id, 'photographs');
+  const limited = await limitUploadOperation('publish', viewer.id);
   if (limited) return limited;
 
   const parsed = parseForm(input, publishInputSchema);
@@ -1037,7 +1067,7 @@ export async function publishPhotograph(
 
   if (photograph.status === 'removed') {
     return fail(
-      'This photograph was removed by a moderator, so it cannot be published from here.',
+      t('actions.removedByModerator'),
       'forbidden',
     );
   }
@@ -1051,7 +1081,7 @@ export async function publishPhotograph(
     .eq('photograph_id', photograph.id);
 
   if (imagesError) {
-    return fail('The stored sizes could not be read. Try again in a moment.', 'unknown');
+    return fail(t('actions.sizesUnreadable'), 'unknown');
   }
 
   const variants = new Map<string, { width: number | null; height: number | null }>();
@@ -1067,7 +1097,7 @@ export async function publishPhotograph(
   const missing = required.filter((name) => !variants.has(name));
   if (missing.length > 0) {
     return fail(
-      `This upload is not finished: the ${missing.join(' and ')} ${missing.length === 1 ? 'size has' : 'sizes have'} not been generated. Send the file again and wait for processing to finish.`,
+      t('actions.unfinished', { count: missing.length, sizes: missing.join(', ') }),
       'conflict',
     );
   }
@@ -1076,8 +1106,8 @@ export async function publishPhotograph(
   if (payload.locationId !== null) {
     location = await resolveLocation(supabase, payload.locationId);
     if (!location) {
-      return fail('That place is not an approved FRAME location.', 'validation', {
-        locationId: 'Choose a place from the list, or propose a new one for review.',
+      return fail(t('actions.placeNotApproved'), 'validation', {
+        locationId: t('actions.placeNotApprovedField'),
       });
     }
   }
@@ -1147,7 +1177,7 @@ export async function publishPhotograph(
   if (metadataError) {
     console.error(`FRAME upload: saving capture metadata failed — ${metadataError.message}`);
     return fail(
-      'The camera details could not be saved, so nothing was published. Try again in a moment.',
+      t('actions.cameraFailed'),
       'unknown',
     );
   }
@@ -1180,7 +1210,7 @@ export async function publishPhotograph(
       `FRAME upload: publishing ${photograph.id} failed — ${publishError?.message ?? 'no row returned'}`,
     );
     return fail(
-      'This photograph could not be published. Nothing was changed, so you can try again.',
+      t('actions.publishFailed'),
       'unknown',
     );
   }
@@ -1265,17 +1295,18 @@ async function publishIfCleared(photographId: string, signals: UploadSignal[]): 
 /* ------------------------------------------------------------------------ */
 
 export async function discardDraft(input: unknown): Promise<ActionResult<{ slug: string }>> {
-  const guard = await guardUploader('discard an upload');
+  const guard = await guardUploader('discard');
   if (!guard.ok) return guard.result;
+  const t = await messages();
   const { viewer } = guard;
 
-  const limited = await limitUploadOperation('discard', viewer.id, 'discarded uploads');
+  const limited = await limitUploadOperation('discard', viewer.id);
   if (limited) return limited;
 
   const parsed = parseForm(input, discardDraftSchema);
   if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
 
-  const resolved = resolveDriver();
+  const resolved = await resolveDriver();
   if (!resolved.ok) return resolved.result;
 
   const supabase = await createClient();
@@ -1285,7 +1316,7 @@ export async function discardDraft(input: unknown): Promise<ActionResult<{ slug:
 
   if (photograph.status === 'published') {
     return fail(
-      'This photograph is published. Taking published work down is a separate request, so that an appreciation count and a place entry are not deleted by accident.',
+      t('actions.alreadyPublished'),
       'conflict',
     );
   }
@@ -1304,7 +1335,7 @@ export async function discardDraft(input: unknown): Promise<ActionResult<{ slug:
       }`,
     );
     return fail(
-      'The stored image could not be deleted, so the draft was kept rather than leaving files behind with nothing pointing at them. Try again in a moment.',
+      t('actions.imageNotDeleted'),
       'unknown',
     );
   }
@@ -1318,7 +1349,7 @@ export async function discardDraft(input: unknown): Promise<ActionResult<{ slug:
   if (deleteError) {
     console.error(`FRAME upload: deleting draft ${photograph.id} failed — ${deleteError.message}`);
     return fail(
-      'The stored image was deleted but the draft record could not be. Reload the page and try again.',
+      t('actions.imageDeletedRecordKept'),
       'unknown',
     );
   }
@@ -1351,18 +1382,20 @@ export async function discardDraft(input: unknown): Promise<ActionResult<{ slug:
  * FRAME; it does not take away the right to remove their own work from it.
  */
 export async function deleteOwnPhotograph(input: unknown): Promise<ActionResult<{ slug: string }>> {
-  if (isDemoMode()) return fail(NOT_CONFIGURED_MESSAGE, 'not_configured');
+  const t = await messages();
+
+  if (isDemoMode()) return fail(t('actions.notConfigured'), 'not_configured');
 
   const viewer = await getViewer();
-  if (!viewer) return fail('Sign in to delete a photograph.', 'unauthenticated');
+  if (!viewer) return fail(t('actions.signedOut', { action: 'delete' }), 'unauthenticated');
 
-  const limited = await limitUploadOperation('discard', viewer.id, 'deleted photographs');
+  const limited = await limitUploadOperation('discard', viewer.id);
   if (limited) return limited;
 
   const parsed = parseForm(input, discardDraftSchema);
   if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
 
-  const resolved = resolveDriver();
+  const resolved = await resolveDriver();
   if (!resolved.ok) return resolved.result;
 
   const supabase = await createClient();
@@ -1390,7 +1423,7 @@ export async function deleteOwnPhotograph(input: unknown): Promise<ActionResult<
       }`,
     );
     return fail(
-      'The image files could not be deleted, so the photograph was kept rather than leaving files behind with nothing pointing at them. Try again in a moment.',
+      t('actions.filesNotDeleted'),
       'unknown',
     );
   }
@@ -1407,7 +1440,7 @@ export async function deleteOwnPhotograph(input: unknown): Promise<ActionResult<
       `FRAME upload: deleting photograph ${photograph.id} failed — ${deleteError?.message ?? 'no row deleted'}`,
     );
     return fail(
-      'The image files were deleted but the photograph record could not be. Reload the page and try again.',
+      t('actions.filesDeletedRecordKept'),
       'unknown',
     );
   }
