@@ -1,4 +1,4 @@
-import { PAGE_SIZE } from '@/lib/config';
+import { MAP_PIN_PHOTOGRAPH_SAMPLE, PAGE_SIZE } from '@/lib/config';
 import { distanceMetres } from '@/lib/geo';
 import { sortPhotographs } from '@/lib/ranking';
 import type {
@@ -206,6 +206,25 @@ export function demoNearbyLocations(
     .slice(0, limit);
 }
 
+/**
+ * A place's newest photographs, newest first, as the live query returns them.
+ *
+ * The sort is here rather than in `demoPhotographsAtLocation` because the demo
+ * fixtures are written in whatever order reads well in the file, while the
+ * product rule is that the most recent frame at a place is the one the map puts
+ * on top. Demo mode is what the interface is built and reviewed against, so it
+ * has to obey the same rule or the stack would be designed against an order
+ * production will never produce.
+ */
+function demoRecentImageUrls(locationId: string): string[] {
+  return demoPhotographsAtLocation(locationId)
+    .slice()
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    .slice(0, MAP_PIN_PHOTOGRAPH_SAMPLE)
+    .map((photo) => photo.image.thumbUrl)
+    .filter((url): url is string => Boolean(url));
+}
+
 /** Pins for the map page: approved locations that have a publishable point. */
 export function demoMapPins() {
   return DEMO_LOCATIONS.filter((location) => location.coordinates).map((location) => ({
@@ -220,7 +239,8 @@ export function demoMapPins() {
     latitude: location.coordinates!.latitude,
     longitude: location.coordinates!.longitude,
     isApproximate: location.coordinates!.isApproximate,
-    previewImageUrl: demoPhotographsAtLocation(location.id)[0]?.image.thumbUrl ?? null,
+    previewImageUrl: demoRecentImageUrls(location.id)[0] ?? null,
+    recentImageUrls: demoRecentImageUrls(location.id),
   }));
 }
 

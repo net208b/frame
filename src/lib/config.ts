@@ -206,6 +206,20 @@ export const APPRECIATION_POLICY = {
   trendingHalfLifeHours: 36,
 } as const;
 
+/**
+ * How many of a place's photographs a map pin carries, newest first.
+ *
+ * Three, because the card on the map shows the newest frame with two edges
+ * behind it — enough for the stack to read as a stack, few enough that the map
+ * read stays a single query.
+ *
+ * It lives here rather than beside `MapPin` because both the live query and the
+ * demo dataset need it, and both are imported *by* the module that declares
+ * that type: exporting it from there and importing it back would close an
+ * import cycle.
+ */
+export const MAP_PIN_PHOTOGRAPH_SAMPLE = 3;
+
 export const PAGE_SIZE = {
   gallery: 24,
   locations: 18,
