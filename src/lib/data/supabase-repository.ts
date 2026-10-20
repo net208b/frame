@@ -1844,6 +1844,12 @@ interface SuspiciousJoined {
   photograph_images: ImageColumns[] | null;
   photograph_metadata: SuspiciousMetadataColumns | SuspiciousMetadataColumns[] | null;
   locations: SuspiciousLocationColumns | SuspiciousLocationColumns[] | null;
+  photograph_content_checks: ContentCheckColumns | ContentCheckColumns[] | null;
+}
+
+interface ContentCheckColumns {
+  verdict: string | null;
+  note: string | null;
 }
 
 /** How far EXIF may sit from the stated location before it is worth a look. */
@@ -1873,7 +1879,8 @@ async function suspiciousUploads(
          photograph_metadata(camera_brand_text, camera_model_text, lens_brand_text, lens_model_text,
            focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes,
            exif_source, exif_gps_latitude, exif_gps_longitude),
-         locations(name, slug, latitude, longitude)`,
+         locations(name, slug, latitude, longitude),
+         photograph_content_checks(verdict, note)`,
       )
       .eq('status', 'under_review')
       .order('created_at', { ascending: true })
@@ -1909,6 +1916,25 @@ async function suspiciousUploads(
     const metadata = firstOf<SuspiciousMetadataColumns>(row.photograph_metadata);
     const location = firstOf<SuspiciousLocationColumns>(row.locations);
     const signals: UploadSignal[] = [];
+
+    // The automated content check comes first: when it is why the upload is
+    // here, it is what the moderator needs to read before anything else.
+    const contentCheck = firstOf<ContentCheckColumns>(row.photograph_content_checks);
+    const checkVerdict = toText(contentCheck?.verdict);
+    if (checkVerdict === 'review') {
+      signals.push({
+        kind: 'content-flagged',
+        severity: 'high',
+        message: toText(contentCheck?.note) ?? 'The automated content check held this image.',
+      });
+    } else if (checkVerdict !== 'clear') {
+      signals.push({
+        kind: 'content-unchecked',
+        severity: 'info',
+        message:
+          toText(contentCheck?.note) ?? 'No automated content check was recorded, so it needs a person.',
+      });
+    }
 
     const width = toNumber(row.image_width);
     const height = toNumber(row.image_height);

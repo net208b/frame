@@ -54,7 +54,7 @@ anyone who opens the browser's developer tools. Treat it as published.
 | `NEXT_PUBLIC_SUPABASE_URL` | For anything beyond demo mode | Public | The Supabase project's API URL. Also the source of the Supabase hostname in `images.remotePatterns`. | `https://abcdefghijklm.supabase.co`, or `http://127.0.0.1:54321` locally | Demo mode. Reads come from the bundled dataset, writes refuse, sign-in is unavailable, and stored images cannot be optimised. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | For anything beyond demo mode | Public | The browser-safe key. Row-level security is what constrains it, so publishing it is expected. | `sb_publishable_…` | Demo mode, exactly as above. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Optional alias | Public | The older name for the same key, accepted so a project of any vintage works unchanged. `PUBLISHABLE` wins when both are set. | `eyJhbGciOiJ…` (a JWT) | Nothing, provided the publishable name is set. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Optional | **Server only** | The service-role key, which **bypasses row-level security entirely**. One code path uses it: filing a report from a visitor with no session (`submitReport` in `src/server/actions/reports.ts`), because RLS only lets an authenticated member insert a report under their own id. | `sb_secret_…` | `createAdminClient()` throws an error naming this variable; `submitReport` catches it and tells a signed-out visitor the report could not be filed. Everything else — including reports from signed-in members — works unchanged. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Recommended | **Server only** | The service-role key, which **bypasses row-level security entirely**. Used where the server must write something a member may not: filing a report from a visitor with no session (`submitReport`), confirming storage deletions (`src/lib/storage/supabase.ts`), and on upload recording the automated content check and publishing a photograph that check cleared (`src/server/actions/upload.ts`). | `sb_secret_…` | `createAdminClient()` throws an error naming this variable. Uploads still work, but no content check can be recorded, so **every upload waits for a moderator** instead of publishing at once. A signed-out visitor cannot file a report. |
 | `SUPABASE_SECRET_KEY` | Optional alias | **Server only** | The newer name for the service-role key. `SUPABASE_SERVICE_ROLE_KEY` wins when both are set. | `sb_secret_…` | Nothing, provided the other name is set. |
 
 Two things worth knowing about that service-role key, because both are easy to
@@ -91,6 +91,13 @@ section if you think one has leaked.
 
 R2 therefore needs four values in total: the three `R2_*` secrets and the public
 `NEXT_PUBLIC_IMAGE_HOST`.
+
+### Automated content check
+
+| Variable | Required | Scope | What it does | Example shape | Missing |
+| --- | --- | --- | --- | --- | --- |
+| `GOOGLE_VISION_API_KEY` | Recommended | **Server only** | Google Cloud Vision API key. When an upload is processed, its display size (re-encoded, every tag stripped — never the original file) is sent to SafeSearch; a clear answer lets the photograph publish at once. Restrict the key to the Cloud Vision API in the Google Cloud console. | `AIza…` | The check reports "unavailable", and every upload waits in the moderation queue for a person. Nothing is published unchecked. |
+| `CONTENT_CHECK_DAILY_LIMIT` | Optional | Server only | The most classifier calls made per UTC day. Google offers no daily quota for Cloud Vision, so this is the ceiling on the bill. | `2000` | Defaults to 2,000. Past it, uploads wait for a moderator instead of being checked. |
 
 ### Maps
 
@@ -287,7 +294,8 @@ To check for the mistake before it ships:
 grep -rn "NEXT_PUBLIC_SUPABASE_SERVICE\|NEXT_PUBLIC_SUPABASE_SECRET\|NEXT_PUBLIC_R2_" \
   src middleware.ts next.config.mjs .env.example .env.local 2>/dev/null
 
-# Should name only src/lib/supabase/admin.ts and src/server/actions/reports.ts.
+# Should name only src/lib/supabase/admin.ts, src/lib/storage/supabase.ts,
+# src/server/actions/reports.ts and src/server/actions/upload.ts.
 grep -rl "createAdminClient" src/
 ```
 

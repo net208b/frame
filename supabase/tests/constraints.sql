@@ -965,6 +965,72 @@ begin
 end $$;
 
 
+-- ---------------------------------------------------------- content checks
+-- Migration 0013. The server trusts a 'clear' row enough to publish on it, so
+-- nobody but the service role may write one.
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, rights_confirmed_at,
+   image_width, image_height)
+values
+  ('eeeeeeee-1111-4000-8000-000000000003', 'content-check-subject',
+   'eeeeeeee-0000-4000-8000-000000000001', 'Checked automatically',
+   'Two umbrellas crossing a tram line in heavy rain, seen from a first-floor window.',
+   'street', 'under_review', now(), 2400, 1600);
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+
+select public.test_rejects('an owner recording a clear content check for their own upload',
+  $$insert into public.photograph_content_checks (photograph_id, provider, verdict)
+    values ('eeeeeeee-1111-4000-8000-000000000003', 'google_vision_safesearch', 'clear')$$, '42501');
+commit;
+
+-- Written as the service role would.
+insert into public.photograph_content_checks (photograph_id, provider, verdict, adult, note)
+values ('eeeeeeee-1111-4000-8000-000000000003', 'google_vision_safesearch', 'review', 'LIKELY',
+        'The automated check rated this image: adult likely.');
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+
+select public.test_rejects('an owner turning a held check into a clear one',
+  $$update public.photograph_content_checks set verdict = 'clear'
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000003'$$, '42501');
+
+do $$
+begin
+  if exists (select 1 from public.photograph_content_checks) then
+    raise exception 'CONTENT CHECK LEAK  a member can read automated check results';
+  end if;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000002';
+do $$
+begin
+  if not exists (select 1 from public.photograph_content_checks
+                  where photograph_id = 'eeeeeeee-1111-4000-8000-000000000003') then
+    raise exception 'CONTENT CHECK GAP  a moderator cannot read why an upload was held';
+  end if;
+  raise notice 'content ok    only the server records a check; moderators read it, members do not';
+end $$;
+commit;
+
+do $$
+declare v_verdict text;
+begin
+  select verdict into v_verdict from public.photograph_content_checks
+   where photograph_id = 'eeeeeeee-1111-4000-8000-000000000003';
+  if v_verdict <> 'review' then
+    raise exception 'CONTENT CHECK BUG  a member changed the stored verdict to %', v_verdict;
+  end if;
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

@@ -138,6 +138,7 @@ export default async function PrivacyPage({
           <ul className={POLICY_LIST}>
             <li>{t.rich('privacy.thirdParties.list.database', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.thirdParties.list.storage', POLICY_TAGS)}</li>
+            <li>{t.rich('privacy.thirdParties.list.contentCheck', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.thirdParties.list.tiles', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.thirdParties.list.hosting', POLICY_TAGS)}</li>
             <li>{t.rich('privacy.thirdParties.list.signIn', POLICY_TAGS)}</li>
