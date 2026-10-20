@@ -94,6 +94,50 @@ select public.test_accepts('suspending an account with a reason',
 update public.profiles set is_suspended = false, suspended_reason = null
  where id = '22222222-2222-4222-8222-222222222222';
 
+-- --------------------------------------------- writing your own row directly
+-- Migration 0010. These run as the `authenticated` role, not as the superuser
+-- the rest of this file uses: the rule under test is a trigger that reads who
+-- is writing, and a superuser with no session walks straight past it. Each
+-- block switches role inside its own transaction so the role cannot leak.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '22222222-2222-4222-8222-222222222222';
+
+-- The positive control: the policy does let a member edit their own row.
+select public.test_accepts('a member editing their own display name directly',
+  $$update public.profiles set display_name = 'Member Two, renamed'
+     where id = '22222222-2222-4222-8222-222222222222'$$);
+
+-- The hole 0010 closes. "support" is reserved: the Join form refuses it.
+select public.test_rejects('a member renaming themselves directly',
+  $$update public.profiles set username = 'support'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+
+select public.test_rejects('a member promoting themselves',
+  $$update public.profiles set role = 'admin'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+commit;
+
+-- Renaming somebody else is not a moderation tool either.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('a moderator renaming another member',
+  $$update public.profiles set username = 'renamed_by_mod'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+commit;
+
+do $$
+declare v_name text;
+begin
+  select username into v_name from public.profiles
+   where id = '22222222-2222-4222-8222-222222222222';
+  if v_name <> 'member_two' then
+    raise exception 'GUARD BUG  a refused rename still changed the username to %', v_name;
+  end if;
+  raise notice 'guard ok      the username is unchanged after every refused attempt';
+end $$;
+
 -- ------------------------------------------------------------------ places
 insert into public.locations
   (id, slug, name, city, country, country_code, latitude, longitude,
