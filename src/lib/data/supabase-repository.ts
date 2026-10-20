@@ -488,17 +488,23 @@ const IMAGE_FIELDS = 'variant, storage_key, width, height';
  * because `profiles.cover_photograph_id` is a declared foreign key (0017) —
  * unlike `collections.cover_photograph_id`, which is not and therefore is not.
  *
- * The relationship has to be named. `profiles` and `photographs` are joined
- * twice over — a photograph has an owner, and a profile has a cover — so
- * PostgREST cannot guess which one `photographs(...)` means and refuses the
- * request until it is told.
+ * The relationship has to be named, and so does every *other* embed between
+ * these two tables. `profiles` and `photographs` are joined twice over — a
+ * photograph has an owner, and a profile has a cover — so PostgREST refuses any
+ * embed between them that does not say which join it means. Adding this column
+ * is what made the second join exist: the day it reached production it took the
+ * home page, the discover feed and every profile with it, because
+ * `profiles(...)` in `photographSelect()` had been unambiguous until then and
+ * suddenly was not. The hint is the foreign key's *column*, which is the form
+ * used everywhere else here (`profiles!submitted_by`, `profiles!reported_by`)
+ * and survives a constraint being renamed.
  *
  * `owner_id` and `status` come back so the mapper can check them. The trigger
  * already refuses a cover that is not the member's own published photograph,
  * but a photograph unpublished *after* it was chosen keeps the reference, and a
  * cover is a public image: it is checked where it is read, every time.
  */
-const PROFILE_COVER_FIELDS = `cover:photographs!profiles_cover_photograph_id_fkey(
+const PROFILE_COVER_FIELDS = `cover:photographs!cover_photograph_id(
   slug, alt_text, owner_id, status, photograph_images(${IMAGE_FIELDS}))`;
 
 const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, country_code,
@@ -530,7 +536,7 @@ function photographSelect(
   const metadata = options.innerMetadata ? 'photograph_metadata!inner' : 'photograph_metadata';
   return `
     ${PHOTOGRAPH_OWN_FIELDS},
-    profiles(${PROFILE_SUMMARY_FIELDS}),
+    profiles!owner_id(${PROFILE_SUMMARY_FIELDS}),
     ${location}(${LOCATION_SUMMARY_FIELDS}),
     photograph_images(${IMAGE_FIELDS}),
     ${metadata}(${METADATA_FIELDS})
@@ -2102,7 +2108,7 @@ async function suspiciousUploads(
       .select(
         `id, title, description, alt_text, category, captured_at, publish_captured_at,
          created_at, image_width, image_height,
-         profiles(${PROFILE_SUMMARY_FIELDS}),
+         profiles!owner_id(${PROFILE_SUMMARY_FIELDS}),
          photograph_images(${IMAGE_FIELDS}),
          photograph_metadata(camera_brand_text, camera_model_text, lens_brand_text, lens_model_text,
            focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes,
