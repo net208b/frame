@@ -161,8 +161,8 @@ Email Communication** in the developer account.
 
 ## Facebook
 
-Free. About twenty minutes, but going live depends on the data-deletion point
-under [What is not covered yet](#what-is-not-covered-yet).
+Free. About twenty minutes, but going live may depend on the contact-address
+point under [What is not covered yet](#what-is-not-covered-yet).
 
 1. [Meta for Developers](https://developers.facebook.com/apps/) → **Create
    app**. Use case: **Authenticate and request data from users with Facebook
@@ -237,20 +237,14 @@ console is wrong — the runtime log names the reason as
 
 ## What is not covered yet
 
-Each of these predates this change, and each one matters more once accounts can
-be made in a click.
-
-- **Account deletion does not exist.** The privacy notice says a member can
-  "delete the account outright" themselves, and there is no such feature in the
-  code — nor is there profile editing, which the same sentence also claims.
-  The section that tells Meta how to have data deleted therefore leads to a
-  route that is not there yet, and the privacy notice also says its contact
-  route "must be named here before launch". Meta's review of a Live app can
-  check that link. Before switching Facebook to Live, either build account
-  deletion or name a working contact address for deletion requests.
-- **A username cannot be changed.** The Join form says so, and an account made
-  through a provider never chose its own. The trigger now makes a reasonable
-  guess, but a one-time "choose your username" step on first sign-in would be
-  better than a guess the member is stuck with.
+- **No contact address is named.** Members can now delete their account from
+  **Settings** (migration 0011), so the data-deletion link given to Meta leads to
+  something that works. The privacy notice still says the contact route for a
+  copy of one's data, or a correction, "must be named here before launch", and
+  Meta's reviewers may look for one. Name a real address there before switching
+  Facebook to Live.
+- **A provider-made username is a guess until the member replaces it.** They
+  can replace it once, from Settings. Nothing prompts them to on first sign-in;
+  a one-time "choose your username" step then would catch more of them.
 - **Apple's secret expires every six months** and nothing in FRAME will notice.
   The calendar entry in the Apple section is the only safeguard.

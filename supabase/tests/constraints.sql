@@ -491,6 +491,293 @@ begin
   raise notice 'rate limit ok two windows on one caller stay independent (20 allowed, 21st refused)';
 end $$;
 
+-- ----------------------------------------------------------- account settings
+-- Migration 0011. Unlike most of this file, these run as the `authenticated`
+-- role, not as the superuser: the rules under test are a trigger that reads
+-- who is writing, column grants, and EXECUTE grants, and a superuser walks
+-- straight past all three. Each block that switches role does so inside its
+-- own transaction, so the role cannot leak into the next test.
+
+reset "app.current_user_id";
+
+insert into auth.users (id, email, raw_user_meta_data, raw_app_meta_data) values
+  ('dddddddd-0000-4000-8000-000000000001', 'leaver@example.test',
+   '{"username":"leaver","display_name":"Leaver"}', '{"provider":"email"}'),
+  ('dddddddd-0000-4000-8000-000000000002', 'departing@example.test',
+   '{"username":"departing_mod","display_name":"Departing"}', '{"provider":"email"}'),
+  ('dddddddd-0000-4000-8000-000000000003', 'p.member@example.test',
+   '{"full_name":"Provider Member"}', '{"provider":"google"}'),
+  ('dddddddd-0000-4000-8000-000000000004', 'e.member@example.test',
+   '{"username":"email_member","display_name":"Email Member"}', '{"provider":"email"}');
+
+-- The hole 0010 closed, still closed under 0011's fuller guard.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_accepts('a member editing their own display name directly',
+  $$update public.profiles set display_name = 'Renamed Member'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$);
+
+select public.test_rejects('a member renaming themselves directly',
+  $$update public.profiles set username = 'admin'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '42501');
+
+select public.test_rejects('a member promoting themselves',
+  $$update public.profiles set role = 'admin'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '42501');
+
+select public.test_accepts('an https website',
+  $$update public.profiles set website = 'https://example.test/portfolio'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$);
+
+select public.test_rejects('a javascript: website',
+  $$update public.profiles set website = 'javascript:alert(document.cookie)'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('thirteen pieces of gear',
+  $$update public.profiles
+       set usual_gear = array['a1','a2','a3','a4','a5','a6','a7','a8','a9','b1','b2','b3','b4']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('a gear entry that is only spaces',
+  $$update public.profiles set usual_gear = array['Ricoh GR III', '   ']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+-- An email account was told its username would not change.
+select public.test_rejects('an email account changing its username',
+  $$select public.change_username('fresh_name')$$, '42501');
+commit;
+
+-- One change, for an account whose username was chosen for it.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000003';
+
+select public.test_rejects('a reserved name through change_username',
+  $$select public.change_username('Support')$$, '23514');
+select public.test_rejects('a malformed name through change_username',
+  $$select public.change_username('no spaces!')$$, '22023');
+select public.test_rejects('a name already in use through change_username',
+  $$select public.change_username('owner')$$, '23505');
+
+do $$
+declare v_name text; v_at timestamptz; v_result text;
+begin
+  -- Asking for the name you already have is not a change.
+  select username::text into v_name from public.profiles
+   where id = 'dddddddd-0000-4000-8000-000000000003';
+  perform public.change_username(v_name);
+  select username_changed_at into v_at from public.profiles
+   where id = 'dddddddd-0000-4000-8000-000000000003';
+  if v_at is not null then
+    raise exception 'USERNAME BUG  asking for the current name used up the one change';
+  end if;
+
+  v_result := public.change_username('Street_Eye');
+  select username::text, username_changed_at into v_name, v_at from public.profiles
+   where id = 'dddddddd-0000-4000-8000-000000000003';
+  if v_result <> 'street_eye' or v_name <> 'street_eye' or v_at is null then
+    raise exception 'USERNAME BUG  the change did not land: returned %, stored %, at %', v_result, v_name, v_at;
+  end if;
+  raise notice 'username ok   a provider account changed its username once, to "%"', v_name;
+end $$;
+
+-- The record of that change cannot be wiped to earn a second one: the guard
+-- keeps the stored value whatever a direct update asks for.
+update public.profiles set username_changed_at = null
+ where id = 'dddddddd-0000-4000-8000-000000000003';
+
+select public.test_rejects('a second change after trying to erase the first',
+  $$select public.change_username('street_eye_2')$$, '42501');
+commit;
+
+begin;
+set local role anon;
+select public.test_rejects('a signed-out visitor calling change_username',
+  $$select public.change_username('visitor_name')$$, '42501');
+select public.test_rejects('a signed-out visitor calling delete_own_account',
+  $$select public.delete_own_account('leaver')$$, '42501');
+commit;
+
+-- Fixtures for deletion, written as the superuser with no session.
+reset "app.current_user_id";
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, location_id, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('eeeeeeee-0000-4000-8000-000000000001', 'leaver-photograph',
+   'dddddddd-0000-4000-8000-000000000001', 'Leaver photograph',
+   'A man waiting under a station canopy while rain streaks across the lamps.',
+   'night', 'aaaaaaaa-0000-4000-8000-000000000001', 'published', now(), now(), 1600, 1200),
+  ('eeeeeeee-0000-4000-8000-000000000002', 'departing-photograph',
+   'dddddddd-0000-4000-8000-000000000002', 'Departing photograph',
+   'Two cyclists crossing a wide empty avenue in the low orange evening light.',
+   'night', 'aaaaaaaa-0000-4000-8000-000000000001', 'published', now(), now(), 1600, 1200),
+  ('eeeeeeee-0000-4000-8000-000000000003', 'someone-elses-photograph',
+   'dddddddd-0000-4000-8000-000000000004', 'Someone else''s photograph',
+   'A market stall stacked with oranges beneath a single hanging bare bulb.',
+   'night', 'aaaaaaaa-0000-4000-8000-000000000001', 'published', now(), now(), 1600, 1200);
+
+insert into public.collections (id, slug, owner_id, title, visibility) values
+  ('ffffffff-0000-4000-8000-000000000001', 'leaver-collection',
+   'dddddddd-0000-4000-8000-000000000001', 'Leaver collection', 'public'),
+  ('ffffffff-0000-4000-8000-000000000002', 'departing-collection',
+   'dddddddd-0000-4000-8000-000000000002', 'Departing collection', 'public');
+insert into public.collection_items (collection_id, photograph_id) values
+  ('ffffffff-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001');
+
+insert into public.locations
+  (id, slug, name, city, country, country_code, latitude, longitude,
+   status, approved_at, categories, submitted_by)
+values
+  ('aaaaaaaa-0000-4000-8000-0000000000d1', 'leaver-place', 'Leaver place',
+   'Tokyo', 'Japan', 'JP', 35.701, 139.702, 'approved', now(), array['street'],
+   'dddddddd-0000-4000-8000-000000000001');
+
+insert into public.reports (id, subject_type, subject_id, reason, reported_by) values
+  ('abababab-0000-4000-8000-000000000001', 'photograph',
+   'eeeeeeee-0000-4000-8000-000000000003', 'spam', 'dddddddd-0000-4000-8000-000000000001');
+
+update public.profiles set role = 'moderator', biography = 'Something personal.'
+ where id = 'dddddddd-0000-4000-8000-000000000002';
+insert into public.moderation_actions (decision, subject_type, subject_id, moderator_id) values
+  ('approve', 'location', 'aaaaaaaa-0000-4000-8000-0000000000d1',
+   'dddddddd-0000-4000-8000-000000000002');
+insert into auth.sessions (user_id) values ('dddddddd-0000-4000-8000-000000000002');
+
+-- The leaver appreciates someone else's photograph, through the real path.
+set "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000001';
+select public.toggle_appreciation('eeeeeeee-0000-4000-8000-000000000003');
+reset "app.current_user_id";
+
+-- An ordinary account.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000001';
+
+select public.test_rejects('deleting an account without typing its username',
+  $$select public.delete_own_account('somebody_else')$$, '22023');
+
+do $$
+declare v_result text;
+begin
+  v_result := public.delete_own_account('  Leaver ');
+  if v_result <> 'deleted' then
+    raise exception 'DELETE BUG  an ordinary account returned %', v_result;
+  end if;
+end $$;
+commit;
+
+do $$
+declare v_count integer; v_rows integer;
+begin
+  if exists (select 1 from auth.users where id = 'dddddddd-0000-4000-8000-000000000001')
+     or exists (select 1 from public.profiles where id = 'dddddddd-0000-4000-8000-000000000001') then
+    raise exception 'DELETE BUG  the account or its profile survived deletion';
+  end if;
+  if exists (select 1 from public.photographs where id = 'eeeeeeee-0000-4000-8000-000000000001')
+     or exists (select 1 from public.collections where id = 'ffffffff-0000-4000-8000-000000000001')
+     or exists (select 1 from public.photograph_appreciations
+                 where profile_id = 'dddddddd-0000-4000-8000-000000000001') then
+    raise exception 'DELETE BUG  photographs, collections or appreciations survived deletion';
+  end if;
+  raise notice 'delete ok     the account, its photographs, collections and appreciations are gone';
+
+  select appreciation_count into v_count from public.photographs
+   where id = 'eeeeeeee-0000-4000-8000-000000000003';
+  select count(*) into v_rows from public.photograph_appreciations
+   where photograph_id = 'eeeeeeee-0000-4000-8000-000000000003';
+  if v_count <> v_rows or v_count <> 0 then
+    raise exception 'DRIFT  after deletion another member''s photograph counts % with % rows', v_count, v_rows;
+  end if;
+  raise notice 'delete ok     the appreciation it gave was taken off the other photograph''s count';
+
+  if not exists (select 1 from public.locations
+                  where id = 'aaaaaaaa-0000-4000-8000-0000000000d1' and submitted_by is null) then
+    raise exception 'DELETE BUG  the approved place was lost, or still names the deleted account';
+  end if;
+  if not exists (select 1 from public.reports
+                  where id = 'abababab-0000-4000-8000-000000000001' and reported_by is null) then
+    raise exception 'DELETE BUG  the report was lost, or still names the deleted account';
+  end if;
+  raise notice 'delete ok     the place and the report are kept, with the account reference removed';
+end $$;
+
+-- What Settings tells each member before they press the button. The demoted
+-- case is the one that matters: a member who is no longer a moderator cannot
+-- read moderation_actions, and must still be told their account will be kept.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+do $$
+begin
+  if public.deletion_would_retain_account() then
+    raise exception 'RETAIN BUG  an account with no moderation decisions was told it would be kept';
+  end if;
+end $$;
+commit;
+
+-- Demoted by an administrator first — as the superuser, since a member cannot
+-- change their own role — then asked as themselves. Rolled back, so the
+-- deletion below still meets a moderator.
+begin;
+update public.profiles set role = 'member'
+ where id = 'dddddddd-0000-4000-8000-000000000002';
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000002';
+do $$
+begin
+  if not public.deletion_would_retain_account() then
+    raise exception 'RETAIN BUG  a former moderator was told their account would be deleted, but it will be kept';
+  end if;
+  raise notice 'retain ok     Settings predicts both outcomes, including for a moderator since demoted';
+end $$;
+rollback;
+
+-- An account that has made moderation decisions.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000002';
+do $$
+declare v_result text;
+begin
+  v_result := public.delete_own_account('departing_mod');
+  if v_result <> 'retained' then
+    raise exception 'RETAIN BUG  an account with moderation decisions returned %', v_result;
+  end if;
+end $$;
+commit;
+
+do $$
+declare r record;
+begin
+  select * into r from public.profiles where id = 'dddddddd-0000-4000-8000-000000000002';
+  if not found then
+    raise exception 'RETAIN BUG  the profile that moderation decisions name was erased';
+  end if;
+  if r.role <> 'member' or not r.is_suspended or r.biography is not null
+     or r.display_name <> 'departing_mod' then
+    raise exception 'RETAIN BUG  kept account not demoted, suspended and stripped: role %, suspended %, display %',
+      r.role, r.is_suspended, r.display_name;
+  end if;
+  if not exists (select 1 from public.moderation_actions
+                  where moderator_id = 'dddddddd-0000-4000-8000-000000000002') then
+    raise exception 'RETAIN BUG  the moderation decision lost its author';
+  end if;
+  if exists (select 1 from public.photographs where id = 'eeeeeeee-0000-4000-8000-000000000002')
+     or exists (select 1 from public.collections where id = 'ffffffff-0000-4000-8000-000000000002') then
+    raise exception 'RETAIN BUG  a kept account''s photographs or collections survived';
+  end if;
+  if (select banned_until from auth.users where id = 'dddddddd-0000-4000-8000-000000000002')
+       < now() + interval '100 years'
+     or exists (select 1 from auth.sessions where user_id = 'dddddddd-0000-4000-8000-000000000002') then
+    raise exception 'RETAIN BUG  a kept account can still sign in, or kept a session';
+  end if;
+  raise notice 'retain ok     a moderator''s account is demoted, suspended, emptied and barred, and the decision keeps its author';
+end $$;
+
 -- ----------------------------------------------------------------- storage
 -- 0008_storage.sql is the only description of the bucket and of who may write
 -- into it, and it was a block of SQL applied by hand before that. The point of

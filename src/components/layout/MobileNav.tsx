@@ -191,6 +191,7 @@ function AccountSection({
     { href: '/upload', label: t('upload') },
     { href: '/collections', label: t('myCollections') },
     { href: `/photographers/${viewer.username}`, label: t('myProfile') },
+    { href: '/settings', label: t('settings') },
     ...(canModerate ? [{ href: '/moderation', label: t('moderation') }] : []),
   ];
 
