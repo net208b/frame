@@ -1818,10 +1818,21 @@ async function assemblePhotobook(
     pages.push({ position, photograph });
   }
 
+  return photobookFromRow(row, { id, slug, title, owner, pages });
+}
+
+/**
+ * The scalar fields of a book, shared by the single-book reads and the public
+ * listing so a cover or a visibility cannot be mapped two different ways.
+ */
+function photobookFromRow(
+  row: PhotobookColumns,
+  parts: { id: string; slug: string; title: string; owner: PhotographerSummary; pages: PhotobookPage[] },
+): Photobook {
   return {
-    id,
-    slug,
-    title,
+    id: parts.id,
+    slug: parts.slug,
+    title: parts.title,
     dedication: toText(row.dedication),
     cover: oneOf(PHOTOBOOK_COVERS, row.cover_preset, 'linen'),
     paper: oneOf(PHOTOBOOK_PAPERS, row.paper_preset, 'lustre'),
@@ -1830,8 +1841,8 @@ async function assemblePhotobook(
     gearModel: toText(row.gear_model),
     visibility: row.visibility === 'public' ? 'public' : 'unlisted',
     opens: toNumber(row.opens) ?? 0,
-    owner,
-    pages,
+    owner: parts.owner,
+    pages: parts.pages,
     updatedAt: toText(row.updated_at) ?? '',
   };
 }
@@ -1844,6 +1855,102 @@ export async function photobookBySlug(slug: string): Promise<Photobook | null> {
     await supabase.from('photobooks').select(PHOTOBOOK_SELECT).eq('slug', slug).maybeSingle(),
   );
   return row ? assemblePhotobook(supabase, row) : null;
+}
+
+/**
+ * The books on the public shelf, most-opened first.
+ *
+ * ONLY `public` BOOKS. An unlisted book answers by its address and appears on
+ * nothing that lists books — that is the whole difference between the two
+ * visibilities, and it is enforced here as well as by the policy, so a shelf
+ * can never become the thing that reveals a book its owner kept off their
+ * profile.
+ *
+ * Three queries however long the shelf is: the books, then every page of those
+ * books, then every photograph those pages name. Assembling each book on its
+ * own would be two more queries per book, which is how a shelf of twelve turns
+ * into twenty-five round trips.
+ */
+export async function publicPhotobooks(limit: number): Promise<Photobook[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<PhotobookJoined>(
+    'reading the public photobooks',
+    await supabase
+      .from('photobooks')
+      .select(PHOTOBOOK_SELECT)
+      .eq('visibility', 'public')
+      .order('opens', { ascending: false })
+      .order('updated_at', { ascending: false })
+      .limit(limit),
+  );
+  if (rows.length === 0) return [];
+
+  const bookIds = rows
+    .map((row) => toText(row.id))
+    .filter((value): value is string => value !== null);
+  if (bookIds.length === 0) return [];
+
+  const pageRows = unwrapList<{
+    photobook_id: string | null;
+    photograph_id: string | null;
+    position: number | null;
+  }>(
+    'reading the pages of the public photobooks',
+    await supabase
+      .from('photobook_pages')
+      .select('photobook_id, photograph_id, position')
+      .in('photobook_id', bookIds)
+      .order('position', { ascending: true })
+      .limit(bookIds.length * PHOTOBOOK_MAX_PAGES),
+  );
+
+  const photographIds = [
+    ...new Set(
+      pageRows
+        .map((page) => toText(page.photograph_id))
+        .filter((value): value is string => value !== null),
+    ),
+  ];
+
+  const photographs =
+    photographIds.length > 0
+      ? await mapPhotographRows(
+          supabase,
+          unwrapList<PhotographJoined>(
+            'reading the photographs of the public photobooks',
+            await supabase
+              .from('photographs')
+              .select(photographSelect())
+              .in('id', photographIds)
+              .eq('status', 'published'),
+          ),
+        )
+      : [];
+  const byId = new Map(photographs.map((photo) => [photo.id, photo]));
+
+  const pagesByBook = new Map<string, PhotobookPage[]>();
+  for (const page of pageRows) {
+    const bookId = toText(page.photobook_id);
+    const position = toNumber(page.position);
+    const photograph = byId.get(toText(page.photograph_id) ?? '');
+    // A page whose photograph is no longer published is left out, exactly as
+    // the single-book read leaves it out.
+    if (!bookId || position === null || !photograph) continue;
+    const list = pagesByBook.get(bookId);
+    if (list) list.push({ position, photograph });
+    else pagesByBook.set(bookId, [{ position, photograph }]);
+  }
+
+  const books: Photobook[] = [];
+  for (const row of rows) {
+    const id = toText(row.id);
+    const slug = toText(row.slug);
+    const title = toText(row.title);
+    const owner = mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles));
+    if (!id || !slug || !title || !owner) continue;
+    books.push(photobookFromRow(row, { id, slug, title, owner, pages: pagesByBook.get(id) ?? [] }));
+  }
+  return books;
 }
 
 /** The one book a member has, for Settings and for their profile tab. */

@@ -210,6 +210,16 @@ export async function getPhotobook(slug: string): Promise<Photobook | null> {
   return demo.demoPhotobook(slug);
 }
 
+/**
+ * The public shelf. Unlisted books are not on it in either mode — see
+ * `publicPhotobooks` for why that is enforced in the query and not only by the
+ * row-level policy.
+ */
+export async function getPublicPhotobooks(limit: number): Promise<Photobook[]> {
+  if (useLive()) return live.publicPhotobooks(limit);
+  return demo.demoPublicPhotobooks(limit);
+}
+
 export async function getPhotobookByOwner(ownerId: string): Promise<Photobook | null> {
   if (useLive()) return live.photobookByOwner(ownerId);
   return demo.demoPhotobookByOwner(ownerId);

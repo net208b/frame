@@ -368,8 +368,10 @@ export function demoFeaturedPhotographers(limit = 4): PhotographerProfile[] {
 /* ------------------------------------------------------------------------ */
 
 /**
- * One demo book, Kenji's, built from his own published photographs — the same
- * rule the trigger in migration 0018 enforces, obeyed rather than restated.
+ * The demo books, each built from its own owner's published photographs — the
+ * same rule the trigger in migration 0018 enforces, obeyed rather than
+ * restated. There is more than one because the public shelf is a list, and a
+ * list of one tells a reader nothing about how it orders itself.
  */
 const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsername: string }> = [
   {
@@ -386,6 +388,56 @@ const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsernam
     opens: 412,
     ownerUsername: 'kenjiwatanabe',
     updatedAt: '2026-10-12T09:00:00Z',
+  },
+  {
+    id: 'b00c0001-0000-4000-8000-000000000002',
+    slug: 'maya-night-bus',
+    title: 'Night Bus',
+    dedication: 'Everyone on the last service home.',
+    cover: 'film',
+    paper: 'matte',
+    gearMode: 'brand',
+    gearBrand: 'Ricoh',
+    gearModel: null,
+    visibility: 'public',
+    // Ahead of Kenji's deliberately: the shelf leads with its most-opened
+    // book, and the lead is the one shown open beside the copy saying a book
+    // needs four published frames. Maya has five; Kenji has three.
+    opens: 512,
+    ownerUsername: 'mayachen',
+    updatedAt: '2026-10-14T20:30:00Z',
+  },
+  {
+    id: 'b00c0001-0000-4000-8000-000000000003',
+    slug: 'marco-six-in-the-morning',
+    title: 'Six in the Morning',
+    dedication: null,
+    cover: 'kraft',
+    paper: 'fineart',
+    gearMode: 'model',
+    gearBrand: 'Leica',
+    gearModel: 'M6',
+    visibility: 'public',
+    opens: 143,
+    ownerUsername: 'marcosilva',
+    updatedAt: '2026-10-15T06:10:00Z',
+  },
+  {
+    // Unlisted on purpose: it must never appear on the public shelf, which is
+    // the one thing the shelf's filter has to get right.
+    id: 'b00c0001-0000-4000-8000-000000000004',
+    slug: 'anna-rain-on-sheet-glass',
+    title: 'Rain on Sheet Glass',
+    dedication: 'Kept for myself, for now.',
+    cover: 'gallery',
+    paper: 'lustre',
+    gearMode: 'none',
+    gearBrand: null,
+    gearModel: null,
+    visibility: 'unlisted',
+    opens: 31,
+    ownerUsername: 'annakeller',
+    updatedAt: '2026-10-16T11:45:00Z',
   },
 ];
 
@@ -404,6 +456,15 @@ function demoAssemblePhotobook(book: (typeof DEMO_PHOTOBOOKS)[number]): Photoboo
 export function demoPhotobook(slug: string): Photobook | null {
   const book = DEMO_PHOTOBOOKS.find((entry) => entry.slug === slug);
   return book ? demoAssemblePhotobook(book) : null;
+}
+
+/** Public books only, most-opened first — the same order the live shelf uses. */
+export function demoPublicPhotobooks(limit: number): Photobook[] {
+  return DEMO_PHOTOBOOKS.filter((book) => book.visibility === 'public')
+    .map(demoAssemblePhotobook)
+    .filter((book): book is Photobook => book !== null)
+    .sort((a, b) => b.opens - a.opens || b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, limit);
 }
 
 export function demoPhotobookByOwner(ownerId: string): Photobook | null {

@@ -2,6 +2,12 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
+import {
+  CommunityTabs,
+  readCommunityView,
+  type CommunityView,
+} from '@/components/community/CommunityTabs';
+import { PhotobookShowcase, SHELF_LIMIT } from '@/components/community/PhotobookShowcase';
 import { PhotographerCard } from '@/components/photographer/PhotographerCard';
 import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Button } from '@/components/ui/Button';
@@ -10,23 +16,31 @@ import { EmptyState } from '@/components/ui/states';
 import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
-import { getFeaturedPhotographers, getPlatformStats } from '@/lib/data/repository';
+import { getFeaturedPhotographers, getPlatformStats, getPublicPhotobooks } from '@/lib/data/repository';
 import { buildMetadata } from '@/lib/seo';
 import { formatCount } from '@/lib/utils';
 import type { PlatformStats } from '@/types/domain';
 
+interface CommunityPageProps {
+  params: LocaleParams;
+  searchParams: Promise<{ view?: string | string[] }>;
+}
+
 export async function generateMetadata({
   params,
-}: {
-  params: LocaleParams;
-}): Promise<Metadata> {
-  const { locale } = await readLocaleParams(params);
+  searchParams,
+}: CommunityPageProps): Promise<Metadata> {
+  const [{ locale }, resolved] = await Promise.all([readLocaleParams(params), searchParams]);
+  const view = readCommunityView(resolved.view);
   const t = await getTranslations({ locale, namespace: 'community' });
+  const books = view === 'photobooks';
 
+  // Each view gets its own title and its own canonical address, because each
+  // one is a different page to anybody arriving from a search or a share.
   return buildMetadata({
-    title: t('metaTitle'),
-    description: t('metaDescription'),
-    path: '/community',
+    title: books ? t('views.photobooksMetaTitle') : t('metaTitle'),
+    description: books ? t('views.photobooksMetaDescription') : t('metaDescription'),
+    path: books ? '/community?view=photobooks' : '/community',
     locale,
   });
 }
@@ -86,35 +100,20 @@ async function StatsBand({ stats, locale }: { stats: PlatformStats; locale: Loca
   );
 }
 
-export default async function CommunityPage({
-  params,
-}: {
-  params: LocaleParams;
-}) {
-  const { locale } = await readLocaleParams(params);
+export default async function CommunityPage({ params, searchParams }: CommunityPageProps) {
+  const [{ locale }, resolved] = await Promise.all([readLocaleParams(params), searchParams]);
   setRequestLocale(locale);
+  const view: CommunityView = readCommunityView(resolved.view);
 
   const t = await getTranslations({ locale, namespace: 'community' });
 
-  const [featured, stats] = await Promise.all([
+  // The shelf is only read for the view that shows it; the photographers view
+  // pays nothing for a feature it does not display.
+  const [featured, stats, books] = await Promise.all([
     getFeaturedPhotographers(FEATURED_LIMIT),
     getPlatformStats(),
+    view === 'photobooks' ? getPublicPhotobooks(SHELF_LIMIT) : Promise.resolve([]),
   ]);
-
-  /**
-   * "about 11 m" / "ประมาณ 11 เมตร" — the unit is chosen here because it
-   * changes with the policy constant, and the number goes through `Intl` with
-   * the active locale rather than being written into the sentence.
-   */
-  function precisionPhrase(decimals: number): string {
-    const metres = METRES_PER_DEGREE / 10 ** decimals;
-    return metres >= 1000
-      ? t('review.precisionKilometres', { value: Math.round(metres / 100) / 10 })
-      : t('review.precisionMetres', { value: Math.round(metres) });
-  }
-
-  const publicPrecision = precisionPhrase(LOCATION_POLICY.publicCoordinateDecimals);
-  const reducedPrecision = precisionPhrase(LOCATION_POLICY.reducedCoordinateDecimals);
 
   return (
     <div className="site-container pt-10 pb-20 lg:pt-14">
@@ -142,6 +141,48 @@ export default async function CommunityPage({
 
       <StatsBand stats={stats} locale={locale} />
 
+      <CommunityTabs active={view} className="mt-14" />
+
+      {view === 'photobooks' ? (
+        <PhotobookShowcase books={books} />
+      ) : (
+        <PhotographersView featured={featured} locale={locale} />
+      )}
+    </div>
+  );
+}
+
+/**
+ * The photographers view: who is here, what an appreciation means, and how a
+ * place gets reviewed. This is what `/community` has always been, lifted into
+ * its own component when the page gained a second view.
+ */
+async function PhotographersView({
+  featured,
+  locale,
+}: {
+  featured: Awaited<ReturnType<typeof getFeaturedPhotographers>>;
+  locale: Locale;
+}) {
+  const t = await getTranslations({ locale, namespace: 'community' });
+
+  /**
+   * "about 11 m" / "ประมาณ 11 เมตร" — the unit is chosen here because it
+   * changes with the policy constant, and the number goes through `Intl` with
+   * the active locale rather than being written into the sentence.
+   */
+  function precisionPhrase(decimals: number): string {
+    const metres = METRES_PER_DEGREE / 10 ** decimals;
+    return metres >= 1000
+      ? t('review.precisionKilometres', { value: Math.round(metres / 100) / 10 })
+      : t('review.precisionMetres', { value: Math.round(metres) });
+  }
+
+  const publicPrecision = precisionPhrase(LOCATION_POLICY.publicCoordinateDecimals);
+  const reducedPrecision = precisionPhrase(LOCATION_POLICY.reducedCoordinateDecimals);
+
+  return (
+    <>
       <section className="mt-16">
         <SectionHead
           eyebrow={t('featured.eyebrow')}
@@ -269,6 +310,6 @@ export default async function CommunityPage({
           className="mt-8 max-w-[62ch]"
         />
       </section>
-    </div>
+    </>
   );
 }
