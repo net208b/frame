@@ -734,6 +734,13 @@
       "validationSeveral": "{count, plural, one {One of these details needs attention. The form shows what to change.} other {# of these details need attention. The form shows what to change.}}",
       "validationFallback": "That submission could not be validated. Check the form and try again."
     },
+    "providers": {
+      "groupLabel": "Sign in with another account",
+      "continueWith": "Continue with {provider}",
+      "pending": "Opening {provider}…",
+      "divider": "or",
+      "consent": "If you are new here, continuing creates your FRAME account and means you accept the <terms>terms</terms> and the <guidelines>community guidelines</guidelines>. FRAME receives your name and email address from the provider — the <privacy>privacy notice</privacy> says what it keeps."
+    },
     "login": {
       "metaTitle": "Sign in",
       "metaDescription": "Sign in to FRAME to publish your photographs, appreciate other people’s work and keep collections.",
@@ -749,7 +756,11 @@
       "arrivalLinkExpiredTitle": "That link could not be used",
       "arrivalLinkExpiredBody": "A sign-in link works once, expires after an hour, and has to be opened in the browser that asked for it. Sign in below, or ask for a new link.",
       "arrivalSignoutFailedTitle": "You may still be signed in",
-      "arrivalSignoutFailedBody": "The sign-out could not be completed, so this browser may still hold a session. Try signing out again from the account menu."
+      "arrivalSignoutFailedBody": "The sign-out could not be completed, so this browser may still hold a session. Try signing out again from the account menu.",
+      "arrivalProviderCancelledTitle": "Sign-in was cancelled",
+      "arrivalProviderCancelledBody": "Nothing was changed and you are not signed in. Choose another way below, or try again.",
+      "arrivalProviderFailedTitle": "That sign-in did not finish",
+      "arrivalProviderFailedBody": "The provider did not confirm who you are, so no session was started. Try again, or sign in with your email address below."
     },
     "join": {
       "metaTitle": "Join FRAME",
@@ -892,7 +903,10 @@
       "resendSent": "If that address is waiting for confirmation, another link is on its way. Check your inbox, and your spam folder.",
       "resendFailed": "The confirmation email could not be sent. Try again in a few minutes.",
       "signOutFailed": "Your session could not be ended. Try again in a moment.",
-      "signOutDone": "You are signed out."
+      "signOutDone": "You are signed out.",
+      "providerUnknown": "Choose one of the sign-in options shown.",
+      "providerUnavailable": "Signing in with {provider} is not available at the moment. Use another option, or your email address.",
+      "providerFailed": "Signing in with {provider} could not be started. Try again in a moment."
     }
   },
   "upload": {
@@ -1869,6 +1883,7 @@
         "intro": "Only what the site needs in order to work:",
         "list": {
           "email": "<strong>An email address</strong>, so an account can be recovered and verified. The password itself is never stored; the authentication provider holds a hash of it and FRAME never sees the original.",
+          "signIn": "<strong>If you sign in with Google, Apple, Facebook or X</strong>: the name and email address that provider shares, and its identifier for your account there. FRAME never receives your password for that provider, and an account made this way has no FRAME password at all. Apple can hide your real address behind a relay address; FRAME keeps whichever address Apple sends.",
           "profile": "<strong>The profile fields you write</strong>: username, display name, avatar, biography, where you are based, a website, and the gear you choose to list. Every one of them is free text you decide to enter, and every one of them is optional except the username and display name.",
           "photographs": "<strong>The photographs you upload and the EXIF inside them</strong>: camera and lens, focal length, aperture, shutter speed, ISO, the capture date and, where the camera recorded one, a GPS coordinate.",
           "appreciation": "<strong>Appreciation records</strong>: which account appreciated which photograph. Appreciation is one per member, and that cannot be enforced without keeping the record of who it was.",
@@ -1918,15 +1933,28 @@
       },
       "thirdParties": {
         "heading": "Who else handles this",
-        "intro": "FRAME is a small application standing on four services:",
+        "intro": "FRAME is a small application standing on four services, and on a fifth only if you choose it:",
         "list": {
           "database": "<strong>The database and authentication provider</strong> (Supabase, Postgres and its auth service) holds accounts, profiles, photographs, appreciation, reports and the email address and password hash.",
           "storage": "<strong>The image storage provider</strong> (Supabase Storage, or Cloudflare R2 where that is configured instead) holds the uploaded file and the sizes generated from it.",
           "tiles": "<strong>The map tile provider</strong> supplies the style and tiles for the map. Your browser requests those tiles directly, so that provider sees the request, including your IP address, the way any website you visit does. FRAME ships with no tile provider configured and deliberately falls back to no map rather than to somebody’s evaluation server.",
-          "hosting": "<strong>The hosting provider</strong> runs the application and logs requests as described above."
+          "hosting": "<strong>The hosting provider</strong> runs the application and logs requests as described above.",
+          "signIn": "<strong>A sign-in provider</strong> — Google, Apple, Meta for Facebook, or X — only if you choose to sign in with one. That provider learns that you signed in to FRAME, and when. How to disconnect it is set out under “Signing in with another account”."
         },
         "demo": "A deployment with no database configured shows a bundled sample dataset instead, and says so on every page. The sample photographs in that mode are served from Unsplash under the Unsplash licence and describe nobody real.",
         "outstanding": "Each of those providers needs to be named specifically, with a data-processing agreement in place, before FRAME handles anybody’s real data. See <terms>the terms</terms> for what is still outstanding."
+      },
+      "signInProviders": {
+        "heading": "Signing in with another account",
+        "p1": "Signing in with Google, Apple, Facebook or X is optional: an email address and a password work everywhere on FRAME. If you use a provider, FRAME asks it for your name and email address and nothing more, and keeps only what is listed under “What is collected”.",
+        "disconnect": "You can stop a provider sharing anything further with FRAME at any time, from that provider’s own account settings. At the time of writing they are here:",
+        "list": {
+          "google": "<strong>Google</strong>: your Google Account → Security → Your connections to third-party apps and services → FRAME.",
+          "apple": "<strong>Apple</strong>: on an iPhone, Settings → your name → Sign-In & Security → Sign in with Apple → FRAME; on the web, account.apple.com → Sign-In and Security → Sign in with Apple.",
+          "facebook": "<strong>Facebook</strong>: Settings & privacy → Settings → Apps and websites → FRAME → Remove.",
+          "twitter": "<strong>X</strong>: Settings and privacy → Security and account access → Apps and sessions → Connected apps → FRAME → Revoke app permissions."
+        },
+        "deletion": "Disconnecting stops new information arriving. It does not delete your FRAME account or anything you published on it: deleting the account and its data is done as set out under “Access, correction and deletion”."
       }
     },
     "copyright": {
