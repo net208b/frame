@@ -8,6 +8,26 @@
     "places": "Places",
     "placeCount": "{count, plural, =0 {No places} one {# place} other {# places}}",
     "photographer": "Photographer",
+    "photographyStyles": {
+      "black-and-white": "Black and white",
+      "colour": "Colour",
+      "film": "Film",
+      "candid": "Candid",
+      "flash": "Flash",
+      "minimal": "Minimal",
+      "geometry": "Geometry",
+      "layered": "Layered"
+    },
+    "collaboration": {
+      "open": "Open to collaborate",
+      "selective": "Open to some projects",
+      "closed": "Not looking right now"
+    },
+    "critique": {
+      "any": "Open to any critique",
+      "technical": "Technical notes welcome",
+      "none": "Would rather not be critiqued"
+    },
     "loading": "Loading",
     "retry": "Try again",
     "cancel": "Cancel",
@@ -631,6 +651,12 @@
     "metaDescriptionBasedIn": "{name} photographs streets and the places behind them on FRAME, based in {city}.",
     "memberSince": "Member since {month}",
     "websiteNote": "Member-supplied link. FRAME has not checked where it leads.",
+    "collaboration": {
+      "label": "Collaboration"
+    },
+    "critique": {
+      "label": "Critique"
+    },
     "reportAccount": "Report this account",
     "role": {
       "moderator": "Community moderator",
@@ -917,6 +943,23 @@
         "invalid": "Enter a web address, such as https://example.com.",
         "max": "That address is too long. Keep it to 200 characters."
       },
+      "socialLinks": {
+        "invalid": "Enter a web address, such as https://example.com.",
+        "max": "That address is too long. Keep it to 200 characters.",
+        "tooMany": "List up to 4 links."
+      },
+      "countryCode": {
+        "invalid": "Choose a country from the list."
+      },
+      "styles": {
+        "tooMany": "Choose up to 5 styles."
+      },
+      "collaboration": {
+        "invalid": "Choose one of the options, or leave it unset."
+      },
+      "critique": {
+        "invalid": "Choose one of the options, or leave it unset."
+      },
       "gear": {
         "tooMany": "List up to 12 pieces of gear.",
         "itemMax": "Keep each line to 60 characters."
@@ -988,8 +1031,21 @@
       "biographyHint": "Up to {max} characters. A blank line starts a new paragraph.",
       "basedIn": "Based in",
       "basedInHint": "A city or region, if you want one shown. FRAME never fills this in for you.",
+      "country": "Country",
+      "countryHint": "The country you work from, if you want it shown. FRAME never fills this in for you.",
+      "countryUnset": "Not shown",
       "website": "Website",
       "websiteHint": "A link to your own site. https:// is added if you leave it out.",
+      "socialLinks": "Where else you publish",
+      "socialLinksHint": "One link per line, up to {count}. https:// is added if you leave it out.",
+      "styles": "How you shoot",
+      "stylesHint": "Up to {count}, shown as tags on your profile.",
+      "collaboration": "Collaboration",
+      "collaborationHint": "Whether you are open to working with other photographers. Leave it unset to say nothing either way.",
+      "collaborationUnset": "Not shown",
+      "critique": "Critique",
+      "critiqueHint": "FRAME has no comments, so this is a note to other members rather than something the site enforces.",
+      "critiqueUnset": "Not shown",
       "gear": "Gear you usually carry",
       "gearHint": "One per line, up to {count}, each up to {length} characters.",
       "avatarNote": "Profile pictures can’t be uploaded yet.",

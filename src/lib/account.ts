@@ -14,7 +14,17 @@ export interface OwnSettings {
   displayName: string;
   biography: string | null;
   basedIn: string | null;
+  /** ISO 3166-1 alpha-2, chosen by the member. */
+  countryCode: string | null;
   website: string | null;
+  /** Other places they publish, http(s) only. */
+  socialLinks: string[];
+  /** How they shoot, from PHOTOGRAPHY_STYLES. */
+  styles: string[];
+  /** Open to working with somebody. Null means they have not said. */
+  collaboration: string | null;
+  /** How they want their work discussed. */
+  critique: string | null;
   usualGear: string[];
   /**
    * How the account was made: `email` for the Join form, otherwise the
@@ -36,7 +46,12 @@ interface ProfileRow {
   display_name: string;
   biography: string | null;
   based_in: string | null;
+  country_code: string | null;
   website: string | null;
+  social_links: string[] | null;
+  style_tags: string[] | null;
+  collaboration_status: string | null;
+  critique_preference: string | null;
   usual_gear: string[] | null;
   username_changed_at: string | null;
   is_suspended: boolean;
@@ -53,7 +68,9 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
     supabase
       .from('profiles')
       .select(
-        'username, display_name, biography, based_in, website, usual_gear, username_changed_at, is_suspended',
+        `username, display_name, biography, based_in, country_code, website, social_links,
+         style_tags, collaboration_status, critique_preference, usual_gear, username_changed_at,
+         is_suspended`,
       )
       .eq('id', auth.user.id)
       .maybeSingle(),
@@ -80,7 +97,12 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
     displayName: row.display_name,
     biography: row.biography,
     basedIn: row.based_in,
+    countryCode: row.country_code,
     website: row.website,
+    socialLinks: row.social_links ?? [],
+    styles: row.style_tags ?? [],
+    collaboration: row.collaboration_status,
+    critique: row.critique_preference,
     usualGear: row.usual_gear ?? [],
     createdWith,
     canChangeUsername:

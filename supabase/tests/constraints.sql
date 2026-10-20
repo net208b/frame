@@ -544,6 +544,51 @@ select public.test_rejects('a gear entry that is only spaces',
   $$update public.profiles set usual_gear = array['Ricoh GR III', '   ']
      where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
 
+-- 0016: the five things a profile says about the member's own work.
+select public.test_accepts('a country code, a style, an availability and a link',
+  $$update public.profiles
+       set country_code = 'JP',
+           style_tags = array['black-and-white', 'candid'],
+           collaboration_status = 'selective',
+           critique_preference = 'technical',
+           social_links = array['https://example.test/@member']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$);
+
+select public.test_rejects('a lowercase country code',
+  $$update public.profiles set country_code = 'jp'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('a style tag outside the vocabulary',
+  $$update public.profiles set style_tags = array['black-and-white', 'bokeh']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('the same style tag twice',
+  $$update public.profiles set style_tags = array['film', 'film']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('six style tags',
+  $$update public.profiles
+       set style_tags = array['black-and-white','colour','film','candid','flash','minimal']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('an invented collaboration status',
+  $$update public.profiles set collaboration_status = 'maybe'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('an invented critique preference',
+  $$update public.profiles set critique_preference = 'harsh'
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('a javascript: social link',
+  $$update public.profiles set social_links = array['javascript:alert(1)']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
+select public.test_rejects('five social links',
+  $$update public.profiles
+       set social_links = array['https://a.test','https://b.test','https://c.test',
+                                'https://d.test','https://e.test']
+     where id = 'dddddddd-0000-4000-8000-000000000004'$$, '23514');
+
 -- An email account was told its username would not change.
 select public.test_rejects('an email account changing its username',
   $$select public.change_username('fresh_name')$$, '42501');

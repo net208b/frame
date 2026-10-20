@@ -597,8 +597,10 @@ member chose to publish it, because a capture time can place a person somewhere
 on a particular evening.
 
 **✓ Nothing is inferred about a member's location.** `profiles.based_in` is free
-text the member typed, with a column comment saying it is never inferred from a
-request. FRAME keeps no record of what anyone searches for — the "suggested
+text the member typed and `profiles.country_code` is a country they picked from
+a list, both with column comments saying they are never inferred from a request
+— even though the home page can resolve a city from the request's own address
+for the map, which is read per request and stored nowhere. FRAME keeps no record of what anyone searches for — the "suggested
 searches" on `/search` are a fixed list, and the page says so rather than calling
 them popular.
 

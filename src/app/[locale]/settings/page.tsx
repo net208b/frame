@@ -11,6 +11,7 @@ import { withLocalePrefix } from '@/i18n/locales';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { getOwnSettings } from '@/lib/account';
 import { requireViewer } from '@/lib/auth';
+import { countryOptions } from '@/lib/geo/countries';
 import { isDemoMode } from '@/lib/config';
 import { buildMetadata } from '@/lib/seo';
 import { SIGN_IN_PROVIDER_NAMES, isSignInProvider } from '@/lib/sign-in-providers';
@@ -117,11 +118,17 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
             <ProfileForm
               username={settings.username}
               disabled={settings.isSuspended}
+              countries={countryOptions(locale)}
               initial={{
                 displayName: settings.displayName,
                 biography: settings.biography ?? '',
                 basedIn: settings.basedIn ?? '',
+                countryCode: settings.countryCode ?? '',
                 website: settings.website ?? '',
+                socialLinks: settings.socialLinks.join('\n'),
+                styles: settings.styles,
+                collaboration: settings.collaboration ?? '',
+                critique: settings.critique ?? '',
                 gear: settings.usualGear.join('\n'),
               }}
             />

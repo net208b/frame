@@ -1,9 +1,10 @@
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Handshake, MessageSquareQuote } from 'lucide-react';
 import { getLocale, getTranslations } from 'next-intl/server';
 
 import { Avatar } from '@/components/photographer/Avatar';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Eyebrow } from '@/components/ui/SectionHead';
+import { countryFlag, countryName } from '@/lib/geo/countries';
 import { cn, formatMonthYear } from '@/lib/utils';
 import type { PhotographerProfile } from '@/types/domain';
 
@@ -19,6 +20,15 @@ import type { PhotographerProfile } from '@/types/domain';
  * Three strings on this page are member-written and stay in whatever language
  * the member chose: the display name, the `basedIn` line and the biography.
  * Translating a person's own words would be a lie about who wrote them.
+ *
+ * The country, the styles and the two statuses are the other kind: FRAME's own
+ * vocabulary, chosen from a list, so those *are* translated — a Thai reader sees
+ * "ขาวดำ" where an English reader sees "Black and white", and both are reading
+ * the same stored value. The statuses say what the member said and no more:
+ * nothing is shown for a status they left unset, because silence about
+ * collaboration is not a refusal of it, and the critique line is a sentence to
+ * other members rather than a rule the application enforces — FRAME has no
+ * comments for it to enforce anything about.
  */
 
 /**
@@ -64,6 +74,8 @@ export async function ProfileHeader({
 }) {
   const locale = await getLocale();
   const t = await getTranslations({ locale, namespace: 'profile' });
+  // `common` holds the three vocabularies — styles, collaboration, critique —
+  // because the Settings form sets them from the same words.
   const common = await getTranslations({ locale, namespace: 'common' });
 
   /*
@@ -82,6 +94,25 @@ export async function ProfileHeader({
   const memberSince = formatMonthYear(photographer.memberSince, locale);
   const website = photographer.website ? externalWebsite(photographer.website) : null;
   const biography = photographer.biography ? paragraphs(photographer.biography) : [];
+
+  /*
+   * The flag goes in front of the member's own "based in" line rather than
+   * beside a second copy of the country name: most people write "Tokyo, Japan"
+   * there, and "Tokyo, Japan · Japan" is the sort of thing a page does when
+   * nobody read it aloud. With no line of their own, the country's name is the
+   * line. The glyph is decorative in both cases — a platform with no flag
+   * glyphs draws the two letters, and a screen reader should read the place,
+   * not "regional indicator symbol J".
+   */
+  const country = photographer.countryCode;
+  const place = photographer.basedIn ?? (country ? countryName(country, locale) : null);
+  const flag = country ? countryFlag(country) : '';
+
+  // Other links the member listed. Filtered the same way the website is: a
+  // stored value that is not http(s) is dropped rather than linked.
+  const links = photographer.socialLinks
+    .map((link) => externalWebsite(link))
+    .filter((link): link is { href: string; label: string } => link !== null);
 
   return (
     <header className={cn('border-b border-line pb-10', className)}>
@@ -102,11 +133,15 @@ export async function ProfileHeader({
 
           <p className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-caption text-muted">
             <span className="font-semibold">@{photographer.username}</span>
-            {photographer.basedIn ? (
+            {place ? (
               <>
                 <span aria-hidden>·</span>
-                {/* Member-written, so it is shown as they wrote it. */}
-                <span>{photographer.basedIn}</span>
+                <span>
+                  {flag ? <span aria-hidden>{flag} </span> : null}
+                  {/* Member-written where they wrote one, otherwise the
+                      country's name in the reader's language. */}
+                  {place}
+                </span>
               </>
             ) : null}
             {memberSince ? (
@@ -132,7 +167,50 @@ export async function ProfileHeader({
             </div>
           ) : null}
 
-          <div className="mt-7 flex flex-wrap items-center gap-x-6 gap-y-3">
+          {photographer.styles.length > 0 ? (
+            <ul className="mt-6 flex flex-wrap gap-2">
+              {photographer.styles.map((style) => (
+                <li
+                  key={style}
+                  className="rounded-pill border border-line bg-surface px-2.5 py-1 text-meta text-ink-soft"
+                >
+                  {common(`photographyStyles.${style}`)}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {photographer.collaboration || photographer.critique ? (
+            <dl className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
+              {photographer.collaboration ? (
+                <div className="flex items-baseline gap-2">
+                  <Handshake aria-hidden className="size-3.5 shrink-0 translate-y-0.5 text-muted" />
+                  <dt className="text-meta text-muted">{t('collaboration.label')}</dt>
+                  <dd className="text-meta font-semibold text-ink">
+                    {common(`collaboration.${photographer.collaboration}`)}
+                  </dd>
+                </div>
+              ) : null}
+
+              {photographer.critique ? (
+                <div className="flex items-baseline gap-2">
+                  <MessageSquareQuote
+                    aria-hidden
+                    className="size-3.5 shrink-0 translate-y-0.5 text-muted"
+                  />
+                  <dt className="text-meta text-muted">{t('critique.label')}</dt>
+                  <dd className="text-meta font-semibold text-ink">
+                    {common(`critique.${photographer.critique}`)}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+
+          {/* Aligned to the top, not centred: the website carries a note under
+              it, and centring put the other links halfway down that note
+              instead of on the same line as the address beside them. */}
+          <div className="mt-7 flex flex-wrap items-start gap-x-6 gap-y-3">
             {website ? (
               <div className="min-w-0">
                 <a
@@ -145,6 +223,23 @@ export async function ProfileHeader({
                 </a>
                 <p className="mt-1 text-meta text-muted-soft">{t('websiteNote')}</p>
               </div>
+            ) : null}
+
+            {links.length > 0 ? (
+              <ul className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2">
+                {links.map((link) => (
+                  <li key={link.href} className="min-w-0">
+                    <a
+                      href={link.href}
+                      rel="me nofollow noopener"
+                      className="inline-flex max-w-full items-center gap-1.5 text-caption text-ink-soft transition-colors duration-150 hover:text-ink"
+                    >
+                      <span className="truncate">{link.label}</span>
+                      <ArrowUpRight aria-hidden className="size-3.5 shrink-0" />
+                    </a>
+                  </li>
+                ))}
+              </ul>
             ) : null}
 
             {/* Reporting is for everyone else. Offering a member a button to
