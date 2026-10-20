@@ -1,4 +1,4 @@
-import { CopyCheck, Flag, MapPinned, ScanSearch, ScrollText } from 'lucide-react';
+import { CopyCheck, Flag, MapPinned, ScanSearch, ScrollText, UsersRound } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import type { Locale } from '@/i18n/locales';
@@ -7,7 +7,7 @@ import { PAGE_SIZE } from '@/lib/config';
 import { cn } from '@/lib/utils';
 
 /**
- * The five queues, as real links.
+ * The queues, as real links. The team tab is an administrator's alone.
  *
  * Which queue is open lives in the query string rather than in client state, so
  * a moderator can send a colleague the exact queue they are looking at, the
@@ -17,12 +17,16 @@ import { cn } from '@/lib/utils';
  */
 
 export const MODERATION_QUEUES = [
+  'uploads',
   'submissions',
   'reports',
-  'uploads',
   'duplicates',
   'actions',
+  'team',
 ] as const;
+
+/** Shown only to administrators; every other queue is shown to every moderator. */
+export const ADMIN_ONLY_QUEUES: ReadonlySet<QueueKey> = new Set<QueueKey>(['team']);
 
 export type QueueKey = (typeof MODERATION_QUEUES)[number];
 
@@ -33,9 +37,12 @@ const QUEUE_ICONS: Record<QueueKey, typeof MapPinned> = {
   uploads: ScanSearch,
   duplicates: CopyCheck,
   actions: ScrollText,
+  team: UsersRound,
 };
 
-export const DEFAULT_QUEUE: QueueKey = 'submissions';
+// Every photograph waits here before it is published (0012), so it is the
+// queue a moderator opens first.
+export const DEFAULT_QUEUE: QueueKey = 'uploads';
 
 export function isQueueKey(value: string | undefined): value is QueueKey {
   return value !== undefined && MODERATION_QUEUES.some((queue) => queue === value);
@@ -78,11 +85,13 @@ export async function QueueTabs({
   locale,
   active,
   counts,
+  showAdminQueues = false,
   className,
 }: {
   locale: Locale;
   active: QueueKey;
   counts: Record<QueueKey, number>;
+  showAdminQueues?: boolean;
   className?: string;
 }) {
   const t = await getTranslations({ locale, namespace: 'moderation' });
@@ -92,7 +101,7 @@ export async function QueueTabs({
       {/* The strip scrolls on a narrow screen; the decision controls inside each
           row never do. */}
       <ul className="-mb-px flex gap-1 overflow-x-auto">
-        {MODERATION_QUEUES.map((queue) => {
+        {MODERATION_QUEUES.filter((queue) => showAdminQueues || !ADMIN_ONLY_QUEUES.has(queue)).map((queue) => {
           const Icon = QUEUE_ICONS[queue];
           const isActive = queue === active;
           const count = counts[queue];

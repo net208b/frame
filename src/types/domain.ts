@@ -264,7 +264,14 @@ export type ModerationDecision =
   | 'request_changes'
   | 'remove_content'
   | 'suspend_account'
-  | 'dismiss';
+  | 'dismiss'
+  | 'change_role';
+
+/** A member of staff, as the team panel lists them. */
+export interface StaffMember {
+  member: PhotographerSummary;
+  role: 'moderator' | 'admin';
+}
 
 export interface ModerationAction {
   id: string;
@@ -322,6 +329,34 @@ export interface SuspiciousUpload {
   uploader: PhotographerSummary;
   createdAt: string;
   signals: UploadSignal[];
+  /**
+   * What the member wrote and chose, for the reviewer to check against the
+   * image. Absent in the bundled demo queue, which predates review of every
+   * upload.
+   */
+  details?: UploadReviewDetails;
+}
+
+/** Everything a member entered on the upload form, as a reviewer reads it. */
+export interface UploadReviewDetails {
+  /** The larger size, for looking closely. Null when only a thumbnail exists. */
+  displayUrl: string | null;
+  description: string | null;
+  altText: string | null;
+  category: string | null;
+  location: { name: string; slug: string | null } | null;
+  camera: string | null;
+  lens: string | null;
+  focalLengthMm: number | null;
+  aperture: number | null;
+  shutterSpeed: string | null;
+  iso: number | null;
+  /** Only when the member chose to publish the capture date. */
+  capturedAt: string | null;
+  editingSoftware: string | null;
+  editingNotes: string | null;
+  width: number | null;
+  height: number | null;
 }
 
 export interface UploadSignal {

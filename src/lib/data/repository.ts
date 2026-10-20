@@ -13,6 +13,7 @@ import type {
   PlatformStats,
   Report,
   LocationSubmission,
+  StaffMember,
   SuspiciousUpload,
 } from '@/types/domain';
 
@@ -217,6 +218,12 @@ export interface ModerationQueues {
   suspiciousUploads: SuspiciousUpload[];
   recentActions: ModerationAction[];
   possibleDuplicates: Array<{ a: LocationSummary; b: LocationSummary; distanceMetres: number }>;
+}
+
+/** Moderators and administrators. Demo mode has no accounts, so no staff. */
+export async function getStaffMembers(): Promise<StaffMember[]> {
+  if (useLive()) return live.staffMembers();
+  return [];
 }
 
 export async function getModerationQueues(): Promise<ModerationQueues> {

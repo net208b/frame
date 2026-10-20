@@ -986,8 +986,14 @@ export async function publishPhotograph(
     height,
   });
 
-  const needsReview = signals.some((signal) => signal.severity === 'high');
-  const status: PublicationStatus = needsReview ? 'under_review' : 'published';
+  // Every new photograph waits for a moderator (0012 makes this a database
+  // rule: an owner cannot set 'published'). The signals travel to the review
+  // queue to tell the reviewer where to look; they no longer decide whether a
+  // review happens. A photograph that is already published and is being edited
+  // stays published — taking it down for a retitle would punish the member for
+  // fixing a typo.
+  const alreadyPublished = photograph.status === 'published';
+  const status: PublicationStatus = alreadyPublished ? 'published' : 'under_review';
   const publishCapturedAt = payload.capturedAt !== null;
   const sharedGps = payload.shareExifGps ? (payload.exif?.gps ?? null) : null;
   const now = new Date().toISOString();
@@ -1040,7 +1046,9 @@ export async function publishPhotograph(
       // on this declaration, so the timestamp is the record of it.
       rights_confirmed_at: now,
       status,
-      published_at: status === 'published' ? now : null,
+      // Left as it was on a published photograph; the database refuses an owner
+      // who sets it, because it is the moment a moderator published the work.
+      ...(alreadyPublished ? {} : { published_at: null }),
     })
     .eq('id', photograph.id)
     .eq('owner_id', viewer.id)

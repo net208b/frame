@@ -170,3 +170,12 @@ export async function requireModerator(): Promise<Viewer> {
 export function isModerator(viewer: Viewer | null): boolean {
   return viewer?.role === 'moderator' || viewer?.role === 'admin';
 }
+
+/**
+ * An administrator: everything a moderator can do, and also appointing and
+ * removing moderators and administrators. The database checks the same thing
+ * in is_admin(); this one only decides what to show.
+ */
+export function isAdmin(viewer: Viewer | null): boolean {
+  return viewer?.role === 'admin';
+}
