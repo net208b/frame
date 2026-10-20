@@ -14,6 +14,7 @@ import { PHOTO_CATEGORIES, type PhotoCategory } from '@/types/domain';
 
 import { MapCanvas } from './MapCanvas';
 import { MapFilterBar, type CategoryOption } from './MapFilterBar';
+import { MapPinCard } from './MapPinCard';
 import { MapPinPreview } from './MapPinPreview';
 import { SELECTED_PARAM } from './map-style';
 
@@ -223,6 +224,20 @@ export function MapExplorer({
           onSelect={handleSelect}
           onVisibleChange={handleVisibleChange}
           heightClassName={MAP_HEIGHT}
+          anchored={
+            // The card is drawn on the map only for a place that has a frame to
+            // show. A pin with no photograph is a dot, and a card hanging off it
+            // would be a panel with a hole where the picture goes; the panel
+            // beside the map carries that place as text instead.
+            selectedPin && selectedPin.recentImageUrls.length > 0
+              ? {
+                  lngLat: [selectedPin.longitude, selectedPin.latitude],
+                  content: (
+                    <MapPinCard pin={selectedPin} onDismiss={() => handleSelect(null)} />
+                  ),
+                }
+              : null
+          }
         />
         {mapConfigured ? <PinLegend /> : null}
         {mapConfigured && pins.length === 0 ? <NothingPinned /> : null}

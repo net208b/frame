@@ -131,8 +131,25 @@ export interface MapPin {
   latitude: number;
   longitude: number;
   isApproximate: boolean;
+  /**
+   * The newest published photograph made at this place, or null. The same URL
+   * as `recentImageUrls[0]`, kept because the location card, the trending row
+   * and the location index all want exactly one image and nothing more.
+   */
   previewImageUrl: string | null;
+  /**
+   * Up to {@link MAP_PIN_PHOTOGRAPH_SAMPLE} of the place's published
+   * photographs, **newest first**.
+   *
+   * The order is the product rule, not an implementation detail: when several
+   * members have photographed the same place, the map shows the most recent
+   * one on top. It is the order the query asks the database for, so the pin and
+   * the place's own page agree about which frame is the latest.
+   */
+  recentImageUrls: string[];
 }
+
+
 
 export async function getMapPins(): Promise<MapPin[]> {
   if (useLive()) return live.mapPins();

@@ -198,6 +198,29 @@ const PIN_COLOURS: Record<BasemapTheme, {
  * precision we hold, whereas a crisp dot would overstate it. Precision is a
  * privacy decision, so the error has to fall on this side.
  */
+/**
+ * Whether this pin is drawn as a photograph rather than as a dot.
+ *
+ * A place with a published frame gets a DOM marker (`photo-marker.ts`); a place
+ * with none keeps the dot. The two must never draw over each other, so every
+ * circle layer that stands for a single pin filters itself to the dots, and the
+ * marker layer above is the only thing that draws the rest.
+ */
+const HAS_IMAGE: ExpressionSpecification = ['to-boolean', ['get', 'hasImage']];
+
+/**
+ * A single pin — not a cluster — that has no photograph to show.
+ *
+ * Typed as an expression rather than as a filter so it can be nested inside
+ * one: a `FilterSpecification` is the whole of a layer's `filter`, and the
+ * operands of `all` are expressions.
+ */
+const DOT_PIN: ExpressionSpecification = [
+  'all',
+  ['!', ['has', 'point_count']],
+  ['!', HAS_IMAGE],
+];
+
 const IS_APPROXIMATE: ExpressionSpecification = [
   'any',
   ['!', ['has', 'isApproximate']],
@@ -316,7 +339,7 @@ export function pointLayer(theme: BasemapTheme): LayerSpecification {
     id: MAP_LAYERS.points,
     type: 'circle',
     source: MAP_SOURCE_ID,
-    filter: ['!', ['has', 'point_count']],
+    filter: DOT_PIN,
     paint: {
       'circle-color': colour.accent,
       'circle-radius': byPrecision(PIN_RADIUS.exact, PIN_RADIUS.approximate),
@@ -380,7 +403,9 @@ export function hoverLayer(theme: BasemapTheme): LayerSpecification {
  * the layer in the style instead of adding and removing it.
  */
 export function idFilter(id: string | null): FilterSpecification {
-  return ['all', ['!', ['has', 'point_count']], ['==', ['get', 'id'], id ?? '\u0000']];
+  // Dots only: a photograph pin carries its own selected and hovered states in
+  // CSS, and a ring drawn under a 44-pixel thumbnail would never be seen.
+  return ['all', DOT_PIN, ['==', ['get', 'id'], id ?? '\u0000']];
 }
 
 /* ------------------------------------------------------------------------ */
@@ -396,6 +421,12 @@ export interface MapPoint {
   latitude: number;
   longitude: number;
   isApproximate: boolean;
+  /**
+   * Whether this pin is drawn as a photograph. Optional, and absent counts as
+   * false: a lone coordinate on a location page has no stack of frames behind
+   * it and wants the dot.
+   */
+  hasImage?: boolean;
 }
 
 /** GeoJSON for the clustering source. Property names match the expressions above. */
@@ -411,6 +442,7 @@ export function pointCollection(points: readonly MapPoint[]) {
       properties: {
         id: point.id,
         isApproximate: point.isApproximate,
+        hasImage: point.hasImage ?? false,
       },
     })),
   };
