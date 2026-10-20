@@ -4,10 +4,12 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { AlreadySignedIn, AuthShell, firstParam } from '@/components/auth/AuthShell';
 import { LoginForm } from '@/components/auth/LoginForm';
+import { ProviderSignIn } from '@/components/auth/ProviderSignIn';
 import { Notice } from '@/components/ui/states';
 import { withLocalePrefix } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { getViewer } from '@/lib/auth';
+import { enabledSignInProviders } from '@/lib/enabled-sign-in-providers';
 import { safeNextPath } from '@/lib/safe-redirect';
 import { buildMetadata } from '@/lib/seo';
 
@@ -46,19 +48,47 @@ export async function generateMetadata({
  *
  * Each is a pair of message keys looked up by a known value — nothing from the
  * query string reaches the page, and an unrecognised value finds nothing.
+ *
+ * The tone is part of the entry because "you cancelled" is not a warning: a
+ * member who pressed Cancel at Google did exactly what they meant to.
  */
-const ARRIVALS: Record<string, { title: string; body: string }> = {
+const ARRIVALS: Record<string, { title: string; body: string; tone: 'info' | 'warning' }> = {
   not_configured: {
     title: 'login.arrivalNotConfiguredTitle',
     body: 'login.arrivalNotConfiguredBody',
+    tone: 'info',
   },
   link_expired: {
     title: 'login.arrivalLinkExpiredTitle',
     body: 'login.arrivalLinkExpiredBody',
+    tone: 'warning',
   },
   signout_failed: {
     title: 'login.arrivalSignoutFailedTitle',
     body: 'login.arrivalSignoutFailedBody',
+    tone: 'warning',
+  },
+  provider_cancelled: {
+    title: 'login.arrivalProviderCancelledTitle',
+    body: 'login.arrivalProviderCancelledBody',
+    tone: 'info',
+  },
+  provider_failed: {
+    title: 'login.arrivalProviderFailedTitle',
+    body: 'login.arrivalProviderFailedBody',
+    tone: 'warning',
+  },
+  // Where deleteAccount() sends a member once their account is gone or
+  // closed. There is no account left to show them a page of their own.
+  account_deleted: {
+    title: 'login.arrivalAccountDeletedTitle',
+    body: 'login.arrivalAccountDeletedBody',
+    tone: 'info',
+  },
+  account_closed: {
+    title: 'login.arrivalAccountClosedTitle',
+    body: 'login.arrivalAccountClosedBody',
+    tone: 'info',
   },
 };
 
@@ -81,7 +111,7 @@ export default async function LoginPage({
   const arrivalKey = firstParam(resolved.error);
   const arrival = arrivalKey ? ARRIVALS[arrivalKey] : undefined;
 
-  const viewer = await getViewer();
+  const [viewer, providers] = await Promise.all([getViewer(), enabledSignInProviders()]);
 
   return (
     <AuthShell
@@ -100,11 +130,7 @@ export default async function LoginPage({
       })}
     >
       {arrival ? (
-        <Notice
-          tone={arrivalKey === 'not_configured' ? 'info' : 'warning'}
-          title={t(arrival.title)}
-          className="mb-6"
-        >
+        <Notice tone={arrival.tone} title={t(arrival.title)} className="mb-6">
           {t(arrival.body)}
         </Notice>
       ) : null}
@@ -117,7 +143,10 @@ export default async function LoginPage({
           continueLabel={t('login.continueLabel')}
         />
       ) : (
-        <LoginForm next={next} />
+        <>
+          <ProviderSignIn providers={providers} next={next} />
+          <LoginForm next={next} />
+        </>
       )}
     </AuthShell>
   );

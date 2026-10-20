@@ -62,6 +62,7 @@
     "upload": "Upload a photograph",
     "myCollections": "My collections",
     "myProfile": "My profile",
+    "settings": "Settings",
     "moderation": "Moderation",
     "signOut": "Sign out"
   },
@@ -734,6 +735,13 @@
       "validationSeveral": "{count, plural, one {One of these details needs attention. The form shows what to change.} other {# of these details need attention. The form shows what to change.}}",
       "validationFallback": "That submission could not be validated. Check the form and try again."
     },
+    "providers": {
+      "groupLabel": "Sign in with another account",
+      "continueWith": "Continue with {provider}",
+      "pending": "Opening {provider}…",
+      "divider": "or",
+      "consent": "If you are new here, continuing creates your FRAME account and means you accept the <terms>terms</terms> and the <guidelines>community guidelines</guidelines>. FRAME receives your name and email address from the provider — the <privacy>privacy notice</privacy> says what it keeps."
+    },
     "login": {
       "metaTitle": "Sign in",
       "metaDescription": "Sign in to FRAME to publish your photographs, appreciate other people’s work and keep collections.",
@@ -749,7 +757,15 @@
       "arrivalLinkExpiredTitle": "That link could not be used",
       "arrivalLinkExpiredBody": "A sign-in link works once, expires after an hour, and has to be opened in the browser that asked for it. Sign in below, or ask for a new link.",
       "arrivalSignoutFailedTitle": "You may still be signed in",
-      "arrivalSignoutFailedBody": "The sign-out could not be completed, so this browser may still hold a session. Try signing out again from the account menu."
+      "arrivalSignoutFailedBody": "The sign-out could not be completed, so this browser may still hold a session. Try signing out again from the account menu.",
+      "arrivalProviderCancelledTitle": "Sign-in was cancelled",
+      "arrivalProviderCancelledBody": "Nothing was changed and you are not signed in. Choose another way below, or try again.",
+      "arrivalProviderFailedTitle": "That sign-in did not finish",
+      "arrivalProviderFailedBody": "The provider did not confirm who you are, so no session was started. Try again, or sign in with your email address below.",
+      "arrivalAccountDeletedTitle": "Your account has been deleted",
+      "arrivalAccountDeletedBody": "Your profile, photographs and collections are gone, and you have been signed out. Thank you for what you shared here.",
+      "arrivalAccountClosedTitle": "Your account has been closed",
+      "arrivalAccountClosedBody": "Your photographs, collections and profile details are deleted, and you have been signed out. The account itself is kept, closed and hidden, because moderation decisions you made still name it."
     },
     "join": {
       "metaTitle": "Join FRAME",
@@ -853,6 +869,23 @@
       },
       "terms": {
         "required": "Please confirm you accept the terms and the community guidelines before joining."
+      },
+      "biography": {
+        "max": "Keep the biography to 1,200 characters."
+      },
+      "basedIn": {
+        "max": "Keep this to 80 characters."
+      },
+      "website": {
+        "invalid": "Enter a web address, such as https://example.com.",
+        "max": "That address is too long. Keep it to 200 characters."
+      },
+      "gear": {
+        "tooMany": "List up to 12 pieces of gear.",
+        "itemMax": "Keep each line to 60 characters."
+      },
+      "confirmUsername": {
+        "required": "Type your username to confirm."
       }
     },
     "actions": {
@@ -892,7 +925,85 @@
       "resendSent": "If that address is waiting for confirmation, another link is on its way. Check your inbox, and your spam folder.",
       "resendFailed": "The confirmation email could not be sent. Try again in a few minutes.",
       "signOutFailed": "Your session could not be ended. Try again in a moment.",
-      "signOutDone": "You are signed out."
+      "signOutDone": "You are signed out.",
+      "providerUnknown": "Choose one of the sign-in options shown.",
+      "providerUnavailable": "Signing in with {provider} is not available at the moment. Use another option, or your email address.",
+      "providerFailed": "Signing in with {provider} could not be started. Try again in a moment."
+    }
+  },
+  "account": {
+    "metaTitle": "Settings",
+    "metaDescription": "Edit your profile, change a username that was chosen for you, or delete your account.",
+    "eyebrow": "Account",
+    "title": "Settings",
+    "description": "What other people see on your profile, and the account itself.",
+    "capabilityAction": "Changing account settings",
+    "missingTitle": "This account has no profile",
+    "missingBody": "It is still being created, or is being deleted. Try again in a minute.",
+    "suspendedTitle": "This account is suspended",
+    "suspendedBody": "You can’t edit your profile while it is. You can still delete the account.",
+    "profile": {
+      "heading": "Profile",
+      "intro": "Shown on your public profile, in your own words. Only the display name is required.",
+      "displayName": "Display name",
+      "displayNameHint": "How your name appears beside your photographs. Up to 60 characters.",
+      "biography": "Biography",
+      "biographyHint": "Up to {max} characters. A blank line starts a new paragraph.",
+      "basedIn": "Based in",
+      "basedInHint": "A city or region, if you want one shown. FRAME never fills this in for you.",
+      "website": "Website",
+      "websiteHint": "A link to your own site. https:// is added if you leave it out.",
+      "gear": "Gear you usually carry",
+      "gearHint": "One per line, up to {count}, each up to {length} characters.",
+      "avatarNote": "Profile pictures can’t be uploaded yet.",
+      "submit": "Save profile",
+      "submitPending": "Saving…",
+      "viewProfile": "See your profile"
+    },
+    "username": {
+      "heading": "Username",
+      "current": "Your profile is at <code>{address}</code>.",
+      "changeIntro": "Your account was made with {provider}, so this username was chosen for you. You can replace it once. After that it stays, as everyone’s does, so links to your profile keep working.",
+      "aProvider": "a sign-in provider",
+      "field": "New username",
+      "hint": "3 to 24 lowercase letters, digits or underscores.",
+      "submit": "Change username",
+      "submitPending": "Changing…",
+      "fixed": "Usernames don’t change: yours was chosen when you joined, and it is the address every link to your profile uses.",
+      "used": "You used your one change on {date}. Your username now stays.",
+      "usedJustNow": "That was your one change. Your username now stays."
+    },
+    "delete": {
+      "heading": "Delete your account",
+      "intro": "This can’t be undone.",
+      "whatGoes": "Your profile, every photograph and its image files, your collections, the appreciation you have given, and any places you proposed that are still waiting are deleted.",
+      "whatStays": "Reports you filed and places that were approved stay, without your name on them, because other members’ decisions rest on them.",
+      "retained": "You have made moderation decisions, and those have to keep their author, so your account can’t be erased. Instead your photographs and their files, collections, appreciation and profile details are deleted, your moderator role is removed, and the account is closed: hidden from the site and unable to sign in. Only its username remains, on the decisions you made.",
+      "confirmLabel": "Type your username, {username}, to confirm",
+      "submit": "Delete my account",
+      "submitPending": "Deleting…"
+    },
+    "actions": {
+      "notConfigured": "Account settings need a database and none is configured, so nothing was saved.",
+      "signedOut": "You’re no longer signed in. Sign in and try again.",
+      "suspended": "A suspended account can’t edit its profile.",
+      "profileSaved": "Profile saved.",
+      "profileRefused": "One of these values wasn’t accepted. Check each field and try again.",
+      "profileFailed": "Your profile couldn’t be saved. Try again in a moment.",
+      "usernameTaken": "That username is taken.",
+      "usernameTakenField": "Somebody already has this username. Try another.",
+      "usernameReserved": "That username is reserved.",
+      "usernameReservedField": "This name belongs to a page on FRAME, or implies an authority. Choose another.",
+      "usernameInvalid": "That isn’t a valid username.",
+      "usernameInvalidField": "Use 3 to 24 lowercase letters, digits or underscores.",
+      "usernameNotAllowed": "This account’s username can’t be changed.",
+      "usernameFailed": "Your username couldn’t be changed. Try again in a moment.",
+      "usernameChanged": "Your username is now {username}.",
+      "deleteConfirmMismatch": "The username you typed doesn’t match, so nothing was deleted.",
+      "deleteConfirmMismatchField": "Type {username} exactly.",
+      "deleteFailed": "Your account couldn’t be deleted, and nothing was removed. Try again in a moment.",
+      "deleteFilesFailed": "Not all of your image files could be removed, so your account wasn’t deleted. Some files may already be gone. Try again in a moment.",
+      "deleteRecordsFailed": "Your image files were removed, but the account itself couldn’t be deleted. Press Delete again to finish."
     }
   },
   "upload": {
@@ -1059,7 +1170,7 @@
       "signalCountryUnknown": "No bounding box on file for {countryCode}, so the country could not be cross-checked.",
       "signalPossibleDuplicate": "Within {metres, number} m of an existing location.",
       "proposalNoticeTitle": "What happens to a proposed place",
-      "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes now, with the place marked pending, and is credited to the location once it is approved.",
+      "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes as soon as the automated checks clear it, with the place marked pending, and is credited to the location once it is approved.",
       "proposalNoticePrecision": "A published point is rounded to {precision} rather than shown exactly, and further still for anywhere a moderator marks as sensitive. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
       "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them."
     },
@@ -1101,7 +1212,7 @@
       "editingNotesHint": "What you changed and why. This is the part other photographers read most closely.",
       "editingNotesPlaceholder": "Lifted the shadows about a stop, pulled the greens out of the fluorescent light, no crop.",
       "captureDateHeading": "The date in the file",
-      "captureDateNone": "This file does not say when it was taken, so there is no date to publish or withhold. The date FRAME shows on the photograph is the day you published it.",
+      "captureDateNone": "This file does not say when it was taken, so there is no date to publish or withhold. The date FRAME shows on the photograph is the day it was published.",
       "captureDateBody": "Your camera recorded this frame as taken on {date}. A capture date can place a person somewhere on a particular evening, so FRAME leaves it out unless you ask for it. The camera carries no time zone, so the date is read as your camera’s own clock.",
       "captureDatePublish": "Publish the capture date, {date}",
       "captureDateDescription": "Leave this unticked and the date stays off the photograph and out of its record."
@@ -1144,7 +1255,7 @@
       "valueDimensions": "{width} × {height} pixels, as the file reports them",
       "valueFocalLength": "{value} mm",
       "valueAperture": "f/{value}",
-      "valueProposalStatus": "Queued for a moderator. Your photograph publishes now; the place appears once it is approved.",
+      "valueProposalStatus": "Queued for a moderator. Your photograph publishes once the automated checks clear it; the place appears once it is approved.",
       "valueNoPlace": "None. The photograph publishes without a location, and you can add one later without re-uploading.",
       "valueCaptureDateWithheld": "Withheld. The file records a date and you chose not to publish it.",
       "valueGpsUsed": "The file records a position and you used it to start your proposal. It is stored with your consent recorded against it, and it is never published as an exact point.",
@@ -1161,7 +1272,7 @@
       "rightsConfirm": "I am the photographer or hold permission to publish this work, and I grant FRAME the licence described above.",
       "rightsConfirmDescription": "FRAME records the moment you tick this and checks it again on the server before anything is published.",
       "twoThingsTitle": "Two things are being sent",
-      "twoThingsBody": "Your photograph, which publishes as soon as it has been processed, and your proposed place, which waits for a moderator. A published point is rounded to {precision} rather than shown exactly."
+      "twoThingsBody": "Your photograph, which publishes as soon as the automated checks clear it, and your proposed place, which waits for a moderator. A published point is rounded to {precision} rather than shown exactly."
     },
     "submit": {
       "heading": "Send it",
@@ -1178,8 +1289,8 @@
       "stageUploadDetail": "The bytes go straight to storage rather than through FRAME.",
       "stageProcessTitle": "Check and resize",
       "stageProcessDetail": "The server decodes the file that actually arrived, refuses anything that is not a photograph it can publish, then builds the sizes the site serves and strips every tag from each of them.",
-      "stagePublishTitle": "Publish",
-      "stagePublishDetail": "Your declaration is recorded and the photograph is written to the gallery.",
+      "stagePublishTitle": "Check and publish",
+      "stagePublishDetail": "Your declaration is recorded and an automated check looks at the image. If it is clear, the photograph is published at once; if not, a moderator looks first.",
       "stagePlaceTitle": "Queue the proposed place",
       "stagePlaceDetail": "Your proposal goes to a moderator. Your photograph does not wait for it.",
       "stateDone": "done",
@@ -1212,16 +1323,16 @@
       "noFileAttached": "No file is attached to this upload any more. Go back to step one and choose it again.",
       "outcomeLabel": "What happened to this upload",
       "outcomePublishedTitle": "Published",
-      "outcomePublishedBody": "Your photograph is live, the sizes FRAME serves have been generated from it, and every tag has been stripped from each of them. The original is kept privately as the source for re-processing.",
+      "outcomePublishedBody": "Your photograph is live. It passed the automated checks, the sizes FRAME serves have been generated from it with every tag stripped, and your original file has been deleted rather than kept.",
       "outcomeReviewTitle": "Uploaded, and with a moderator before it appears",
-      "outcomeReviewBody": "Your photograph has been stored and processed, and one of the automated checks asked for a person to look at it. A moderator reads it, usually within a day, and you will see it in your portfolio either way — published, or with the reason it was not.",
+      "outcomeReviewBody": "Your photograph has been stored and processed, and an automated check asked for a person to look at it before it appears. A moderator reads it, usually within a day, and you will see it in your portfolio either way — published, or with the reason it was not.",
       "signalsHeading": "What the checks noticed",
       "signalHigh": "Held for review",
       "signalWarn": "Worth knowing",
       "signalInfo": "For information",
       "signalsNote": "These are checks with an opinion, not verdicts. A moderator sees the same list.",
       "placeQueued": "Your proposed place is queued for a moderator and will appear once it is approved.",
-      "placeFailedNote": "Your photograph published normally. You can propose the place again from the location index without re-uploading.",
+      "placeFailedNote": "Your photograph was handled normally. You can propose the place again from the location index without re-uploading.",
       "seePhotograph": "See the photograph",
       "uploadAnother": "Upload another photograph",
       "backToReview": "Back to review",
@@ -1462,9 +1573,9 @@
         "countCapped": "at least {count, number} reports still open"
       },
       "uploads": {
-        "label": "Uploads to review",
-        "count": "{count, plural, =0 {no uploads awaiting a decision} one {# upload awaiting a decision} other {# uploads awaiting a decision}}",
-        "countCapped": "at least {count, number} uploads awaiting a decision"
+        "label": "Photographs to review",
+        "count": "{count, plural, =0 {no photographs awaiting review} one {# photograph awaiting review} other {# photographs awaiting review}}",
+        "countCapped": "at least {count, number} photographs awaiting review"
       },
       "duplicates": {
         "label": "Possible duplicates",
@@ -1475,6 +1586,11 @@
         "label": "Recent decisions",
         "count": "{count, plural, =0 {no decisions recorded recently} one {# decision recorded recently} other {# decisions recorded recently}}",
         "countCapped": "at least {count, number} decisions recorded recently"
+      },
+      "team": {
+        "label": "Team",
+        "count": "{count, plural, =0 {no staff} one {# member of staff} other {# members of staff}}",
+        "countCapped": "at least {count, number} members of staff"
       }
     },
     "severity": {
@@ -1496,7 +1612,9 @@
       "exif-conflict": "EXIF disagrees with the place",
       "burst-upload": "Burst upload",
       "embedded-credit-mismatch": "Embedded credit differs",
-      "low-resolution": "Below the minimum size"
+      "low-resolution": "Below the minimum size",
+      "content-flagged": "Content check held it",
+      "content-unchecked": "Not checked automatically"
     },
     "decision": {
       "approve": "Approve",
@@ -1504,7 +1622,8 @@
       "request_changes": "Ask for changes",
       "remove_content": "Remove the content",
       "suspend_account": "Suspend the account",
-      "dismiss": "Dismiss the report"
+      "dismiss": "Dismiss the report",
+      "change_role": "Change the role"
     },
     "reportReason": {
       "copyright": "Copyright infringement",
@@ -1674,15 +1793,15 @@
     },
     "uploads": {
       "eyebrow": "Queue",
-      "title": "Uploads to review",
-      "description": "Held before publication. Every signal below is a reason to look, not a finding.",
-      "emptyTitle": "Nothing is held for review",
-      "emptyDescription": "No upload is waiting on a decision. Flagged uploads arrive here oldest first.",
+      "title": "Photographs to review",
+      "description": "Uploads an automated check could not clear, or that raised a signal. Everything else published on its own. Check the image against what the member wrote; signals are reasons to look, not findings.",
+      "emptyTitle": "Nothing is waiting for review",
+      "emptyDescription": "No photograph is waiting on a decision. Uploads the automated check holds arrive here oldest first.",
       "thumbAlt": "Upload held for review: {title}",
       "uploadedAt": "Uploaded <time>{when}</time>",
       "notPublishedYet": "not published, so it has no public page yet",
       "uploadedBy": "Uploaded by <link>{name}</link>",
-      "noSignals": "No automated check flagged this upload. It is here because its status is still under review.",
+      "noSignals": "No signal is recorded for this upload. It may have been sent back here by a moderator.",
       "hashCaveatHeadline": "A similarity match is a signal for review, not evidence of infringement.",
       "hashCaveatBody": "Two photographers can stand in the same place on different days and produce near-identical frames. Compare the files and ask the uploader before deciding anything from this signal alone.",
       "subject": "“{title}” by {name}",
@@ -1699,6 +1818,20 @@
           "label": "Remove the upload",
           "effect": "Takes it out of FRAME. The reason is stored on the photograph, so the member reads it."
         }
+      },
+      "openLarge": "Open {title} at full display size in a new tab",
+      "details": {
+        "none": "Not given",
+        "description": "Description",
+        "altText": "Alt text",
+        "category": "Category",
+        "location": "Place",
+        "camera": "Camera",
+        "lens": "Lens",
+        "settings": "Settings",
+        "capturedAt": "Taken",
+        "editing": "Editing",
+        "size": "Stored size"
       }
     },
     "duplicates": {
@@ -1746,6 +1879,41 @@
       },
       "noneNeeded": "None needed",
       "noneRecorded": "None recorded"
+    },
+    "team": {
+      "eyebrow": "Administration",
+      "title": "Team and roles",
+      "description": "Who can review photographs and decide on places, and who can appoint them. Only administrators see this tab.",
+      "matrixCaption": "What each role can do",
+      "matrix": {
+        "can": "Can",
+        "yes": "yes",
+        "no": "no",
+        "upload": "Upload photographs (published at once when the automated check clears them)",
+        "review": "Approve, hold or remove photographs",
+        "places": "Decide on proposed places, reports and duplicates",
+        "suspendMembers": "Suspend a member",
+        "suspendStaff": "Suspend a moderator or administrator",
+        "appoint": "Appoint or remove moderators and administrators"
+      },
+      "roles": {
+        "member": "Member",
+        "moderator": "Moderator",
+        "admin": "Administrator"
+      },
+      "staffTitle": "Current staff",
+      "emptyTitle": "No moderators yet",
+      "emptyDescription": "Appoint one below by their username.",
+      "you": "(you)",
+      "changeTitle": "Change a role",
+      "changeDescription": "Type the member's username and choose a role. Every change is recorded under Recent decisions. You cannot change your own role, and a suspended account cannot be given a staff role.",
+      "usernameLabel": "Username",
+      "usernameHint": "As in their profile address, without the @.",
+      "roleLabel": "New role",
+      "submit": "Change role",
+      "saving": "Changing…",
+      "saved": "The role is changed.",
+      "transportFailure": "The connection dropped, so it is not known whether the role changed. Reload the page to see."
     }
   },
   "legal": {
@@ -1869,6 +2037,7 @@
         "intro": "Only what the site needs in order to work:",
         "list": {
           "email": "<strong>An email address</strong>, so an account can be recovered and verified. The password itself is never stored; the authentication provider holds a hash of it and FRAME never sees the original.",
+          "signIn": "<strong>If you sign in with Google, Apple, Facebook or X</strong>: the name and email address that provider shares, and its identifier for your account there. FRAME never receives your password for that provider, and an account made this way has no FRAME password at all. Apple can hide your real address behind a relay address; FRAME keeps whichever address Apple sends.",
           "profile": "<strong>The profile fields you write</strong>: username, display name, avatar, biography, where you are based, a website, and the gear you choose to list. Every one of them is free text you decide to enter, and every one of them is optional except the username and display name.",
           "photographs": "<strong>The photographs you upload and the EXIF inside them</strong>: camera and lens, focal length, aperture, shutter speed, ISO, the capture date and, where the camera recorded one, a GPS coordinate.",
           "appreciation": "<strong>Appreciation records</strong>: which account appreciated which photograph. Appreciation is one per member, and that cannot be enforced without keeping the record of who it was.",
@@ -1912,21 +2081,35 @@
       },
       "accessAndDeletion": {
         "heading": "Access, correction and deletion",
-        "p1": "Most of this you can do yourself, which is the point: edit any profile field, remove a photograph, make a collection private, or delete the account outright.",
-        "p2": "Deleting an account removes the profile, the photographs, the generated sizes and the collections. Two things survive it. Moderation decisions are kept with the account reference removed wherever that is possible, for the reason above. And where the account belonged to a moderator, the audit trail it authored cannot be left without an author, so such an account is demoted and retained rather than erased — a point worth knowing before anybody is made a moderator.",
+        "p1": "Most of this you can do yourself, from Settings and from your collections: edit your display name, biography, location, website and gear; replace a username that was chosen for you, once; make a collection private, or delete it; and delete the account outright. Two things cannot be done yourself yet. A profile picture cannot be uploaded. And a published photograph cannot be withdrawn on its own: report it to have a moderator take it down, or delete the account, which removes every one.",
+        "p2": "Deleting an account removes the profile, every photograph and the image files generated from it, the collections, the appreciation the account gave, and any place it proposed that is still waiting. Reports it filed and places that were approved are kept with the account’s name removed, because other people’s decisions rest on them; moderation decisions likewise keep their content with the account reference removed wherever that is possible, for the reason above. One kind of account cannot be erased: one that has made moderation decisions, because an audit trail cannot be left without an author. Such an account is emptied instead — its photographs, collections, appreciation and profile details deleted, its role removed — and closed: hidden from the site and unable to sign in, with only its username left on the decisions it made. That is worth knowing before anybody is made a moderator.",
         "p3": "You can ask for a copy of what is held about you, and for a correction of anything that is wrong. The contact route for those requests, and the supervisory authority a complaint can be taken to, must be named here before launch."
       },
       "thirdParties": {
         "heading": "Who else handles this",
-        "intro": "FRAME is a small application standing on four services:",
+        "intro": "FRAME is a small application standing on four services, and on a fifth only if you choose it:",
         "list": {
           "database": "<strong>The database and authentication provider</strong> (Supabase, Postgres and its auth service) holds accounts, profiles, photographs, appreciation, reports and the email address and password hash.",
-          "storage": "<strong>The image storage provider</strong> (Supabase Storage, or Cloudflare R2 where that is configured instead) holds the uploaded file and the sizes generated from it.",
+          "storage": "<strong>The image storage provider</strong> (Supabase Storage, or Cloudflare R2 where that is configured instead) holds the sizes generated from your upload. The file you uploaded is deleted as soon as those sizes exist, so its EXIF data — including any position it recorded — is not kept.",
+          "contentCheck": "<strong>The automated content check</strong> (Google Cloud Vision SafeSearch) receives one copy of each uploaded photograph — the display size FRAME generated, with every tag removed — and answers how likely it is to be adult, violent or graphic. Google processes it to give that answer and nothing else; FRAME keeps only the answer, which moderators can see.",
           "tiles": "<strong>The map tile provider</strong> supplies the style and tiles for the map. Your browser requests those tiles directly, so that provider sees the request, including your IP address, the way any website you visit does. FRAME ships with no tile provider configured and deliberately falls back to no map rather than to somebody’s evaluation server.",
-          "hosting": "<strong>The hosting provider</strong> runs the application and logs requests as described above."
+          "hosting": "<strong>The hosting provider</strong> runs the application and logs requests as described above.",
+          "signIn": "<strong>A sign-in provider</strong> — Google, Apple, Meta for Facebook, or X — only if you choose to sign in with one. That provider learns that you signed in to FRAME, and when. How to disconnect it is set out under “Signing in with another account”."
         },
         "demo": "A deployment with no database configured shows a bundled sample dataset instead, and says so on every page. The sample photographs in that mode are served from Unsplash under the Unsplash licence and describe nobody real.",
         "outstanding": "Each of those providers needs to be named specifically, with a data-processing agreement in place, before FRAME handles anybody’s real data. See <terms>the terms</terms> for what is still outstanding."
+      },
+      "signInProviders": {
+        "heading": "Signing in with another account",
+        "p1": "Signing in with Google, Apple, Facebook or X is optional: an email address and a password work everywhere on FRAME. If you use a provider, FRAME asks it for your name and email address and nothing more, and keeps only what is listed under “What is collected”.",
+        "disconnect": "You can stop a provider sharing anything further with FRAME at any time, from that provider’s own account settings. At the time of writing they are here:",
+        "list": {
+          "google": "<strong>Google</strong>: your Google Account → Security → Your connections to third-party apps and services → FRAME.",
+          "apple": "<strong>Apple</strong>: on an iPhone, Settings → your name → Sign-In & Security → Sign in with Apple → FRAME; on the web, account.apple.com → Sign-In and Security → Sign in with Apple.",
+          "facebook": "<strong>Facebook</strong>: Settings & privacy → Settings → Apps and websites → FRAME → Remove.",
+          "twitter": "<strong>X</strong>: Settings and privacy → Security and account access → Apps and sessions → Connected apps → FRAME → Revoke app permissions."
+        },
+        "deletion": "Disconnecting stops new information arriving. It does not delete your FRAME account or anything you published on it: deleting the account and its data is done as set out under “Access, correction and deletion”."
       }
     },
     "copyright": {

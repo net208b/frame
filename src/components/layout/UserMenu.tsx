@@ -1,7 +1,7 @@
 'use client';
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Bookmark, ChevronDown, LogOut, ShieldCheck, Upload, User } from 'lucide-react';
+import { Bookmark, ChevronDown, LogOut, Settings, ShieldCheck, Upload, User } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, type ComponentType, type ReactNode } from 'react';
 
@@ -85,6 +85,9 @@ export function UserMenu({
           </MenuLink>
           <MenuLink href={`/photographers/${viewer.username}`} icon={User}>
             {t('myProfile')}
+          </MenuLink>
+          <MenuLink href="/settings" icon={Settings}>
+            {t('settings')}
           </MenuLink>
           {canModerate && (
             <MenuLink href="/moderation" icon={ShieldCheck}>
