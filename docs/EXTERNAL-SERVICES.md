@@ -109,7 +109,7 @@ gallery page views — not two to three thousand visitors, since a visitor who
 pages through Discover and opens four photographs costs several times that.
 
 Stored bytes behave in the opposite way: the four derivatives together come to
-roughly 0.7–1.5 MB, while the original can be up to the 25 MB that
+roughly 0.7–1.5 MB, while the original can be up to the 50 MB that
 `UPLOAD_POLICY.maxFileBytes` allows. **The original dominates what you store;
 the derivatives dominate what you serve.** A 1 GB storage allowance is in the
 region of fifty to a hundred uploads, almost all of it originals.
@@ -264,7 +264,7 @@ Four cost drivers, each with something concrete already in place against it.
 
 | Driver | What increases it | The lever in the code |
 | --- | --- | --- |
-| **Stored bytes** | Originals, overwhelmingly | `UPLOAD_POLICY.maxFileBytes` caps one file at 25 MB; `maxUploadsPerDay` (20) and `maxUploadsPerHour` (6) cap one member's daily contribution; `maxPendingUploads` (30) stops drafts accumulating |
+| **Stored bytes** | Originals, overwhelmingly | `UPLOAD_POLICY.maxFileBytes` caps one file at 50 MB; `maxUploadsPerDay` (20) and `maxUploadsPerHour` (6) cap one member's daily contribution; `maxPendingUploads` (30) stops drafts accumulating |
 | **Egress per gallery view** | Number of cards times the weight of each | Four fixed derivatives, so a grid never serves an original; `grid` is 800 px at quality 76; `PAGE_SIZE.gallery` is 24 with real pagination rather than an infinite scroll; `IMAGE_SIZES` makes the browser pick one candidate; derivatives are immutable and written with a one-year `cache-control` |
 | **Transformations** | Distinct source, width and format combinations | Explicit `deviceSizes` and `imageSizes` lists; `minimumCacheTTL` of 30 days; `sizes` values that match the real layout; `revalidate = 300` on the photograph page so a hot URL is rendered once every five minutes rather than per request |
 | **Database rows and requests** | Appreciation, reports, rate-limit hits, and unbounded reads | Keyset-friendly indexes and real pagination on every list; bounded reads in the repository (trending ranks a recent window, facets and aggregates sample rather than scan, map pins are capped); recounted counters, so a replayed request cannot inflate a number; the 1-in-100 cleanup inside `check_rate_limit` |

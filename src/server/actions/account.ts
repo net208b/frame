@@ -201,7 +201,7 @@ export async function updateProfile(
  * photograph is up to 25 MB of camera output and goes straight to the provider
  * with a signed grant, because passing it through this process would cost
  * memory and time for nothing. An avatar is the other case entirely: the
- * browser has already shrunk it to a 512-pixel square before submitting, so
+ * browser has already shrunk it to a 1024-pixel square before submitting, so
  * what arrives is a couple of hundred kilobytes, and one request that ends with
  * the profile updated is both simpler and leaves nothing half-finished behind
  * if the member closes the tab. The ceiling on that request body is

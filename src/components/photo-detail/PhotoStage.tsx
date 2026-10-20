@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/Dialog';
-import { aspectRatio, IMAGE_SIZES } from '@/lib/images/variants';
+import { aspectRatio, IMAGE_SIZES, PHOTOGRAPH_DISPLAY_QUALITY } from '@/lib/images/variants';
 import { cn } from '@/lib/utils';
 import type { PhotoImage } from '@/types/domain';
 
@@ -47,11 +47,21 @@ export function PhotoStage({
         className="relative overflow-hidden rounded-media border border-line bg-surface-sunken"
         style={{ aspectRatio: ratio }}
       >
+        {/*
+          `quality` is here because next/image re-encodes whatever it is handed,
+          and its default is 75. The derivative behind this URL was built at 92
+          by our own pipeline; re-encoding it at 75 threw that away on the one
+          image a reader came to look at, which is the whole site's product.
+          Ninety is close enough to the source that the second pass is not
+          visible, and `images.qualities` in next.config.mjs is what allows the
+          value at all.
+        */}
         <Image
           src={image.displayUrl}
           alt={altText}
           fill
           sizes={IMAGE_SIZES.detail}
+          quality={PHOTOGRAPH_DISPLAY_QUALITY}
           priority
           placeholder={image.blurDataUrl ? 'blur' : 'empty'}
           blurDataURL={image.blurDataUrl}
@@ -85,6 +95,7 @@ export function PhotoStage({
                 width={image.width}
                 height={image.height}
                 sizes="96vw"
+                quality={PHOTOGRAPH_DISPLAY_QUALITY}
                 className="h-auto max-h-[72vh] w-full object-contain"
               />
             </div>

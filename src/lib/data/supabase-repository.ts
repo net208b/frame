@@ -631,8 +631,12 @@ function buildImage(rows: ImageColumns[], photo: PhotographColumns): PhotoImage 
     if (variant && key) byVariant.set(variant, row);
   }
 
+  // `full` first, which is the point of generating it: 2560 pixels at 92 is
+  // what a photograph on a laptop or a 27-inch screen deserves, and `sizes` on
+  // the component is what keeps a phone from downloading it. Until this line,
+  // `full` was built on every upload and served to nobody.
   const display =
-    byVariant.get('display') ?? byVariant.get('full') ?? byVariant.get('grid') ?? byVariant.get('thumb');
+    byVariant.get('full') ?? byVariant.get('display') ?? byVariant.get('grid') ?? byVariant.get('thumb');
   if (!display) return null;
 
   const grid = byVariant.get('grid') ?? display;

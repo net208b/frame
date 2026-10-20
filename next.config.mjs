@@ -50,6 +50,11 @@ const nextConfig = {
     deviceSizes: [360, 480, 640, 828, 1080, 1280, 1600, 1920, 2560],
     imageSizes: [96, 160, 256, 384],
     formats: ['image/avif', 'image/webp'],
+    // Next refuses any `quality` not on this list, and its default of 75 is a
+    // second lossy pass over derivatives this project already built at 84–92.
+    // 75 stays for everything incidental; the two higher values are for the
+    // photograph itself and for an avatar. See lib/images/variants.ts.
+    qualities: [75, 88, 90],
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
@@ -57,7 +62,7 @@ const nextConfig = {
     // Keeps server-action payloads small. A photograph never passes through
     // this server at all: it goes straight to object storage with a signed URL.
     // The one file that does arrive here is a profile picture, which the
-    // browser shrinks to a 512-pixel square first — a couple of hundred
+    // browser shrinks to a 1024-pixel square first — a few hundred
     // kilobytes — and this ceiling is what a submission made without that
     // script is measured against. `UPLOAD_POLICY.maxAvatarBytes` states the
     // same number where the form and the action can read it.

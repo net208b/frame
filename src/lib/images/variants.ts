@@ -12,11 +12,34 @@ export const IMAGE_VARIANTS: Record<
   ImageVariantName,
   { width: number; quality: number; format: 'webp' | 'avif'; purpose: string }
 > = {
-  thumb: { width: 320, quality: 72, format: 'webp', purpose: 'Moderation rows, dense lists' },
-  grid: { width: 800, quality: 76, format: 'webp', purpose: 'Gallery and masonry cards' },
-  display: { width: 1800, quality: 82, format: 'webp', purpose: 'Photo detail page' },
-  full: { width: 2560, quality: 84, format: 'webp', purpose: 'Large-screen detail view' },
+  thumb: { width: 320, quality: 80, format: 'webp', purpose: 'Moderation rows, dense lists' },
+  grid: { width: 800, quality: 84, format: 'webp', purpose: 'Gallery and masonry cards' },
+  display: { width: 1800, quality: 90, format: 'webp', purpose: 'Photo detail page, mid-size' },
+  full: { width: 2560, quality: 92, format: 'webp', purpose: 'Photo detail page, large screens' },
 };
+
+/**
+ * WHY THESE NUMBERS WENT UP.
+ *
+ * They started at 72–84, which is where a general-purpose site sits, and FRAME
+ * is not one: the photograph is the product, and the first thing anybody said
+ * about the old numbers was that the pictures looked soft. A webp at 84 next to
+ * the same frame at 92 is a visible difference in exactly the places street
+ * photography lives — gradients in a night sky, grain, the edge of a neon sign.
+ * The cost is roughly a third more bytes on the one image a reader asked to
+ * look at, and none at all on the grid, which still downloads an 800-pixel card.
+ *
+ * The other half of that fix is not in this file: `next/image` re-encodes
+ * whatever it is given, so a derivative built at 92 was being served at the
+ * default 75 and the quality here was never reaching anybody. See the `quality`
+ * on PhotoStage and `images.qualities` in next.config.mjs.
+ *
+ * What is NOT done, and will not be: serving the original. It is kept, untouched
+ * and unserved — a 20–50 MB file per frame is a gallery nobody on a phone can
+ * open and an egress bill that grows with every view. "Quality" here means the
+ * largest derivative is genuinely large and genuinely high quality, and that
+ * the original is still there if a photograph ever has to be rebuilt.
+ */
 
 /** Storage key layout. Keeping the original separate makes re-processing cheap. */
 export function storageKeys(photographId: string, ownerId: string) {
@@ -31,6 +54,19 @@ export function storageKeys(photographId: string, ownerId: string) {
 }
 
 /**
+ * What `next/image` is allowed to re-encode a photograph at.
+ *
+ * It has to be declared in `images.qualities` as well — Next refuses a quality
+ * that is not on that list — and it is deliberately a little below the
+ * derivative's own 92: the second pass is then invisible, while leaving it at
+ * the default 75 was not.
+ */
+export const PHOTOGRAPH_DISPLAY_QUALITY = 90;
+
+/** The same, for an avatar: its file is built at 90 and must not be ground down. */
+export const AVATAR_DISPLAY_QUALITY = 88;
+
+/**
  * The avatar, which is not one of the photograph derivatives above.
  *
  * One size, square, and small: it is drawn at 128px at the very largest (the
@@ -40,8 +76,13 @@ export function storageKeys(photographId: string, ownerId: string) {
  * would be storing four files to answer a question nobody asks.
  */
 export const AVATAR_VARIANT = {
-  size: 256,
-  quality: 82,
+  // 512, not 256. The profile masthead draws the avatar at 128 CSS pixels,
+  // which is 256 device pixels on a two-times display and 384 on a phone — so a
+  // 256-pixel file had no headroom at all on the one screen that shows it
+  // largest, and was being upscaled on most phones. At this size the same
+  // picture has something to spare everywhere it appears.
+  size: 512,
+  quality: 90,
   format: 'webp',
   contentType: 'image/webp',
 } as const;
@@ -86,6 +127,11 @@ export const IMAGE_SIZES = {
   hero: '(max-width: 650px) 100vw, (max-width: 950px) 44vw, 40vw',
   /** Small editorial strips and related rows. */
   strip: '(max-width: 650px) 60vw, 22vw',
+  /**
+   * Kept for a fixed-size avatar elsewhere, and no longer used by `Avatar`
+   * itself: that component declares the size it is actually drawing, because a
+   * flat 48px here made the 128px masthead avatar download a 48px file.
+   */
   avatar: '48px',
 } as const;
 
