@@ -30,6 +30,8 @@ import {
 
 import 'maplibre-gl/dist/maplibre-gl.css';
 
+import { loadMapLibre } from '@/components/map/load-maplibre';
+
 /**
  * The clustered pin map.
  *
@@ -179,7 +181,7 @@ export function MapCanvas({
     let created: MapLibreMap | null = null;
 
     const build = async () => {
-      const maplibregl = await import('maplibre-gl');
+      const maplibregl = await loadMapLibre();
       if (disposed) return;
 
       const instance = new maplibregl.Map({
