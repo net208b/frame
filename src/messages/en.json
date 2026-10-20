@@ -661,6 +661,15 @@
       "emptyTitle": "Nothing published yet",
       "emptyDescription": "{name} has not published a photograph. Drafts and uploads still in review are never shown here."
     },
+    "footprints": {
+      "eyebrow": "Footprints",
+      "title": "Places on the map",
+      "description": "Every place {name} has published a frame from. Each count is their own photographs made there, not the place's total.",
+      "summary": "{places, plural, one {# place} other {# places}} in {countries, plural, one {# country} other {# countries}}",
+      "countryFrames": "{count, plural, one {# frame} other {# frames}}",
+      "selfEmptyTitle": "No footprints yet",
+      "selfEmptyDescription": "A place is added while uploading a photograph, by dropping a pin on the map. It appears here once a moderator has approved the place and the photograph is published."
+    },
     "collections": {
       "eyebrow": "Collections",
       "title": "Sets worth keeping",

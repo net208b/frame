@@ -7,6 +7,7 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { MasonryGallery } from '@/components/photo/MasonryGallery';
 import { gearBrandIndex, GearList } from '@/components/photographer/GearList';
 import { ProfileCollections } from '@/components/photographer/ProfileCollections';
+import { ProfileFootprints } from '@/components/photographer/ProfileFootprints';
 import { ProfileHeader } from '@/components/photographer/ProfileHeader';
 import { ProfileStats } from '@/components/photographer/ProfileStats';
 import { SectionHead } from '@/components/ui/SectionHead';
@@ -15,6 +16,7 @@ import { getViewer } from '@/lib/auth';
 import {
   getCollections,
   getPhotographer,
+  getPhotographerMapPins,
   getPortfolio,
 } from '@/lib/data/repository';
 import { buildMetadata } from '@/lib/seo';
@@ -33,13 +35,17 @@ const loadProfile = cache(async (username: string) => {
   const photographer = await getPhotographer(username);
   if (!photographer) return null;
 
-  const [portfolio, collections] = await Promise.all([
+  const [portfolio, collections, footprints] = await Promise.all([
     getPortfolio(photographer.id),
     // No `includePrivate`, so a private collection is never even read here.
     getCollections({ ownerId: photographer.id }),
+    // The places they have published from, with their own count at each. Read
+    // here rather than in the section so the metadata and the page share it,
+    // and so all four reads overlap instead of queueing.
+    getPhotographerMapPins(photographer.id),
   ]);
 
-  return { photographer, portfolio, collections };
+  return { photographer, portfolio, collections, footprints };
 });
 
 /**
@@ -120,7 +126,7 @@ export default async function PhotographerProfilePage({ params }: ProfilePagePro
   const loaded = await loadProfile(username);
   if (!loaded) notFound();
 
-  const { photographer, portfolio, collections } = loaded;
+  const { photographer, portfolio, collections, footprints } = loaded;
 
   // Reading the member looking at the page costs nothing here: this route is
   // `force-dynamic` and every read already goes through the cookie-bound
@@ -179,6 +185,13 @@ export default async function PhotographerProfilePage({ params }: ProfilePagePro
           />
         )}
       </section>
+
+      <ProfileFootprints
+        pins={footprints}
+        photographerName={photographer.displayName}
+        isSelf={isSelf}
+        className="mt-16"
+      />
 
       <ProfileCollections
         collections={collections}

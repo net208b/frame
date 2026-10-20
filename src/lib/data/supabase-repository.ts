@@ -1136,6 +1136,17 @@ interface MapPinJoined extends LocationSummaryColumns, LocationPointColumns {
   photographs: MapPinPhotograph | MapPinPhotograph[] | null;
 }
 
+interface PhotographerPinLocation extends LocationSummaryColumns, LocationPointColumns {
+  categories: unknown;
+  status: string | null;
+}
+
+interface PhotographerPinRow {
+  published_at: string | null;
+  photograph_images: ImageColumns[] | null;
+  location: PhotographerPinLocation | PhotographerPinLocation[] | null;
+}
+
 export async function mapPins(): Promise<MapPin[]> {
   const supabase = await createClient();
 
@@ -1195,6 +1206,101 @@ export async function mapPins(): Promise<MapPin[]> {
   }
 
   return pins;
+}
+
+/**
+ * The places one photographer has actually stood — their own map.
+ *
+ * The same shape as `mapPins()` and deliberately not the same query. That one
+ * answers "every place on FRAME"; this one answers "every place *this member*
+ * has published a frame from", which is a different question with a different
+ * join and, importantly, a different count: the number on a pin here is how many
+ * of **their** photographs were made there, not the place's total. A profile
+ * that claimed somebody had taken forty photographs at a corner because forty
+ * other members had would be lying in the member's own name.
+ *
+ * It starts from `photographs` rather than from `locations` because the owner is
+ * the filter, and RLS on `photographs` already restricts what may be read. The
+ * same privacy rules still apply at the end: a place whose coordinates are
+ * withheld is dropped, and a sensitive one is rounded, both by
+ * `publishableCoordinates`.
+ */
+export async function photographerMapPins(ownerId: string): Promise<MapPin[]> {
+  const supabase = await createClient();
+
+  const rows = unwrapList<PhotographerPinRow>(
+    'reading a photographer\'s map pins',
+    await supabase
+      .from('photographs')
+      .select(
+        `published_at,
+         photograph_images(${IMAGE_FIELDS}),
+         location:locations!inner(${LOCATION_SUMMARY_FIELDS}, latitude, longitude,
+           is_sensitive, withhold_coordinates, categories, status)`,
+      )
+      .eq('owner_id', ownerId)
+      .eq('status', 'published')
+      .eq('locations.status', 'approved')
+      .eq('locations.withhold_coordinates', false)
+      .order('published_at', { ascending: false })
+      .limit(MAP_PIN_LIMIT),
+  );
+
+  // Grouped here rather than in SQL: PostgREST cannot aggregate across an
+  // embedded resource, and the alternative — a view or an RPC — is a migration
+  // for an arithmetic this page can do while it reads the rows it already has.
+  const byLocation = new Map<string, MapPin>();
+
+  for (const row of rows) {
+    const location = firstOf<PhotographerPinLocation>(row.location);
+    const summary = mapLocationSummary(location ?? null);
+    const latitude = toNumber(location?.latitude);
+    const longitude = toNumber(location?.longitude);
+    if (!summary || latitude === null || longitude === null) continue;
+
+    const point = publishableCoordinates(latitude, longitude, {
+      isSensitive: location?.is_sensitive === true,
+      withhold: location?.withhold_coordinates === true,
+    });
+    if (!point) continue;
+
+    const images = asArray<ImageColumns>(row.photograph_images);
+    const key =
+      toText(images.find((image) => image.variant === 'thumb')?.storage_key) ??
+      toText(images.find((image) => image.variant === 'grid')?.storage_key);
+    const url = key ? storagePublicUrl(key) : null;
+
+    const existing = byLocation.get(summary.id);
+    if (existing) {
+      // Rows arrive newest first, so the frames already collected are newer than
+      // this one and the stack keeps its order.
+      existing.photographCount += 1;
+      if (url && existing.recentImageUrls.length < MAP_PIN_PHOTOGRAPH_SAMPLE) {
+        existing.recentImageUrls.push(url);
+      }
+      continue;
+    }
+
+    byLocation.set(summary.id, {
+      ...summary,
+      // Their count at this place, not the place's own.
+      photographCount: 1,
+      categories: toStringList(location?.categories).filter(isCategory),
+      latitude: point.latitude,
+      longitude: point.longitude,
+      isApproximate: point.isApproximate,
+      previewImageUrl: null,
+      recentImageUrls: url ? [url] : [],
+    });
+  }
+
+  // The preview is the newest frame that actually has a thumbnail, which is not
+  // always the newest frame — the same rule as `mapPins()`, and the reason it is
+  // read off the collected stack rather than set while grouping.
+  return [...byLocation.values()].map((pin) => ({
+    ...pin,
+    previewImageUrl: pin.recentImageUrls[0] ?? null,
+  }));
 }
 
 export async function approvedLocationSlugs(): Promise<string[]> {
