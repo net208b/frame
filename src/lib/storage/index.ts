@@ -2,7 +2,7 @@ import { isDemoMode, serverEnv } from '@/lib/config';
 
 import { r2StorageDriver } from './r2';
 import { supabaseStorageDriver } from './supabase';
-import { StorageConfigurationError, type StorageDriver } from './types';
+import { StorageConfigurationError, StorageRequestError, type StorageDriver } from './types';
 
 /**
  * Pick the storage driver from configuration.
@@ -43,6 +43,50 @@ export function storageDriver(): StorageDriver {
         'STORAGE_PROVIDER',
       );
   }
+}
+
+/**
+ * Write bytes the server already holds, through the same grant a browser gets.
+ *
+ * Most objects in FRAME never pass through this process: a photograph is 25 MB
+ * of somebody's camera output and goes straight from their browser to the
+ * provider with a signed URL, which is the whole reason that endpoint exists.
+ * An avatar is different — it is a 256-pixel square this server just produced
+ * from bytes it already has in memory, and asking the browser to upload it
+ * again would be a second round trip to move 40 kilobytes.
+ *
+ * It goes through `createSignedUpload` rather than adding a `put` to the driver
+ * interface, so both providers keep exactly one code path for writing an object
+ * and both keep enforcing `assertSignableUpload` on the key. The grant is
+ * scoped to these bytes and this content type, as any other grant is.
+ */
+export async function putObject(
+  key: string,
+  bytes: Uint8Array,
+  contentType: string,
+): Promise<string> {
+  const driver = storageDriver();
+  const grant = await driver.createSignedUpload({
+    key,
+    contentType,
+    maxBytes: bytes.byteLength,
+  });
+
+  const response = await fetch(grant.url, {
+    method: grant.method,
+    headers: grant.headers,
+    // A fresh ArrayBuffer, because a Uint8Array view over a larger buffer would
+    // otherwise send the whole buffer.
+    body: bytes.slice().buffer as ArrayBuffer,
+  });
+
+  if (!response.ok) {
+    throw new StorageRequestError(
+      `Storage refused the upload of ${key}: ${response.status} ${response.statusText}.`,
+    );
+  }
+
+  return driver.publicUrl(key);
 }
 
 export * from './types';

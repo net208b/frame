@@ -74,6 +74,7 @@ there is no second identity to keep in step.
 | `username` | `citext`, unique. The format check is applied to `username::text` on purpose: citext overloads the regex operators to be case-insensitive, so the unqualified form would accept `Kenji`. Casting restores case sensitivity and makes "lowercase only" mean it. |
 | `role` | `member` / `moderator` / `admin`. Never written by the application. `handle_new_user()` always inserts `member`, and `profiles_guard_privileged_columns()` refuses a change unless an admin is changing *somebody else's*. |
 | `is_suspended`, `suspended_reason` | Moderator-only, and bound together by a constraint (below). |
+| `avatar_url` | The stored URL of the member's profile picture, with a content fingerprint as `?v=` — the object itself is one key per account (`<owner>/avatars/avatar.webp`), replaced in place, so removing it or deleting the account can find the file from the member id alone. Never a URL the member typed. |
 | `based_in` | Free text the member typed. Never inferred from an IP address or a locale header — a guessed location presented as a fact is a privacy problem. |
 | `member_since` | A `date`, not a timestamp, because the profile page shows month precision. The exact signup moment is never published. |
 | `usual_gear` | `text[]`, the member's own words. Unrelated to the gear lookup tables. |

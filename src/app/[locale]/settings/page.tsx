@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 
+import { AvatarForm } from '@/components/account/AvatarForm';
 import { DeleteAccountForm } from '@/components/account/DeleteAccountForm';
 import { ProfileForm } from '@/components/account/ProfileForm';
 import { UsernameSection } from '@/components/account/UsernameSection';
@@ -122,6 +123,18 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
             {t('profile.heading')}
           </h2>
           <p className="mt-2 text-body text-muted">{t('profile.intro')}</p>
+
+          <div className="mt-8 border-b border-line pb-8">
+            <h3 className="text-caption font-bold">{t('profile.avatar')}</h3>
+            <div className="mt-4">
+              <AvatarForm
+                name={settings.displayName}
+                currentUrl={settings.avatarUrl}
+                disabled={settings.isSuspended}
+              />
+            </div>
+          </div>
+
           <div className="mt-8">
             <ProfileForm
               username={settings.username}

@@ -54,9 +54,14 @@ const nextConfig = {
   },
 
   experimental: {
-    // Keeps server-action payloads small; uploads go straight to object storage
-    // with a signed URL instead of passing through the Next.js server.
-    serverActions: { bodySizeLimit: '1mb' },
+    // Keeps server-action payloads small. A photograph never passes through
+    // this server at all: it goes straight to object storage with a signed URL.
+    // The one file that does arrive here is a profile picture, which the
+    // browser shrinks to a 512-pixel square first — a couple of hundred
+    // kilobytes — and this ceiling is what a submission made without that
+    // script is measured against. `UPLOAD_POLICY.maxAvatarBytes` states the
+    // same number where the form and the action can read it.
+    serverActions: { bodySizeLimit: '2mb' },
   },
 
   async headers() {

@@ -4,7 +4,7 @@ import sharp from 'sharp';
 import type { Metadata, Sharp, SharpOptions } from 'sharp';
 
 import { UPLOAD_POLICY } from '@/lib/config';
-import { IMAGE_VARIANTS } from '@/lib/images/variants';
+import { AVATAR_VARIANT, IMAGE_VARIANTS } from '@/lib/images/variants';
 import { formatFileSize } from '@/lib/utils';
 import type { ImageVariantName } from '@/types/domain';
 
@@ -111,8 +111,33 @@ const ACCEPTED_FORMATS_SENTENCE = 'FRAME accepts JPEG, PNG, WebP and AVIF photog
  * Returns a reason instead of throwing, because every one of these outcomes is
  * something a member can act on, and the wizard shows the reason verbatim.
  */
+export interface ImageLimits {
+  maxBytes: number;
+  minWidth: number;
+  minHeight: number;
+}
+
+/** A photograph: the published work, and the limits the brief sets for it. */
+const PHOTOGRAPH_LIMITS: ImageLimits = {
+  maxBytes: UPLOAD_POLICY.maxFileBytes,
+  minWidth: UPLOAD_POLICY.minPixelWidth,
+  minHeight: UPLOAD_POLICY.minPixelHeight,
+};
+
+/**
+ * An avatar, which is held to the same formats and the same decode, and to
+ * different sizes: it is cropped to 256 pixels, so eight hundred would be an
+ * arbitrary wall in front of a perfectly good picture of somebody's face.
+ */
+export const AVATAR_LIMITS: ImageLimits = {
+  maxBytes: UPLOAD_POLICY.maxAvatarBytes,
+  minWidth: UPLOAD_POLICY.minAvatarPixels,
+  minHeight: UPLOAD_POLICY.minAvatarPixels,
+};
+
 export async function verifyImageBytes(
   bytes: Uint8Array | ArrayBuffer,
+  limits: ImageLimits = PHOTOGRAPH_LIMITS,
 ): Promise<VerifiedImage> {
   assertServer();
   const input = toInput(bytes);
@@ -121,10 +146,10 @@ export async function verifyImageBytes(
     return { ok: false, reason: 'That file is empty.' };
   }
 
-  if (input.byteLength > UPLOAD_POLICY.maxFileBytes) {
+  if (input.byteLength > limits.maxBytes) {
     return {
       ok: false,
-      reason: `That file is ${formatFileSize(input.byteLength)}. The limit is ${formatFileSize(UPLOAD_POLICY.maxFileBytes)}.`,
+      reason: `That file is ${formatFileSize(input.byteLength)}. The limit is ${formatFileSize(limits.maxBytes)}.`,
     };
   }
 
@@ -158,10 +183,10 @@ export async function verifyImageBytes(
     return { ok: false, reason: 'That image has no readable dimensions.' };
   }
 
-  if (width < UPLOAD_POLICY.minPixelWidth || height < UPLOAD_POLICY.minPixelHeight) {
+  if (width < limits.minWidth || height < limits.minHeight) {
     return {
       ok: false,
-      reason: `That image is ${width} by ${height} pixels. FRAME needs at least ${UPLOAD_POLICY.minPixelWidth} by ${UPLOAD_POLICY.minPixelHeight}.`,
+      reason: `That image is ${width} by ${height} pixels. FRAME needs at least ${limits.minWidth} by ${limits.minHeight}.`,
     };
   }
 
@@ -238,6 +263,45 @@ export async function buildVariants(bytes: Uint8Array | ArrayBuffer): Promise<Bu
  * should catch it and carry on, because a missing placeholder is cosmetic and
  * is not worth failing an upload over.
  */
+/**
+ * The avatar: one square, in the member's own crop if they gave one.
+ *
+ * `cover` rather than `inside`, because an avatar is drawn in a circle at a
+ * fixed size everywhere it appears — a letterboxed portrait inside that circle
+ * is not a smaller version of the picture, it is a different picture with grey
+ * bars. The centre is taken, which is where a face is in nearly every photograph
+ * somebody chooses of themselves, and the browser crops to the same rule before
+ * sending so what was previewed is what is stored.
+ *
+ * `rotate()` first, so a photograph that carries an orientation tag is squared
+ * the right way up: sharp applies the tag and drops it, which also means the
+ * stored file carries no EXIF — no camera, no timestamp, no GPS from whatever
+ * the member happened to pick off their phone.
+ */
+export async function buildAvatar(
+  bytes: Uint8Array | ArrayBuffer,
+): Promise<{ bytes: Uint8Array; contentType: string; size: number }> {
+  assertServer();
+
+  const { data } = await sharp(toInput(bytes), SHARP_INPUT)
+    .rotate()
+    .resize({
+      width: AVATAR_VARIANT.size,
+      height: AVATAR_VARIANT.size,
+      fit: 'cover',
+      position: 'centre',
+      withoutEnlargement: false,
+    })
+    .webp({ quality: AVATAR_VARIANT.quality })
+    .toBuffer({ resolveWithObject: true });
+
+  return {
+    bytes: new Uint8Array(data),
+    contentType: AVATAR_VARIANT.contentType,
+    size: AVATAR_VARIANT.size,
+  };
+}
+
 export async function blurPlaceholder(bytes: Uint8Array | ArrayBuffer): Promise<string> {
   assertServer();
 
