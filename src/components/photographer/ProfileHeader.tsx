@@ -50,9 +50,16 @@ function paragraphs(biography: string): string[] {
 
 export async function ProfileHeader({
   photographer,
+  isSelf = false,
   className,
 }: {
   photographer: PhotographerProfile;
+  /**
+   * Whether the member reading this is the one it is about. Decided by the
+   * page, which is the thing that reads the session — the same arrangement the
+   * photograph and collection pages already use for their own report buttons.
+   */
+  isSelf?: boolean;
   className?: string;
 }) {
   const locale = await getLocale();
@@ -140,14 +147,21 @@ export async function ProfileHeader({
               </div>
             ) : null}
 
-            <ReportDialog
-              subjectType="profile"
-              subjectId={photographer.id}
-              subjectLabel={`@${photographer.username}`}
-              triggerLabel={t('reportAccount')}
-              triggerVariant="ghost"
-              className="md:ml-auto"
-            />
+            {/* Reporting is for everyone else. Offering a member a button to
+                report themselves was never a security hole — the dialog would
+                have been accepted and a moderator would have read it — but it
+                is a nonsense the other two report buttons already avoid, and
+                the one on a profile was the only one left asking. */}
+            {isSelf ? null : (
+              <ReportDialog
+                subjectType="profile"
+                subjectId={photographer.id}
+                subjectLabel={`@${photographer.username}`}
+                triggerLabel={t('reportAccount')}
+                triggerVariant="ghost"
+                className="md:ml-auto"
+              />
+            )}
           </div>
         </div>
       </div>
