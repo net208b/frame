@@ -1315,3 +1315,102 @@ export async function discardDraft(input: unknown): Promise<ActionResult<{ slug:
 
   return ok({ slug: photograph.slug }, 'That upload has been discarded.');
 }
+
+/* ------------------------------------------------------------------------ */
+/* deleteOwnPhotograph                                                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A member deletes one of their own photographs, published or not.
+ *
+ * discardDraft refuses published work so that a slip in the upload wizard
+ * cannot take a public photograph down. This is the deliberate route: it is
+ * reached from the photograph's own page, behind a confirmation that names
+ * what is lost.
+ *
+ * Every size is deleted from storage first, then the row. The row's
+ * dependants go with it (images, metadata, appreciation, collection entries,
+ * the content check — all `on delete cascade`), and the location and
+ * collection counters recount themselves on delete. Reports and moderation
+ * decisions about it are kept: they are records of what happened, not copies
+ * of the work.
+ *
+ * A suspended account may still do this. Suspension stops someone adding to
+ * FRAME; it does not take away the right to remove their own work from it.
+ */
+export async function deleteOwnPhotograph(input: unknown): Promise<ActionResult<{ slug: string }>> {
+  if (isDemoMode()) return fail(NOT_CONFIGURED_MESSAGE, 'not_configured');
+
+  const viewer = await getViewer();
+  if (!viewer) return fail('Sign in to delete a photograph.', 'unauthenticated');
+
+  const limited = await limitUploadOperation('discard', viewer.id, 'deleted photographs');
+  if (limited) return limited;
+
+  const parsed = parseForm(input, discardDraftSchema);
+  if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
+
+  const resolved = resolveDriver();
+  if (!resolved.ok) return resolved.result;
+
+  const supabase = await createClient();
+  const owned = await loadOwnedPhotograph(supabase, parsed.data.photographId, viewer.id);
+  if (!owned.ok) return owned.result;
+  const photograph = owned.photograph;
+
+  // Read before the row goes, for revalidating the place's pages afterwards.
+  const { data: placeRow } = await supabase
+    .from('photographs')
+    .select('locations(slug)')
+    .eq('id', photograph.id)
+    .maybeSingle();
+  const place = (placeRow as { locations?: { slug?: string } | Array<{ slug?: string }> | null } | null)
+    ?.locations;
+  const locationSlug = (Array.isArray(place) ? place[0]?.slug : place?.slug) ?? null;
+
+  const keys = storageKeys(photograph.id, viewer.id);
+  try {
+    await resolved.driver.remove([keys.original, keys.thumb, keys.grid, keys.display, keys.full]);
+  } catch (error) {
+    console.error(
+      `FRAME upload: deleting the objects for ${photograph.id} failed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return fail(
+      'The image files could not be deleted, so the photograph was kept rather than leaving files behind with nothing pointing at them. Try again in a moment.',
+      'unknown',
+    );
+  }
+
+  const { data: deleted, error: deleteError } = await supabase
+    .from('photographs')
+    .delete()
+    .eq('id', photograph.id)
+    .eq('owner_id', viewer.id)
+    .select('id');
+
+  if (deleteError || !Array.isArray(deleted) || deleted.length === 0) {
+    console.error(
+      `FRAME upload: deleting photograph ${photograph.id} failed — ${deleteError?.message ?? 'no row deleted'}`,
+    );
+    return fail(
+      'The image files were deleted but the photograph record could not be. Reload the page and try again.',
+      'unknown',
+    );
+  }
+
+  revalidateLocalisedPath('/');
+  revalidateLocalisedPath('/discover');
+  revalidateLocalisedPath('/community');
+  revalidateLocalisedPath(`/photographs/${photograph.slug}`);
+  revalidateLocalisedPath(`/photographers/${viewer.username}`);
+  if (locationSlug) {
+    revalidateLocalisedPath('/locations');
+    revalidateLocalisedPath(`/locations/${locationSlug}`);
+    revalidateLocalisedPath('/map');
+  }
+  if (photograph.status === 'under_review') revalidateLocalisedPath('/moderation');
+
+  return ok({ slug: photograph.slug }, 'The photograph is deleted.');
+}

@@ -5,6 +5,7 @@ import { cache } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CaptureSpecs } from '@/components/photo-detail/CaptureSpecs';
+import { DeletePhotograph } from '@/components/photo-detail/DeletePhotograph';
 import { EditingNotes } from '@/components/photo-detail/EditingNotes';
 import { LocationPanel } from '@/components/photo-detail/LocationPanel';
 import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
@@ -217,20 +218,31 @@ export default async function PhotographPage({ params }: PageProps) {
           <LocationPanel summary={photo.location} detail={locationDetail} />
           <PhotographerPanel photographer={photo.photographer} profile={photographerProfile} />
 
-          <div className="border-t border-line pt-6">
-            <p className="text-meta leading-relaxed text-muted">{t('reportCta.intro')}</p>
-            <ReportDialog
-              subjectType="photograph"
-              subjectId={photo.id}
-              subjectLabel={t('reportCta.subject', {
-                title: photo.title,
-                photographer: photo.photographer.displayName,
-              })}
-              triggerLabel={t('reportCta.trigger')}
-              triggerVariant="secondary"
-              className="mt-3"
-            />
-          </div>
+          {/* The owner manages their own work here; reporting it is for everyone else. */}
+          {isOwner ? (
+            <div className="border-t border-line pt-6">
+              <DeletePhotograph
+                photographId={photo.id}
+                title={photo.title}
+                ownerUsername={photo.photographer.username}
+              />
+            </div>
+          ) : (
+            <div className="border-t border-line pt-6">
+              <p className="text-meta leading-relaxed text-muted">{t('reportCta.intro')}</p>
+              <ReportDialog
+                subjectType="photograph"
+                subjectId={photo.id}
+                subjectLabel={t('reportCta.subject', {
+                  title: photo.title,
+                  photographer: photo.photographer.displayName,
+                })}
+                triggerLabel={t('reportCta.trigger')}
+                triggerVariant="secondary"
+                className="mt-3"
+              />
+            </div>
+          )}
         </div>
       </article>
 
