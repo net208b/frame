@@ -362,6 +362,8 @@ export interface UploadReviewDetails {
 export interface UploadSignal {
   kind:
     | 'perceptual-hash-match'
+    | 'content-flagged'
+    | 'content-unchecked'
     | 'exif-missing'
     | 'exif-conflict'
     | 'burst-upload'

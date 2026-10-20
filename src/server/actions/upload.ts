@@ -14,6 +14,7 @@ import { getViewer, getViewerSuspension, type Viewer } from '@/lib/auth';
 import { isDemoMode, UPLOAD_POLICY } from '@/lib/config';
 import { distanceMetres } from '@/lib/geo';
 import { blurPlaceholder, buildVariants, verifyImageBytes } from '@/lib/images/process';
+import { checkImageContent, type ContentCheckResult } from '@/lib/moderation/content-check';
 import { storageKeys } from '@/lib/images/variants';
 import { checkRateLimit } from '@/lib/rate-limit';
 import {
@@ -23,6 +24,7 @@ import {
   type StorageDriver,
 } from '@/lib/storage';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
 import { parseForm } from '@/lib/validation';
@@ -683,7 +685,79 @@ export async function attachVariants(
     );
   }
 
+  // The automated content check, on the display size: re-encoded, stripped of
+  // every tag, and the size a reader actually sees. Its answer is written with
+  // the service role into a table members cannot write, because publishPhotograph
+  // trusts it. A failure here never fails the upload — the photograph simply
+  // goes to a person instead of publishing on its own.
+  const displayBytes = built.find((variant) => variant.name === 'display')?.bytes ?? null;
+  await recordContentCheck(photograph.id, displayBytes);
+
+  // The original has done its job. It sits in a public-read bucket at a key
+  // anyone can derive from a derivative's URL, and it still carries the file's
+  // EXIF — including a GPS position the member may have chosen not to publish.
+  // Every size FRAME serves now exists, so it goes. A failure is logged and
+  // does not fail the upload: the member has done nothing wrong.
+  try {
+    await driver.remove([keys.original]);
+  } catch (error) {
+    console.error(
+      `FRAME upload: deleting the original for ${photograph.id} failed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+
   return ok({ variants: rows.map((row) => row.variant), width, height });
+}
+
+/**
+ * Run the content check and store its answer, as the service role.
+ *
+ * Without a service-role key nothing can be stored, and publishPhotograph will
+ * find no clear answer and send the upload to review — the safe failure.
+ */
+async function recordContentCheck(photographId: string, image: Uint8Array | null): Promise<void> {
+  const result: ContentCheckResult = image
+    ? await checkImageContent(image)
+    : {
+        provider: 'none',
+        verdict: 'unavailable',
+        adult: null,
+        racy: null,
+        violence: null,
+        medical: null,
+        spoof: null,
+        note: 'No display size was generated, so the automated check could not run.',
+      };
+
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.from('photograph_content_checks').upsert(
+      {
+        photograph_id: photographId,
+        provider: result.provider,
+        verdict: result.verdict,
+        adult: result.adult,
+        racy: result.racy,
+        violence: result.violence,
+        medical: result.medical,
+        spoof: result.spoof,
+        note: result.note,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: 'photograph_id' },
+    );
+    if (error) {
+      console.error(`FRAME upload: recording the content check for ${photographId} failed — ${error.message}`);
+    }
+  } catch (error) {
+    console.error(
+      `FRAME upload: the content check for ${photographId} could not be recorded — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 /* ------------------------------------------------------------------------ */
@@ -986,12 +1060,11 @@ export async function publishPhotograph(
     height,
   });
 
-  // Every new photograph waits for a moderator (0012 makes this a database
-  // rule: an owner cannot set 'published'). The signals travel to the review
-  // queue to tell the reviewer where to look; they no longer decide whether a
-  // review happens. A photograph that is already published and is being edited
-  // stays published — taking it down for a retitle would punish the member for
-  // fixing a typo.
+  // The member's own write always lands as 'under_review' (0012 makes this a
+  // database rule: an owner cannot set 'published'). Further down, the server
+  // publishes it with the service role if the automated checks cleared it. A
+  // photograph that is already published and is being edited stays published —
+  // taking it down for a retitle would punish the member for fixing a typo.
   const alreadyPublished = photograph.status === 'published';
   const status: PublicationStatus = alreadyPublished ? 'published' : 'under_review';
   const publishCapturedAt = payload.capturedAt !== null;
@@ -1067,6 +1140,10 @@ export async function publishPhotograph(
 
   const row = published as { slug: string; status: PublicationStatus };
 
+  if (row.status === 'under_review') {
+    row.status = await publishIfCleared(photograph.id, signals);
+  }
+
   revalidateLocalisedPath('/');
   revalidateLocalisedPath('/discover');
   revalidateLocalisedPath('/community');
@@ -1085,6 +1162,55 @@ export async function publishPhotograph(
       ? 'Your photograph is published.'
       : 'Your photograph is with a moderator before it appears.',
   );
+}
+
+/**
+ * Publish an upload the automated checks cleared, as the service role.
+ *
+ * Three things must all hold: the content check stored at processing time says
+ * `clear`, none of the upload's own signals is high-severity, and the row is
+ * still 'under_review' (a moderator may have acted in between). Anything else
+ * — including any failure to read or write — leaves it in the review queue,
+ * which is where an unanswered question belongs.
+ */
+async function publishIfCleared(photographId: string, signals: UploadSignal[]): Promise<PublicationStatus> {
+  if (signals.some((signal) => signal.severity === 'high')) return 'under_review';
+
+  try {
+    const admin = createAdminClient();
+    const { data: check, error: checkError } = await admin
+      .from('photograph_content_checks')
+      .select('verdict')
+      .eq('photograph_id', photographId)
+      .maybeSingle();
+
+    if (checkError || (check as { verdict?: string } | null)?.verdict !== 'clear') {
+      return 'under_review';
+    }
+
+    const { data: updated, error: publishError } = await admin
+      .from('photographs')
+      .update({ status: 'published', published_at: new Date().toISOString() })
+      .eq('id', photographId)
+      .eq('status', 'under_review')
+      .select('status')
+      .maybeSingle();
+
+    if (publishError || !updated) {
+      if (publishError) {
+        console.error(`FRAME upload: auto-publishing ${photographId} failed — ${publishError.message}`);
+      }
+      return 'under_review';
+    }
+    return 'published';
+  } catch (error) {
+    console.error(
+      `FRAME upload: auto-publishing ${photographId} could not run — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return 'under_review';
+  }
 }
 
 /* ------------------------------------------------------------------------ */
