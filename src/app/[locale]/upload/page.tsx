@@ -11,6 +11,7 @@ import { UploadWizard } from '@/components/upload/UploadWizard';
 import { withLocalePrefix } from '@/i18n/locales';
 import { getViewer, requireViewer } from '@/lib/auth';
 import { capabilities, isDemoMode, UPLOAD_POLICY } from '@/lib/config';
+import { visitorPlace } from '@/lib/geo/visitor';
 import { buildMetadata } from '@/lib/seo';
 import { StorageConfigurationError, storageDriver } from '@/lib/storage';
 
@@ -84,6 +85,7 @@ export default async function UploadPage({
 
   const storage = storageReadiness();
   const capabilityFlagIsOptimistic = capabilities().uploads && !storage.ready;
+  const place = await visitorPlace();
 
   return (
     <div>
@@ -129,7 +131,15 @@ export default async function UploadPage({
         </Notice>
       ) : null}
 
-      <UploadWizard uploadsConfigured={storage.ready} />
+      {/* The place step's map opens on the city the request's own address
+          resolved to, so a member proposing somewhere new starts near where
+          they are instead of in the middle of the Atlantic. It is read here
+          because `visitorPlace()` is a server read of the request's headers;
+          the wizard is a client component and cannot do it. */}
+      <UploadWizard
+        uploadsConfigured={storage.ready}
+        defaultMapView={{ centre: place.centre, zoom: place.zoom }}
+      />
     </div>
   );
 }

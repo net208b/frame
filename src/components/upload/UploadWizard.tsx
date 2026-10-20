@@ -3,6 +3,7 @@
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
+import type { CoordinatePickerView } from '@/components/map/CoordinatePicker';
 import { Button } from '@/components/ui/Button';
 import {
   STEP_COUNT,
@@ -33,7 +34,19 @@ import { WizardProgress } from './WizardProgress';
  * the chosen `File` cannot be serialised with the rest, so a restored draft
  * would be a form full of the member's words with no photograph in it.
  */
-export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean }) {
+export function UploadWizard({
+  uploadsConfigured,
+  defaultMapView,
+}: {
+  uploadsConfigured: boolean;
+  /**
+   * Where the place step's map opens before anything has been picked. Read on
+   * the server from the request's own address, and passed through rather than
+   * fetched here: this is a client component and the headers are not its to
+   * read.
+   */
+  defaultMapView?: CoordinatePickerView | null;
+}) {
   const t = useTranslations('upload');
   const common = useTranslations('common');
   const draft = useUploadDraft();
@@ -68,7 +81,9 @@ export function UploadWizard({ uploadsConfigured }: { uploadsConfigured: boolean
       <div className="mt-7 animate-fade-in" key={draft.step}>
         {draft.step === 'file' ? <StepChooseFile draft={draft} /> : null}
         {draft.step === 'describe' ? <StepDescribe draft={draft} /> : null}
-        {draft.step === 'place' ? <StepPlace draft={draft} /> : null}
+        {draft.step === 'place' ? (
+          <StepPlace draft={draft} defaultMapView={defaultMapView} />
+        ) : null}
         {draft.step === 'gear' ? <StepGear draft={draft} /> : null}
         {draft.step === 'settings' ? <StepSettings draft={draft} /> : null}
         {draft.step === 'review' ? <StepReview draft={draft} /> : null}

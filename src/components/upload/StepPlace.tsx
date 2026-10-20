@@ -4,6 +4,10 @@ import { Info, MapPin, Search, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState } from 'react';
 
+import {
+  CoordinatePicker,
+  type CoordinatePickerView,
+} from '@/components/map/CoordinatePicker';
 import { Button } from '@/components/ui/Button';
 import { TextAreaField, TextField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
@@ -288,7 +292,13 @@ function LocationPicker({
   );
 }
 
-function ProposalForm({ draft }: { draft: UploadDraft }) {
+function ProposalForm({
+  draft,
+  defaultMapView,
+}: {
+  draft: UploadDraft;
+  defaultMapView?: CoordinatePickerView | null;
+}) {
   const t = useTranslations('upload');
   const format = useUploadFormat();
   const { state, errors } = draft;
@@ -359,27 +369,56 @@ function ProposalForm({ draft }: { draft: UploadDraft }) {
           autoComplete="off"
           className="uppercase"
         />
-        <TextField
-          label={t('place.latitudeLabel')}
-          required
-          inputMode="decimal"
-          value={proposal.latitude}
-          onChange={(event) => draft.updateProposal({ latitude: event.target.value })}
-          error={errors.latitude}
-          placeholder={t('place.latitudePlaceholder')}
-          autoComplete="off"
-        />
-        <TextField
-          label={t('place.longitudeLabel')}
-          required
-          inputMode="decimal"
-          value={proposal.longitude}
-          onChange={(event) => draft.updateProposal({ longitude: event.target.value })}
-          error={errors.longitude}
-          placeholder={t('place.longitudePlaceholder')}
-          autoComplete="off"
-        />
       </div>
+
+      {/*
+        The map and the two fields are one value in two representations, so they
+        sit together and stay in step in both directions: dropping or dragging
+        the pin writes the fields, typing moves the pin. The map comes first
+        because it is how almost everyone will answer this — nobody knows their
+        latitude to four decimals — and the fields stay under it because they
+        are the only way to enter a coordinate read off a GPS or a camera, and
+        the only way this works without WebGL.
+      */}
+      <section aria-labelledby="proposal-point" className="mt-7">
+        <h4 id="proposal-point" className="text-eyebrow text-muted uppercase">
+          {t('place.pointHeading')}
+        </h4>
+        <p className="mt-2 max-w-prose text-meta leading-relaxed text-muted">
+          {t('place.pointHint')}
+        </p>
+
+        <CoordinatePicker
+          latitude={proposal.latitude}
+          longitude={proposal.longitude}
+          onChange={(next) => draft.updateProposal(next)}
+          defaultView={defaultMapView}
+          className="mt-4"
+        />
+
+        <div className="mt-5 grid gap-6 md:grid-cols-2">
+          <TextField
+            label={t('place.latitudeLabel')}
+            required
+            inputMode="decimal"
+            value={proposal.latitude}
+            onChange={(event) => draft.updateProposal({ latitude: event.target.value })}
+            error={errors.latitude}
+            placeholder={t('place.latitudePlaceholder')}
+            autoComplete="off"
+          />
+          <TextField
+            label={t('place.longitudeLabel')}
+            required
+            inputMode="decimal"
+            value={proposal.longitude}
+            onChange={(event) => draft.updateProposal({ longitude: event.target.value })}
+            error={errors.longitude}
+            placeholder={t('place.longitudePlaceholder')}
+            autoComplete="off"
+          />
+        </div>
+      </section>
 
       <TextAreaField
         label={t('place.noteLabel')}
@@ -478,7 +517,13 @@ function ExifGpsQuestion({ draft }: { draft: UploadDraft }) {
   );
 }
 
-export function StepPlace({ draft }: { draft: UploadDraft }) {
+export function StepPlace({
+  draft,
+  defaultMapView,
+}: {
+  draft: UploadDraft;
+  defaultMapView?: CoordinatePickerView | null;
+}) {
   const t = useTranslations('upload');
   const modeGroupId = useId();
   const { state, errors } = draft;
@@ -540,7 +585,7 @@ export function StepPlace({ draft }: { draft: UploadDraft }) {
 
       {state.placeMode === 'propose' ? (
         <div className="mt-7">
-          <ProposalForm draft={draft} />
+          <ProposalForm draft={draft} defaultMapView={defaultMapView} />
         </div>
       ) : null}
 
