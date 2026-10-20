@@ -1820,8 +1820,6 @@ type SuspiciousMetadataColumns = Nullable<
     | 'editing_software'
     | 'editing_notes'
     | 'exif_source'
-    | 'exif_gps_latitude'
-    | 'exif_gps_longitude'
   >
 >;
 
@@ -1878,7 +1876,7 @@ async function suspiciousUploads(
          photograph_images(${IMAGE_FIELDS}),
          photograph_metadata(camera_brand_text, camera_model_text, lens_brand_text, lens_model_text,
            focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes,
-           exif_source, exif_gps_latitude, exif_gps_longitude),
+           exif_source),
          locations(name, slug, latitude, longitude),
          photograph_content_checks(verdict, note)`,
       )
@@ -1886,6 +1884,29 @@ async function suspiciousUploads(
       .order('created_at', { ascending: true })
       .limit(PAGE_SIZE.moderation),
   );
+
+  // The raw camera position is not readable column by column (0015); moderators
+  // read it through photograph_exif_positions(), once for the whole queue.
+  const positionById = new Map<string, { latitude: number; longitude: number }>();
+  const queuedIds = rows.map((row) => toText(row.id)).filter((id): id is string => Boolean(id));
+  if (queuedIds.length > 0) {
+    const { data: positions, error: positionsError } = await supabase.rpc('photograph_exif_positions', {
+      p_photograph_ids: queuedIds,
+    });
+    if (positionsError) {
+      console.error(`FRAME data: reading camera positions for the review queue failed — ${positionsError.message}`);
+    } else {
+      for (const position of (positions ?? []) as Array<{
+        photograph_id: string | null;
+        latitude: number | null;
+        longitude: number | null;
+      }>) {
+        if (position.photograph_id && position.latitude !== null && position.longitude !== null) {
+          positionById.set(position.photograph_id, { latitude: position.latitude, longitude: position.longitude });
+        }
+      }
+    }
+  }
 
   const uploadsPerOwner = new Map<string, string[]>();
   for (const row of rows) {
@@ -1958,8 +1979,8 @@ async function suspiciousUploads(
       });
     }
 
-    const exifLatitude = toNumber(metadata?.exif_gps_latitude);
-    const exifLongitude = toNumber(metadata?.exif_gps_longitude);
+    const exifLatitude = positionById.get(id)?.latitude ?? null;
+    const exifLongitude = positionById.get(id)?.longitude ?? null;
     const locationLatitude = toNumber(location?.latitude);
     const locationLongitude = toNumber(location?.longitude);
     if (

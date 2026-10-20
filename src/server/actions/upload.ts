@@ -1108,8 +1108,7 @@ export async function publishPhotograph(
 
   // Written before the photograph row, so a metadata failure cannot leave a
   // published photograph with no record of how it was made.
-  const { error: metadataError } = await supabase.from('photograph_metadata').upsert(
-    {
+  const metadataRow = {
       photograph_id: photograph.id,
       camera_brand_text: payload.capture.cameraBrand,
       camera_model_text: payload.capture.cameraModel,
@@ -1128,9 +1127,22 @@ export async function publishPhotograph(
       exif_gps_latitude: sharedGps?.latitude ?? null,
       exif_gps_longitude: sharedGps?.longitude ?? null,
       exif_gps_consent: sharedGps !== null,
-    },
-    { onConflict: 'photograph_id' },
-  );
+  };
+
+  // Update, then insert if there was nothing to update — not an upsert. 0015
+  // makes the position columns unreadable to members, and an upsert's
+  // `SET col = EXCLUDED.col` counts as reading them, so it is refused. A plain
+  // UPDATE or INSERT only writes them.
+  const { data: updatedMetadata, error: updateMetadataError } = await supabase
+    .from('photograph_metadata')
+    .update(metadataRow)
+    .eq('photograph_id', photograph.id)
+    .select('photograph_id');
+
+  let metadataError = updateMetadataError;
+  if (!metadataError && (!Array.isArray(updatedMetadata) || updatedMetadata.length === 0)) {
+    ({ error: metadataError } = await supabase.from('photograph_metadata').insert(metadataRow));
+  }
 
   if (metadataError) {
     console.error(`FRAME upload: saving capture metadata failed — ${metadataError.message}`);
