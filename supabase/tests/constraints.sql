@@ -1078,6 +1078,115 @@ begin
   raise notice 'delete ok     an owner deletes their own published photograph, its dependants go with it, and nobody else can';
 end $$;
 
+-- ------------------------------------------------ nobody deletes another's
+-- Every route by which a photograph, or the parts that make it show, could be
+-- deleted or overwritten — tried by a member, a moderator and an
+-- administrator against a photograph that is not theirs. RLS turns a forbidden
+-- DELETE or UPDATE into one that matches nothing, so each attempt is judged by
+-- what is still there afterwards. The owner's own delete at the end is the
+-- positive control: it proves these checks can see a deletion when one happens.
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at, rights_confirmed_at,
+   image_width, image_height)
+values
+  ('eeeeeeee-1111-4000-8000-000000000005', 'not-yours-to-delete', 'eeeeeeee-0000-4000-8000-000000000001', 'Not yours to delete',
+   'A cyclist under a railway bridge, the rails throwing a ladder of shadow across the road.',
+   'street', 'published', now(), now(), 2400, 1600);
+
+insert into public.photograph_images (photograph_id, variant, storage_key, width, height, byte_size, content_type)
+values ('eeeeeeee-1111-4000-8000-000000000005', 'display', 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp', 2400, 1600, 1000, 'image/webp');
+
+insert into public.photograph_metadata (photograph_id, camera_brand_text) values ('eeeeeeee-1111-4000-8000-000000000005', 'Ricoh');
+
+insert into storage.objects (bucket_id, name, owner) values ('photographs', 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp', 'eeeeeeee-0000-4000-8000-000000000001');
+
+create or replace function pg_temp.photo_parts_left() returns text language sql as $$
+  select concat_ws(',',
+    (select count(*) from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000005'),
+    (select count(*) from public.photograph_images where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005'),
+    (select count(*) from public.photograph_metadata where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005'),
+    (select count(*) from storage.objects where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp'),
+    (select storage_key from public.photograph_images where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005' limit 1))
+$$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+delete from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from public.photograph_images where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from public.photograph_metadata where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+update public.photograph_images set storage_key = 'someone-else/x/display.webp' where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from storage.objects where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+update storage.objects set name = 'someone-else/x/display.webp' where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+commit;
+
+do $$
+declare v text := pg_temp.photo_parts_left();
+begin
+  if v <> '1,1,1,1,eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp' then
+    raise exception 'CROSS-USER DELETE  a member changed another member''s photograph (left: %)', v;
+  end if;
+  raise notice 'isolation ok  a member cannot delete or alter another member''s photograph, images, metadata or files';
+end $$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000002';
+delete from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from public.photograph_images where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from public.photograph_metadata where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+update public.photograph_images set storage_key = 'someone-else/x/display.webp' where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from storage.objects where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+update storage.objects set name = 'someone-else/x/display.webp' where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+commit;
+
+do $$
+declare v text := pg_temp.photo_parts_left();
+begin
+  if v <> '1,1,1,1,eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp' then
+    raise exception 'CROSS-USER DELETE  a moderator changed another member''s photograph (left: %)', v;
+  end if;
+  raise notice 'isolation ok  a moderator cannot delete or alter another member''s photograph, images, metadata or files';
+end $$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000003';
+delete from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from public.photograph_images where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from public.photograph_metadata where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+update public.photograph_images set storage_key = 'someone-else/x/display.webp' where photograph_id = 'eeeeeeee-1111-4000-8000-000000000005';
+delete from storage.objects where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+update storage.objects set name = 'someone-else/x/display.webp' where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+commit;
+
+do $$
+declare v text := pg_temp.photo_parts_left();
+begin
+  if v <> '1,1,1,1,eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp' then
+    raise exception 'CROSS-USER DELETE  an administrator changed another member''s photograph (left: %)', v;
+  end if;
+  raise notice 'isolation ok  an administrator cannot delete or alter another member''s photograph, images, metadata or files';
+end $$;
+
+-- Positive control: the owner can do every one of those things.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+delete from storage.objects where bucket_id = 'photographs' and name = 'eeeeeeee-0000-4000-8000-000000000001/eeeeeeee-1111-4000-8000-000000000005/display.webp';
+delete from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000005';
+commit;
+
+do $$
+declare v text := pg_temp.photo_parts_left();
+begin
+  if v <> '0,0,0,0' then
+    raise exception 'OWNER DELETE GAP  the owner could not delete their own photograph and files (left: %)', v;
+  end if;
+  raise notice 'isolation ok  the owner deletes their own photograph and files — the checks above can see a deletion';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
