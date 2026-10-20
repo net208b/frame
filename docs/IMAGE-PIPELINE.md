@@ -217,7 +217,16 @@ union, so the type system requires every variant to be declared:
 | `grid` | 800 | 84 | WebP | Gallery and masonry cards |
 | `display` | 1800 | 90 | WebP | Photograph detail page, mid-size |
 | `full` | 2560 | 92 | WebP | Photograph detail page, large screens |
-| avatar | 512 (square) | 90 | WebP | A member's profile picture — one file, not a set |
+| avatar | up to 1024 (square) | 90 | WebP | A member's profile picture — one file, not a set |
+
+The avatar's size is a **ceiling, not a target**: `buildAvatar` passes
+`withoutEnlargement`, so a picture whose short side is under 1024 is stored at
+the size it really is. Enlarging would produce the right dimensions and no more
+detail, and the Settings form says which of the two happened. It is also
+deliberately larger than any layout asks for — the masthead draws 128 CSS pixels
+— because it is the file a member sees when they pinch into their own picture,
+and because `next/image` does not re-fetch at a higher resolution when a page is
+zoomed.
 
 These numbers were raised from 72–84 in October 2026, and `full` was wired up at
 the same time. Three things were wrong at once, and all three showed as "the

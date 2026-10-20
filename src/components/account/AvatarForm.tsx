@@ -8,6 +8,7 @@ import { FormStatus } from '@/components/auth/AuthStatus';
 import { Avatar } from '@/components/photographer/Avatar';
 import { Button } from '@/components/ui/Button';
 import { UPLOAD_POLICY } from '@/lib/config';
+import { AVATAR_VARIANT } from '@/lib/images/variants';
 import { cn, formatFileSize } from '@/lib/utils';
 import { removeAvatar, updateAvatar } from '@/server/actions/account';
 
@@ -39,15 +40,18 @@ import { removeAvatar, updateAvatar } from '@/server/actions/account';
  */
 
 /**
- * Twice the stored size, so the server crops down rather than up.
+ * The widest square this step will send, and a ceiling rather than a target.
  *
- * It went 512 → 1024 with the stored size going 256 → 512, for the same reason:
- * the only lossy step that should matter is the server's one, and handing it a
- * file the same size as its output leaves it nothing to resample from. A
- * 1024-pixel square at the quality below is 300–500 KB, well inside the 2 MB
- * the action will accept.
+ * It tracks the stored size (now 1024) with room above it, because the server
+ * resamples down from whatever arrives and handing it a file the same size as
+ * its output leaves it nothing to work with. A picture smaller than this is sent
+ * at its own size: enlarging here would only hand the server more pixels and no
+ * more detail, and the server refuses to enlarge too.
+ *
+ * A 1536-pixel square at the quality below is 500–700 KB, inside the 2 MB the
+ * action accepts.
  */
-const SOURCE_SIZE = 1024;
+const SOURCE_SIZE = 1536;
 
 /** High enough that the server's single re-encode is the one that counts. */
 const SOURCE_QUALITY = 0.95;
@@ -64,12 +68,19 @@ async function squareImage(file: File): Promise<Blob | null> {
     // phone is cropped the right way up rather than on its side.
     const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     const side = Math.min(bitmap.width, bitmap.height);
+    // Never larger than the square actually available in the picture.
+    const target = Math.min(side, SOURCE_SIZE);
     const canvas = document.createElement('canvas');
-    canvas.width = SOURCE_SIZE;
-    canvas.height = SOURCE_SIZE;
+    canvas.width = target;
+    canvas.height = target;
 
     const context = canvas.getContext('2d');
     if (!context) return null;
+
+    // Smoothing at the highest setting the browser offers, because this is one
+    // of only two resamples the picture goes through and the other is sharp's.
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
 
     context.drawImage(
       bitmap,
@@ -79,8 +90,8 @@ async function squareImage(file: File): Promise<Blob | null> {
       side,
       0,
       0,
-      SOURCE_SIZE,
-      SOURCE_SIZE,
+      target,
+      target,
     );
     bitmap.close();
 
@@ -90,6 +101,18 @@ async function squareImage(file: File): Promise<Blob | null> {
     // A browser that cannot encode WebP returns a PNG instead of null, which the
     // server accepts as readily; only a complete failure falls back to the file.
     return blob;
+  } catch {
+    return null;
+  }
+}
+
+/** The square side of a blob this step produced, for the note under the field. */
+async function squareSide(blob: Blob): Promise<number | null> {
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const side = bitmap.width;
+    bitmap.close();
+    return side;
   } catch {
     return null;
   }
@@ -115,7 +138,9 @@ export function AvatarForm({
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [chosen, setChosen] = useState<{ blob: Blob; url: string; name: string } | null>(null);
+  const [chosen, setChosen] = useState<
+    { blob: Blob; url: string; name: string; side: number | null } | null
+  >(null);
 
   // Revoke the object URL when it is replaced or the component goes, so a
   // member who tries five pictures does not leave five of them in memory.
@@ -145,7 +170,12 @@ export function AvatarForm({
     }
     const square = await squareImage(file);
     const blob = square ?? file;
-    setChosen({ blob, url: URL.createObjectURL(blob), name: file.name });
+    setChosen({
+      blob,
+      url: URL.createObjectURL(blob),
+      name: file.name,
+      side: square ? await squareSide(blob) : null,
+    });
   };
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -224,10 +254,25 @@ export function AvatarForm({
               </span>
               <span className="mt-1.5 text-meta leading-relaxed text-muted">
                 {t('profile.avatarHint', {
+                  target: AVATAR_VARIANT.size,
                   size: formatFileSize(UPLOAD_POLICY.maxAvatarBytes),
                 })}
               </span>
             </label>
+
+            {/*
+              Says what will actually be stored. A picture smaller than the
+              stored size is kept at its own size rather than enlarged, and a
+              member comparing their crisp original against a soft avatar
+              deserves to be told that the file they chose was the small one.
+            */}
+            {pending?.side ? (
+              <p className="text-meta leading-relaxed text-muted">
+                {pending.side < AVATAR_VARIANT.size
+                  ? t('profile.avatarSmall', { side: pending.side, target: AVATAR_VARIANT.size })
+                  : t('profile.avatarStored', { side: AVATAR_VARIANT.size })}
+              </p>
+            ) : null}
 
             <div className="flex flex-wrap items-center gap-2.5">
               <Button type="submit" loading={saving} disabled={!pending}>
