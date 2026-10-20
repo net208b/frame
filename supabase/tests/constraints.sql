@@ -1187,6 +1187,87 @@ begin
   raise notice 'isolation ok  the owner deletes their own photograph and files — the checks above can see a deletion';
 end $$;
 
+-- ---------------------------------------------------- raw GPS stays private
+-- Migration 0015. A member who consents to share their camera's position gives
+-- it to moderators, not to the world: FRAME only ever publishes a rounded point
+-- for an approved place. The raw coordinates must not be readable by a
+-- visitor or by another member, even on a published photograph — while the
+-- camera details beside them stay public, and the owner and moderators can
+-- still read the position through photograph_exif_positions().
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at, rights_confirmed_at,
+   image_width, image_height)
+values
+  ('eeeeeeee-1111-4000-8000-000000000006', 'gps-stays-private', 'eeeeeeee-0000-4000-8000-000000000001', 'Where exactly',
+   'A doorway in a narrow lane, a cat asleep on the step in the last of the sun.',
+   'street', 'published', now(), now(), 2400, 1600);
+
+insert into public.photograph_metadata
+  (photograph_id, camera_brand_text, exif_gps_latitude, exif_gps_longitude, exif_gps_consent)
+values ('eeeeeeee-1111-4000-8000-000000000006', 'Ricoh', 13.7466, 100.5393, true);
+
+begin;
+set local role anon;
+select public.test_rejects('a visitor reading a photograph''s raw GPS',
+  $$select exif_gps_latitude, exif_gps_longitude from public.photograph_metadata
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000006'$$, '42501');
+select public.test_accepts('a visitor reading a published photograph''s camera',
+  $$select camera_brand_text from public.photograph_metadata where photograph_id = 'eeeeeeee-1111-4000-8000-000000000006'$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('another member reading a photograph''s raw GPS',
+  $$select exif_gps_latitude from public.photograph_metadata where photograph_id = 'eeeeeeee-1111-4000-8000-000000000006'$$, '42501');
+do $$
+begin
+  if exists (select 1 from public.photograph_exif_positions(array['eeeeeeee-1111-4000-8000-000000000006']::uuid[])) then
+    raise exception 'GPS LEAK  another member read a photograph''s raw position through the function';
+  end if;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+do $$
+declare v_lat double precision;
+begin
+  select latitude into v_lat from public.photograph_exif_positions(array['eeeeeeee-1111-4000-8000-000000000006']::uuid[]);
+  if v_lat is distinct from 13.7466 then
+    raise exception 'GPS GAP  the owner cannot read their own photograph''s position (got %)', v_lat;
+  end if;
+end $$;
+-- The upload form still writes the position, the way publishPhotograph does:
+-- an UPDATE (returning only the id), and an INSERT when there was no row. An
+-- upsert would be refused, because SET col = EXCLUDED.col reads the column.
+select public.test_accepts('the owner updating their own photograph''s position',
+  $$update public.photograph_metadata
+       set exif_gps_latitude = 13.7467, exif_gps_longitude = 100.5394, exif_gps_consent = true
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000006'
+    returning photograph_id$$);
+select public.test_rejects('an upsert reading back the position columns',
+  $$insert into public.photograph_metadata (photograph_id, exif_gps_latitude)
+    values ('eeeeeeee-1111-4000-8000-000000000006', 1)
+    on conflict (photograph_id) do update set exif_gps_latitude = excluded.exif_gps_latitude$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000002';
+do $$
+declare v_lat double precision;
+begin
+  select latitude into v_lat from public.photograph_exif_positions(array['eeeeeeee-1111-4000-8000-000000000006']::uuid[]);
+  if v_lat is distinct from 13.7467 then
+    raise exception 'GPS GAP  a moderator cannot read the position to check it against the place (got %)', v_lat;
+  end if;
+  raise notice 'gps ok        raw GPS is hidden from visitors and other members; the owner and moderators can read it';
+end $$;
+commit;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
