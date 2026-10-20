@@ -87,6 +87,6 @@ export const config = {
      * purpose: they are skipped for locale routing inside the function above,
      * but their sessions are still refreshed.
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|llms\\.txt|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|bmp|woff2?|ttf)$).*)',
+    '/((?!_next/static|_next/image|favicon\\.ico|sitemap\\.xml|robots\\.txt|llms\\.txt|google[0-9a-f]+\\.html|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|bmp|woff2?|ttf)$).*)',
   ],
 };
