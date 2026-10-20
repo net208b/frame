@@ -11,6 +11,7 @@ import { ProfileHeader } from '@/components/photographer/ProfileHeader';
 import { ProfileStats } from '@/components/photographer/ProfileStats';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
+import { getViewer } from '@/lib/auth';
 import {
   getCollections,
   getPhotographer,
@@ -121,6 +122,12 @@ export default async function PhotographerProfilePage({ params }: ProfilePagePro
 
   const { photographer, portfolio, collections } = loaded;
 
+  // Reading the member looking at the page costs nothing here: this route is
+  // `force-dynamic` and every read already goes through the cookie-bound
+  // client, and the session is read once per request and cached.
+  const viewer = await getViewer();
+  const isSelf = viewer !== null && viewer.id === photographer.id;
+
   // The portfolio read is capped, so the count under the heading says what is
   // on the page rather than repeating the profile total as if it were shown.
   const shown = portfolio.length;
@@ -138,7 +145,7 @@ export default async function PhotographerProfilePage({ params }: ProfilePagePro
 
   return (
     <div className="site-container pt-10 pb-20 lg:pt-14">
-      <ProfileHeader photographer={photographer} />
+      <ProfileHeader photographer={photographer} isSelf={isSelf} />
 
       <div
         className={cn(
