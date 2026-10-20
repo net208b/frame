@@ -303,6 +303,63 @@ export interface CollectionItem {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Photobooks                                                                */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A member's own published photographs bound as a book, under a cover they
+ * chose, at an address meant to be pasted into a bio. One per member for now.
+ *
+ * Not a collection: a collection is a working list, a photobook is a finished
+ * object. Every vocabulary here is also a CHECK constraint in migration 0018.
+ */
+export const PHOTOBOOK_COVERS = [
+  'linen', 'darkroom', 'kraft', 'gallery', 'signal',
+  'contact', 'zine', 'archive', 'monolith', 'mat',
+  'ticket', 'film', 'newsprint', 'blueprint', 'label',
+] as const;
+export type PhotobookCover = (typeof PHOTOBOOK_COVERS)[number];
+
+export const PHOTOBOOK_PAPERS = ['matte', 'lustre', 'fineart'] as const;
+export type PhotobookPaper = (typeof PHOTOBOOK_PAPERS)[number];
+
+/** The gear line on the cover: words in the cover's own type, never a logo. */
+export const PHOTOBOOK_GEAR_MODES = ['none', 'brand', 'model'] as const;
+export type PhotobookGearMode = (typeof PHOTOBOOK_GEAR_MODES)[number];
+
+/** No `private`: a book nobody can open is not what this feature is for. */
+export type PhotobookVisibility = 'public' | 'unlisted';
+
+export const PHOTOBOOK_MAX_PAGES = 24;
+/** Fewer than this and it is a leaflet. The form says how many more are needed. */
+export const PHOTOBOOK_MIN_PAGES = 4;
+
+export interface PhotobookPage {
+  /** 1-based, the order the member chose. */
+  position: number;
+  photograph: PhotographCard;
+}
+
+export interface Photobook {
+  id: string;
+  slug: string;
+  title: string;
+  dedication: string | null;
+  cover: PhotobookCover;
+  paper: PhotobookPaper;
+  gearMode: PhotobookGearMode;
+  gearBrand: string | null;
+  gearModel: string | null;
+  visibility: PhotobookVisibility;
+  /** Times the book page has been served. A number, never who. */
+  opens: number;
+  owner: PhotographerSummary;
+  /** In position order. A page whose photograph is no longer published is absent. */
+  pages: PhotobookPage[];
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
 /* Reports and moderation                                                    */
 /* ------------------------------------------------------------------------ */
 

@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils';
  * information.
  */
 
-export const PROFILE_VIEWS = ['frames', 'footprints', 'collections'] as const;
+export const PROFILE_VIEWS = ['frames', 'photobook', 'footprints', 'collections'] as const;
 
 export type ProfileView = (typeof PROFILE_VIEWS)[number];
 

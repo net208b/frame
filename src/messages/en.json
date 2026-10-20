@@ -28,6 +28,28 @@
       "technical": "Technical notes welcome",
       "none": "Would rather not be critiqued"
     },
+    "photobookCovers": {
+      "linen": "Linen",
+      "darkroom": "Darkroom",
+      "kraft": "Kraft",
+      "gallery": "Gallery",
+      "signal": "Signal",
+      "contact": "Contact sheet",
+      "zine": "Zine",
+      "archive": "Archive",
+      "monolith": "Monolith",
+      "mat": "Mat",
+      "ticket": "Ticket",
+      "film": "Film",
+      "newsprint": "Newsprint",
+      "blueprint": "Blueprint",
+      "label": "Label"
+    },
+    "photobookPapers": {
+      "matte": "Matte",
+      "lustre": "Lustre",
+      "fineart": "Fine art"
+    },
     "loading": "Loading",
     "retry": "Try again",
     "cancel": "Cancel",
@@ -660,6 +682,7 @@
     "tabs": {
       "label": "Profile sections",
       "frames": "Frames",
+      "photobook": "Photobook",
       "footprints": "Footprints",
       "collections": "Collections"
     },
@@ -963,6 +986,20 @@
       "cover": {
         "invalid": "Choose a photograph from the list."
       },
+      "bookTitle": {
+        "required": "Give the book a title.",
+        "max": "Keep the title to 60 characters."
+      },
+      "bookDedication": {
+        "max": "Keep the dedication to 160 characters."
+      },
+      "bookGear": {
+        "max": "Keep it to 30 characters."
+      },
+      "bookPages": {
+        "tooFew": "A book needs at least 4 pages.",
+        "tooMany": "A book holds at most 24 pages."
+      },
       "collaboration": {
         "invalid": "Choose one of the options, or leave it unset."
       },
@@ -1076,6 +1113,50 @@
       "submitPending": "Saving…",
       "viewProfile": "See your profile"
     },
+    "photobook": {
+      "heading": "Photobook",
+      "intro": "Your published photographs, bound as a book that opens and turns, at an address you can paste into a bio. One book per member for now.",
+      "pages": "Pages",
+      "pagesCount": "{count} of {max}",
+      "pagesHint": "Tap a frame below to add it. Pages are shown in this order, two to a spread.",
+      "pagesNeedMore": "{count, plural, one {Add # more frame to make a book.} other {Add # more frames to make a book.}}",
+      "pagesFull": "The book is full. Remove a page to add another.",
+      "candidates": "Your published frames",
+      "noCandidates": "A book is made from published photographs, and none of yours are published yet.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove from the book",
+      "add": "Add {title}",
+      "title": "Title",
+      "titleHint": "The address of the book is made from your username and this title, once, when you save.",
+      "titleHintExisting": "The address stays /b/{slug} whatever you rename the book to — links you have shared keep working.",
+      "dedication": "Dedication",
+      "dedicationHint": "One line inside the front cover, optional. Up to {max} characters.",
+      "cover": "Cover",
+      "coverHint": "Fifteen designs. Each is drawn from your title and name; the back always carries FRAME, your username and the address.",
+      "paper": "Paper",
+      "visibility": "Who can open it",
+      "visibilityHint": "Unlisted books open for anyone with the link but are not shown on your profile or to search engines.",
+      "visibilityUnlisted": "Anyone with the link",
+      "visibilityPublic": "Public, and on my profile",
+      "gear": "Camera on the cover",
+      "gearHint": "Printed as words in the cover’s own type — “Shot on Fujifilm X100VI” — never as a manufacturer’s logo.",
+      "gearMode": "Show",
+      "gearModes": {
+        "none": "Nothing",
+        "brand": "The brand",
+        "model": "Brand and model"
+      },
+      "gearBrand": "Brand",
+      "gearModel": "Model",
+      "submit": "Make the book",
+      "submitUpdate": "Save the book",
+      "submitPending": "Saving…",
+      "open": "Open the book",
+      "deleteHint": "Deleting the book removes its address. The photographs themselves stay published.",
+      "delete": "Delete the book",
+      "deleting": "Deleting…"
+    },
     "username": {
       "heading": "Username",
       "current": "Your profile is at <code>{address}</code>.",
@@ -1106,6 +1187,12 @@
       "profileSaved": "Profile saved.",
       "profileRefused": "One of these values wasn’t accepted. Check each field and try again.",
       "coverRefused": "That cover has to be one of your own published photographs. If you just took it down, choose another.",
+      "bookSaved": "Book saved.",
+      "bookDeleted": "Book deleted.",
+      "bookFailed": "The book couldn’t be saved. Try again in a moment.",
+      "bookSlugTaken": "A book with that address already exists. Change the title slightly.",
+      "bookPagesRefused": "One of the pages is no longer one of your published photographs. Remove it and save again.",
+      "bookPagesFailed": "The book was saved but its pages were not. Save again.",
       "profileFailed": "Your profile couldn’t be saved. Try again in a moment.",
       "avatarSaved": "Profile picture saved.",
       "avatarRemoved": "Profile picture removed.",
@@ -1701,6 +1788,43 @@
       "done": "Removed from the collection.",
       "nothingRemoved": "That entry was no longer in the collection, so nothing was removed.",
       "failed": "That could not be removed. Check your connection and try again."
+    }
+  },
+  "photobook": {
+    "eyebrow": "Photobook",
+    "metaTitle": "{title} — a photobook by {name}",
+    "metaDescription": "{count, plural, one {# photograph} other {# photographs}} by {name}, bound as a book that opens and turns.",
+    "pageCount": "{count, plural, one {# page} other {# pages}}",
+    "shotOn": "Shot on {gear}",
+    "opens": "{count} opens",
+    "colophon": "Every photograph in this book is by {name} and remains theirs. The book was made on FRAME from frames the photographer published here.",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "viewer": {
+      "closed": "Closed",
+      "end": "The end",
+      "pages": "Pages {from}–{to} of {total}",
+      "page": "Page {page} of {total}",
+      "loading": "Preparing the book…",
+      "hint": "Drag to turn it round · tap the right half to turn a page · left half to go back",
+      "open": "Open the book",
+      "next": "Next page",
+      "prev": "Back",
+      "close": "Close the book",
+      "flatNote": "The pages, two to a spread, in the order the photographer set."
+    },
+    "profile": {
+      "eyebrow": "Photobook",
+      "open": "Open the book",
+      "edit": "Edit the book",
+      "unlistedNote": "Unlisted: only you see this here. Anyone with the link can open it."
+    },
+    "notFound": {
+      "metaTitle": "Book not found",
+      "metaDescription": "There is no photobook at this address.",
+      "heading": "There is no book at this address.",
+      "body": "It may have been deleted, or the address was copied wrongly.",
+      "discover": "Browse photographs"
     }
   },
   "moderation": {

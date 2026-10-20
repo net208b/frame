@@ -16,6 +16,7 @@ import type {
   PlatformStats,
   Report,
   SuspiciousUpload,
+  Photobook,
 } from '@/types/domain';
 
 import { DEMO_COLLECTIONS } from './demo/collections';
@@ -360,6 +361,55 @@ export function demoFeaturedPhotographers(limit = 4): PhotographerProfile[] {
     .sort((a, b) => b.appreciationsReceived - a.appreciationsReceived)
     .slice(0, limit)
     .map(withCover);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Photobooks                                                                */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * One demo book, Kenji's, built from his own published photographs — the same
+ * rule the trigger in migration 0018 enforces, obeyed rather than restated.
+ */
+const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsername: string }> = [
+  {
+    id: 'b00c0001-0000-4000-8000-000000000001',
+    slug: 'kenji-after-hours',
+    title: 'Shinjuku, After Hours',
+    dedication: 'For the streets that stay open.',
+    cover: 'linen',
+    paper: 'lustre',
+    gearMode: 'model',
+    gearBrand: 'Fujifilm',
+    gearModel: 'X-Pro3',
+    visibility: 'public',
+    opens: 412,
+    ownerUsername: 'kenjiwatanabe',
+    updatedAt: '2026-10-12T09:00:00Z',
+  },
+];
+
+function demoAssemblePhotobook(book: (typeof DEMO_PHOTOBOOKS)[number]): Photobook | null {
+  const owner = DEMO_PHOTOGRAPHERS.find((person) => person.username === book.ownerUsername);
+  if (!owner) return null;
+  const { ownerUsername: _ownerUsername, ...rest } = book;
+  const pages = DEMO_PHOTOGRAPHS.filter(
+    (photo) => photo.photographer.id === owner.id && photo.status === 'published',
+  )
+    .sort((a, b) => a.publishedAt.localeCompare(b.publishedAt))
+    .map((photograph, index) => ({ position: index + 1, photograph }));
+  return { ...rest, owner, pages };
+}
+
+export function demoPhotobook(slug: string): Photobook | null {
+  const book = DEMO_PHOTOBOOKS.find((entry) => entry.slug === slug);
+  return book ? demoAssemblePhotobook(book) : null;
+}
+
+export function demoPhotobookByOwner(ownerId: string): Photobook | null {
+  const owner = DEMO_PHOTOGRAPHERS.find((person) => person.id === ownerId);
+  const book = owner ? DEMO_PHOTOBOOKS.find((entry) => entry.ownerUsername === owner.username) : null;
+  return book ? demoAssemblePhotobook(book) : null;
 }
 
 /* ------------------------------------------------------------------------ */

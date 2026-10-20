@@ -24,6 +24,7 @@ routes=(
   '/[locale]/photographers/[username]'
   '/[locale]/locations/[slug]'
   '/[locale]/collections/[slug]'
+  '/[locale]/books/[slug]'
 )
 
 status=0

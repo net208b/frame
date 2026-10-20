@@ -19,6 +19,10 @@ import {
   COLLABORATION_STATUSES,
   CRITIQUE_PREFERENCES,
   PHOTO_CATEGORIES,
+  PHOTOBOOK_COVERS,
+  PHOTOBOOK_GEAR_MODES,
+  PHOTOBOOK_MAX_PAGES,
+  PHOTOBOOK_PAPERS,
   PHOTOGRAPHY_STYLES,
   REPORT_REASONS,
   type Collection,
@@ -31,6 +35,8 @@ import {
   type LocationRestriction,
   type LocationSubmission,
   type LocationSummary,
+  type Photobook,
+  type PhotobookPage,
   type PhotographyStyle,
   type ProfileCover,
   type ModerationAction,
@@ -1730,6 +1736,134 @@ interface CollectionItemColumns {
   added_at: string | null;
   photograph_id: string | null;
   location_id: string | null;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Photobooks                                                               */
+/* ------------------------------------------------------------------------ */
+
+type PhotobookColumns = Nullable<
+  Pick<
+    Tables<'photobooks'>,
+    | 'id' | 'owner_id' | 'slug' | 'title' | 'dedication' | 'cover_preset' | 'paper_preset'
+    | 'gear_mode' | 'gear_brand' | 'gear_model' | 'visibility' | 'opens' | 'updated_at'
+  >
+>;
+
+interface PhotobookJoined extends PhotobookColumns {
+  profiles: ProfileColumns | ProfileColumns[] | null;
+}
+
+/**
+ * The owner is named by column: `profiles` and `photobooks` have one join, but
+ * every embed between a photograph and a profile in this file names its
+ * relationship, and a reader should not have to work out which tables need it.
+ */
+const PHOTOBOOK_SELECT = `
+  id, owner_id, slug, title, dedication, cover_preset, paper_preset, gear_mode, gear_brand,
+  gear_model, visibility, opens, updated_at, profiles!owner_id(${PROFILE_SUMMARY_FIELDS})
+`;
+
+/**
+ * A book and its pages, in order. A page whose photograph is no longer
+ * published is left out rather than shown as a hole: the pages table keeps the
+ * member's order, the photographs table says what may be seen, and only the
+ * second one is a permission.
+ */
+async function assemblePhotobook(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  row: PhotobookJoined,
+): Promise<Photobook | null> {
+  const id = toText(row.id);
+  const slug = toText(row.slug);
+  const title = toText(row.title);
+  const owner = mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles));
+  if (!id || !slug || !title || !owner) return null;
+
+  const pageRows = unwrapList<{ photograph_id: string | null; position: number | null }>(
+    `reading the pages of photobook "${slug}"`,
+    await supabase
+      .from('photobook_pages')
+      .select('photograph_id, position')
+      .eq('photobook_id', id)
+      .order('position', { ascending: true })
+      .limit(PHOTOBOOK_MAX_PAGES),
+  );
+
+  const photographIds = pageRows
+    .map((page) => toText(page.photograph_id))
+    .filter((value): value is string => value !== null);
+
+  const photographs =
+    photographIds.length > 0
+      ? await mapPhotographRows(
+          supabase,
+          unwrapList<PhotographJoined>(
+            `reading the photographs of photobook "${slug}"`,
+            await supabase
+              .from('photographs')
+              .select(photographSelect())
+              .in('id', photographIds)
+              .eq('status', 'published'),
+          ),
+        )
+      : [];
+  const byId = new Map(photographs.map((photo) => [photo.id, photo]));
+
+  const pages: PhotobookPage[] = [];
+  for (const page of pageRows) {
+    const photograph = byId.get(toText(page.photograph_id) ?? '');
+    const position = toNumber(page.position);
+    if (!photograph || position === null) continue;
+    pages.push({ position, photograph });
+  }
+
+  return {
+    id,
+    slug,
+    title,
+    dedication: toText(row.dedication),
+    cover: oneOf(PHOTOBOOK_COVERS, row.cover_preset, 'linen'),
+    paper: oneOf(PHOTOBOOK_PAPERS, row.paper_preset, 'lustre'),
+    gearMode: oneOf(PHOTOBOOK_GEAR_MODES, row.gear_mode, 'none'),
+    gearBrand: toText(row.gear_brand),
+    gearModel: toText(row.gear_model),
+    visibility: row.visibility === 'public' ? 'public' : 'unlisted',
+    opens: toNumber(row.opens) ?? 0,
+    owner,
+    pages,
+    updatedAt: toText(row.updated_at) ?? '',
+  };
+}
+
+/** Public or unlisted both answer by address; the policy already says so. */
+export async function photobookBySlug(slug: string): Promise<Photobook | null> {
+  const supabase = await createClient();
+  const row = unwrap<PhotobookJoined>(
+    `reading photobook "${slug}"`,
+    await supabase.from('photobooks').select(PHOTOBOOK_SELECT).eq('slug', slug).maybeSingle(),
+  );
+  return row ? assemblePhotobook(supabase, row) : null;
+}
+
+/** The one book a member has, for Settings and for their profile tab. */
+export async function photobookByOwner(ownerId: string): Promise<Photobook | null> {
+  const supabase = await createClient();
+  const row = unwrap<PhotobookJoined>(
+    'reading a member\'s photobook',
+    await supabase.from('photobooks').select(PHOTOBOOK_SELECT).eq('owner_id', ownerId).maybeSingle(),
+  );
+  return row ? assemblePhotobook(supabase, row) : null;
+}
+
+/**
+ * Counts an open. Fire-and-forget from the page: a failure to count is logged
+ * and never stops the book being shown.
+ */
+export async function countPhotobookOpen(slug: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('bump_photobook_opens', { p_slug: slug });
+  if (error) console.error(`FRAME data: counting an open of photobook "${slug}" failed — ${error.message}`);
 }
 
 export async function collectionBySlug(
