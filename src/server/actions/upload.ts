@@ -594,11 +594,29 @@ export async function attachVariants(
 
   // Marked as being worked on, and reset below if anything fails, so a failed
   // attempt does not strand the draft in a state it cannot leave.
+  // Every way out of processing that is not success takes the original with
+  // it. It sits in a public-read bucket and still carries the file's EXIF, a
+  // GPS position included, so a failed attempt must not leave it behind — and
+  // nothing is lost by deleting it: a retry from the wizard uploads the file
+  // again before it calls this action.
+  const discardOriginal = async (): Promise<void> => {
+    try {
+      await driver.remove([keys.original]);
+    } catch (error) {
+      console.error(
+        `FRAME upload: deleting the original for ${photograph.id} after a failed attempt failed — ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  };
+
   await setStatus('processing');
 
   const original = await fetchStoredOriginal(driver, keys.original);
   if (!original.ok) {
     await setStatus('draft');
+    await discardOriginal();
     return fail(original.reason, 'not_found');
   }
 
@@ -607,6 +625,7 @@ export async function attachVariants(
   const verified = await verifyImageBytes(original.bytes);
   if (!verified.ok) {
     await setStatus('draft');
+    await discardOriginal();
     return fail(verified.reason, 'validation', { file: verified.reason });
   }
 
@@ -621,19 +640,12 @@ export async function attachVariants(
   const recorded = await recordExifCheck(photograph.id, readout, verdict, parsed.data.filmDeclared);
   if (!recorded) {
     await setStatus('draft');
+    await discardOriginal();
     return fail(t('actions.exifNotRecorded'), 'unknown');
   }
   if (verdict.verdict === 'rejected') {
-    try {
-      await driver.remove([keys.original]);
-    } catch (error) {
-      console.error(
-        `FRAME upload: removing the refused original for ${photograph.id} failed — ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
     await setStatus('draft');
+    await discardOriginal();
     const reason = await describeExifRefusal(verdict);
     return fail(reason, 'validation', { file: reason });
   }
@@ -648,6 +660,7 @@ export async function attachVariants(
       }`,
     );
     await setStatus('draft');
+    await discardOriginal();
     return fail(
       t('actions.variantsFailed'),
       'unknown',
@@ -681,6 +694,7 @@ export async function attachVariants(
         }`,
       );
       await setStatus('draft');
+    await discardOriginal();
       return fail(
         t('actions.storageRefused'),
         'unknown',
@@ -689,6 +703,7 @@ export async function attachVariants(
 
     if (!(await putWithGrant(grant, variant.bytes))) {
       await setStatus('draft');
+    await discardOriginal();
       return fail(
         t('actions.variantFailed', { variant: variant.name }),
         'unknown',
@@ -715,6 +730,7 @@ export async function attachVariants(
   if (imagesError) {
     console.error(`FRAME upload: recording derivatives failed — ${imagesError.message}`);
     await setStatus('draft');
+    await discardOriginal();
     return fail(
       t('actions.variantsNotRecorded'),
       'unknown',
@@ -740,6 +756,7 @@ export async function attachVariants(
 
   if (updateError) {
     console.error(`FRAME upload: recording image dimensions failed — ${updateError.message}`);
+    await discardOriginal();
     return fail(
       t('actions.recordNotUpdated'),
       'unknown',

@@ -36,7 +36,14 @@ export interface StorageDriver {
   name: 'supabase' | 'r2';
   createSignedUpload(input: SignedUploadRequest): Promise<SignedUploadGrant>;
   publicUrl(key: string): string;
-  remove(keys: string[]): Promise<void>;
+  /**
+   * Delete objects. By default as the signed-in member, so the bucket's own
+   * policies decide — a member removes only their own files. `asService` is
+   * for the one caller that must act on somebody else's: a moderator taking a
+   * photograph down, whose files have to stop being served even though the
+   * moderator does not own them.
+   */
+  remove(keys: string[], options?: { asService?: boolean }): Promise<void>;
 }
 
 /** Thrown when the selected provider is missing a variable it cannot work without. */

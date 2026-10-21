@@ -843,8 +843,8 @@ begin
   if not v_public then
     raise exception 'STORAGE DRIFT  the photographs bucket is not public, so no derivative is readable';
   end if;
-  if v_limit is distinct from 26214400 then
-    raise exception 'STORAGE DRIFT  file_size_limit is %, not UPLOAD_POLICY.maxFileBytes (26214400)', v_limit;
+  if v_limit is distinct from 52428800 then
+    raise exception 'STORAGE DRIFT  file_size_limit is %, not UPLOAD_POLICY.maxFileBytes (52428800)', v_limit;
   end if;
 
   -- Named rather than counted: four policies of the wrong kinds would pass a count.
@@ -2061,6 +2061,53 @@ begin
 
   if length(v_gaps) > 0 then raise exception 'EXECUTE GAP %', v_gaps; end if;
   raise notice 'execute ok   helpers are internal, writes need a session, members keep what they use';
+end $$;
+
+-- ------------------------------ 0026: nobody lists somebody else's folder
+-- A public bucket serves its files without consulting row-level security, so
+-- the read policy only governs listing and authenticated download. Those are
+-- now a member's own folder and nothing else.
+reset "app.current_user_id";
+insert into storage.objects (bucket_id, name) values
+  ('photographs', 'dddddddd-0000-4000-8000-000000000004/aaaaaaaa-0000-4000-8000-000000000001/grid.webp'),
+  ('photographs', 'eeeeeeee-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000002/original')
+on conflict (bucket_id, name) do nothing;
+
+begin;
+set local role anon;
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from storage.objects where bucket_id = 'photographs';
+  if v_count <> 0 then raise exception 'STORAGE GAP  a visitor can list % objects in the bucket', v_count; end if;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+do $$
+declare v_own integer; v_others integer;
+begin
+  select count(*) into v_own from storage.objects
+   where bucket_id = 'photographs' and name like 'dddddddd-0000-4000-8000-000000000004/%';
+  select count(*) into v_others from storage.objects
+   where bucket_id = 'photographs' and name not like 'dddddddd-0000-4000-8000-000000000004/%';
+  if v_own < 1 then raise exception 'STORAGE GAP  a member cannot see their own objects'; end if;
+  if v_others <> 0 then raise exception 'STORAGE GAP  a member can list % objects of other members', v_others; end if;
+  raise notice 'storage ok   a visitor lists nothing, a member lists only their own folder';
+end $$;
+commit;
+
+do $$
+begin
+  if has_sequence_privilege('anon', 'public.rate_limit_hits_id_seq', 'USAGE')
+     or has_sequence_privilege('authenticated', 'public.rate_limit_hits_id_seq', 'USAGE')
+     or has_sequence_privilege('anon', 'public.rate_limit_hits_id_seq', 'UPDATE')
+     or has_sequence_privilege('authenticated', 'public.rate_limit_hits_id_seq', 'UPDATE') then
+    raise exception 'PRIVILEGE GAP  a public role can still use rate_limit_hits_id_seq';
+  end if;
+  raise notice 'sequence ok  the rate-limit sequence is the owner''s alone';
 end $$;
 
 -- ---------------------------------------------------------- 0027: challenges
