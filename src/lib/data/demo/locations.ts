@@ -466,6 +466,8 @@ function toDetail(raw: RawLocation): LocationDetail {
     : undefined;
 
   return {
+    // The demo sample is written in one language and never translated.
+    translations: {},
     id: raw.id,
     slug: raw.slug,
     name: raw.name,

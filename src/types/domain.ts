@@ -7,6 +7,31 @@
  */
 
 /* ------------------------------------------------------------------------ */
+/* Machine translation                                                       */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * One field of member-written text, put into the language its author did not
+ * write in (migration 0035).
+ *
+ * The original always stays on the field it has always been on. This is an
+ * addition beside it, never a replacement: a reader is shown the translation
+ * when it is in their language, and can always ask for the words as written.
+ */
+export interface ContentTranslation {
+  /** The language this text is in. Never the one the author wrote in. */
+  language: 'en' | 'th';
+  value: string;
+}
+
+/**
+ * The translated fields of one subject, keyed by the domain field name. A
+ * field with no translation is absent — there is no placeholder to mistake
+ * for a translation that failed.
+ */
+export type Translations<Field extends string> = Partial<Record<Field, ContentTranslation>>;
+
+/* ------------------------------------------------------------------------ */
 /* Taxonomy                                                                  */
 /* ------------------------------------------------------------------------ */
 
@@ -144,6 +169,8 @@ export interface ProfileCover {
 
 export interface PhotographerProfile extends PhotographerSummary {
   biography: string | null;
+  /** The biography in the other language (0035). */
+  translations: Translations<'biography'>;
   website: string | null;
   /**
    * The country the member chose, ISO 3166-1 alpha-2, beside the free-text
@@ -214,6 +241,8 @@ export interface Coordinates {
 
 export interface LocationDetail extends LocationSummary {
   description: string | null;
+  /** The name and description in the other language (0035). */
+  translations: Translations<'name' | 'description'>;
   /** Null when the place is sensitive and no coordinate may be published. */
   coordinates: Coordinates | null;
   /** The staff's precision choice for this place (0033). */
@@ -282,6 +311,8 @@ export interface EditingDetails {
 
 export interface PhotographDetail extends PhotographCard {
   description: string | null;
+  /** The title, description and alt text in the other language (0035). */
+  translations: Translations<'title' | 'description' | 'altText'>;
   capture: CaptureSettings;
   editing: EditingDetails;
   /** Only present when EXIF held a date *and* the owner chose to publish it. */
@@ -573,6 +604,8 @@ export interface PhotographComment {
   author: PhotographerSummary;
   /** Empty when the comment was deleted. */
   body: string;
+  /** The body in the other language (0035). */
+  translations: Translations<'body'>;
   createdAt: string;
   /** Set once the author has changed their words. */
   editedAt: string | null;

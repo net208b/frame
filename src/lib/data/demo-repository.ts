@@ -1,4 +1,5 @@
 import { MAP_PIN_PHOTOGRAPH_SAMPLE, PAGE_SIZE } from '@/lib/config';
+import type { MapPinFrame } from '@/lib/data/repository';
 import { distanceMetres } from '@/lib/geo';
 import { sortPhotographs } from '@/lib/ranking';
 import type {
@@ -228,6 +229,22 @@ function demoRecentImageUrls(locationId: string): string[] {
     .filter((url): url is string => Boolean(url));
 }
 
+/** The newest demo frame at a place, for the pin's card. */
+function demoLatestFrame(locationId: string): MapPinFrame | null {
+  const photo = demoPhotographsAtLocation(locationId)
+    .slice()
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+    .find((entry) => Boolean(entry.image.thumbUrl));
+  if (!photo) return null;
+  return {
+    slug: photo.slug,
+    title: photo.title,
+    category: photo.category,
+    appreciationCount: photo.appreciationCount,
+    photographer: photo.photographer,
+  };
+}
+
 /** Pins for the map page: approved locations that have a publishable point. */
 export function demoMapPins() {
   return DEMO_LOCATIONS.filter((location) => location.coordinates).map((location) => ({
@@ -244,6 +261,7 @@ export function demoMapPins() {
     isApproximate: location.coordinates!.isApproximate,
     previewImageUrl: demoRecentImageUrls(location.id)[0] ?? null,
     recentImageUrls: demoRecentImageUrls(location.id),
+    latest: demoLatestFrame(location.id),
   }));
 }
 
@@ -292,6 +310,13 @@ export function demoPhotographerMapPins(photographerId: string): DemoMapPin[] {
       isApproximate: place.coordinates.isApproximate,
       previewImageUrl: photo.image.thumbUrl,
       recentImageUrls: [photo.image.thumbUrl],
+      latest: {
+        slug: photo.slug,
+        title: photo.title,
+        category: photo.category,
+        appreciationCount: photo.appreciationCount,
+        photographer: null,
+      },
     });
   }
 

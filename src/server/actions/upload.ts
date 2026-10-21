@@ -23,6 +23,7 @@ import {
 } from '@/lib/storage';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { scheduleTranslation } from '@/lib/translation/store';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
 import { parseForm } from '@/lib/validation';
@@ -1357,6 +1358,11 @@ export async function publishPhotograph(
   if (row.status === 'under_review') {
     row.status = await publishIfCleared(photograph.id, signals);
   }
+
+  // Published means public, and public is the only state whose words are sent
+  // to a translation provider (0035). An upload still waiting for a moderator
+  // is not translated, and neither is one that was just held back.
+  if (row.status === 'published') scheduleTranslation('photograph', photograph.id);
 
   revalidateLocalisedPath('/');
   revalidateLocalisedPath('/discover');

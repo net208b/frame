@@ -101,6 +101,22 @@ export function createPhotoMarkerElement(
 
   element.append(frame);
 
+  // The photographer, overlapping the frame's corner — who made the newest
+  // picture here, before the card is even opened. Only when there is a face
+  // to show; a missing avatar leaves the frame alone rather than drawing a
+  // blank disc on it.
+  const avatarUrl = pin.latest?.photographer?.avatarUrl ?? null;
+  if (avatarUrl) {
+    const avatar = document.createElement('img');
+    avatar.src = avatarUrl;
+    avatar.alt = '';
+    avatar.decoding = 'async';
+    avatar.loading = 'lazy';
+    avatar.className =
+      'absolute -bottom-1 -left-1 size-5 rounded-pill border-2 border-surface bg-surface object-cover';
+    element.append(avatar);
+  }
+
   /*
    * How many frames the place holds, when it holds more than one. A number
    * rather than a dot: "3" says what the stack behind the thumbnail only

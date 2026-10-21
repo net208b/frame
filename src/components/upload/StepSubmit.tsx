@@ -538,7 +538,9 @@ export function StepSubmit({
     const proposal = proposalPayload(state);
     if (proposal !== null) {
       setActive('place');
-      const queued = await submitLocation(proposal);
+      // With the photograph it came with (0034), so approval credits the frame
+      // to the new place — the promise the place step makes.
+      const queued = await submitLocation({ ...proposal, photographId });
       setPlaceNote(
         queued.ok
           ? { ok: true, message: queued.message ?? t('submit.placeQueued') }

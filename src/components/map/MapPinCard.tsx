@@ -1,10 +1,12 @@
 'use client';
 
-import { ArrowUpRight, CircleDashed, Images } from 'lucide-react';
+import { ArrowUpRight, CircleDashed, Heart, Images } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 
 import { Link } from '@/i18n/navigation';
+import { Avatar } from '@/components/photographer/Avatar';
+import { CategoryTag } from '@/components/photo/CategoryTag';
 import { LOCATION_POLICY } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
 import { cn } from '@/lib/utils';
@@ -19,6 +21,21 @@ import { precisionParts } from './precision';
  * the place's page where all of them are listed with their photographers. A
  * card per photograph would be a gallery, and FRAME already has one.
  *
+ * WHAT THE CARD NOW SHOWS, and why it showed nothing before. The card has
+ * always drawn `recentImageUrls[0]`, the place's name, its city and a count —
+ * so a place with no published frame drew a grey rectangle with a number under
+ * it, which is what the site's owner was looking at. Two things were wrong and
+ * both are fixed here: a proposed place never carried the photograph it was
+ * proposed with, so approval credited no frame at all (migration 0034), and the
+ * card had nothing of the frame itself to show even once one existed. It now
+ * carries `pin.latest` — the newest published frame at the place, with its
+ * title, its category, its appreciation and whoever made it — so the card
+ * answers "what is here and who shot it" before the reader opens anything.
+ *
+ * A place with no frame yet is still a real place, approved and pinned, so it
+ * keeps its card: the cover falls back to an empty plate and the maker's row is
+ * simply absent rather than drawn blank.
+ *
  * NEWEST FIRST is the rule the stack exists to show. `recentImageUrls` arrives
  * in that order from the query — see `MapPin` — so the frame on top is the most
  * recent one somebody published at this place, and the two edges behind it say
@@ -31,8 +48,7 @@ import { precisionParts } from './precision';
  * map on /map. That one is the full `LocationCard` the location index uses, so
  * a place looks like itself wherever it is listed. This one is small, anchored
  * to a point, and sits over a map — so it is its own thing rather than a
- * variant of that, and it carries only what fits: the frame, the name, the
- * place, the count, and the privacy note when there is one.
+ * variant of that, and it carries only what fits.
  */
 
 export function MapPinCard({
@@ -50,6 +66,7 @@ export function MapPinCard({
   // see and starts to look like a fan of cards.
   const behind = Math.min(Math.max(pin.recentImageUrls.length - 1, 0), 2);
   const cover = pin.recentImageUrls[0] ?? pin.previewImageUrl;
+  const latest = pin.latest;
 
   return (
     <div className={cn('relative w-[17.5rem]', className)}>
@@ -83,6 +100,16 @@ export function MapPinCard({
                 className="object-cover motion-safe:transition-transform motion-safe:duration-300 group-hover:scale-[1.03]"
               />
             ) : null}
+
+            {/* The category of the frame on top, over its own paper so it holds
+                against a bright sky or a black wall alike. */}
+            {latest ? (
+              <CategoryTag
+                category={latest.category}
+                tone="overlay"
+                className="absolute top-2 left-2 backdrop-blur-sm"
+              />
+            ) : null}
           </div>
 
           <div className="p-3.5">
@@ -100,9 +127,39 @@ export function MapPinCard({
               {pin.city}, {pin.country}
             </p>
 
-            <p className="mt-2 flex items-center gap-1.5 text-meta text-muted tabular-nums">
+            {/*
+              Who made the newest frame here. The whole card already links to
+              the place, so this is deliberately not a second link: a link
+              inside a link is invalid, and the photographer is reachable in one
+              more click from the place's page. The name is the label, so the
+              avatar is decorative.
+            */}
+            {latest?.photographer ? (
+              <p className="mt-2.5 flex items-center gap-2 text-meta text-ink-soft">
+                <Avatar
+                  src={latest.photographer.avatarUrl}
+                  name={latest.photographer.displayName}
+                  size={20}
+                  decorative
+                />
+                <span className="truncate">
+                  {t('pinCard.byline', { name: latest.photographer.displayName })}
+                </span>
+              </p>
+            ) : null}
+
+            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-meta text-muted tabular-nums">
               <Images aria-hidden className="size-3.5 shrink-0" />
-              {t('pinCard.photographs', { count: pin.photographCount })}
+              <span>{t('pinCard.photographs', { count: pin.photographCount })}</span>
+              {latest && latest.appreciationCount > 0 ? (
+                <>
+                  <span aria-hidden>·</span>
+                  <Heart aria-hidden className="size-3.5 shrink-0" />
+                  <span>
+                    {t('pinCard.appreciations', { count: latest.appreciationCount })}
+                  </span>
+                </>
+              ) : null}
             </p>
 
             {pin.isApproximate ? (

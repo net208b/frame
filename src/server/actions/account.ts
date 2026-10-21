@@ -15,6 +15,7 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { putObject, StorageConfigurationError, storageDriver } from '@/lib/storage';
 import { createClient } from '@/lib/supabase/server';
+import { scheduleTranslation } from '@/lib/translation/store';
 import { parseForm } from '@/lib/validation';
 import {
   changeUsernameSchema,
@@ -185,6 +186,10 @@ export async function updateProfile(
       error.code === '23514' ? 'validation' : 'unknown',
     );
   }
+
+  // A profile is public the moment it is saved, so a biography needs no
+  // approval before it can be read in the other language (0035).
+  scheduleTranslation('profile', member.id);
 
   revalidateProfile(member.username);
   return ok(undefined, t('actions.profileSaved'));

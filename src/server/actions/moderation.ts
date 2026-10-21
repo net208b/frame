@@ -10,6 +10,7 @@ import { storageDriver } from '@/lib/storage';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
+import { scheduleTranslation } from '@/lib/translation/store';
 import { parseForm } from '@/lib/validation';
 import { identifier } from '@/lib/validation/fields';
 import {
@@ -399,6 +400,10 @@ export async function decideSubmission(input: unknown): Promise<ActionResult<voi
       }
     }
 
+    // The place is approved and therefore public: its name and description can
+    // now be read by someone who does not share the proposer's language (0035).
+    scheduleTranslation('location', locationId);
+
     const { data: slugRow } = await supabase
       .from('locations')
       .select('slug')
@@ -755,6 +760,10 @@ export async function actOnUpload(input: unknown): Promise<ActionResult<void>> {
 
   const { error: writeError } = await supabase.from('photographs').update(update).eq('id', photographId);
   if (writeError) return failFromQuery(writeError, 'recording the decision on the upload');
+
+  // Approval is the moment this member's words become public, so it is also
+  // the moment they may be put into the other language (0035).
+  if (update.status === 'published') scheduleTranslation('photograph', photographId);
 
   const filesWithdrawn =
     decision === 'remove_content' ? await withdrawPhotographFiles(photographId, current.owner_id) : true;

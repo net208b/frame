@@ -2751,6 +2751,207 @@ begin
   raise notice 'precision ok the two old flags follow the precision and cannot be set apart from it';
 end $$;
 
+-- ------------------------ 0034: a proposal remembers its photograph
+-- The member proposes a place with their own published frame; approval
+-- credits the frame to the new place; a frame can only ever point at an
+-- approved place.
+reset "app.current_user_id";
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at, rights_confirmed_at, image_width, image_height)
+values ('cafecafe-0000-4000-8000-000000000034', 'proposer-frame', 'dddddddd-0000-4000-8000-000000000004',
+        'The frame that proposed a place', 'A cyclist crossing a wet junction under sodium light at the edge of town.',
+        'street', 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('proposing a place with somebody else''s photograph',
+  $$insert into public.location_submissions
+      (proposed_name, city, country, country_code, latitude, longitude, submitted_by, photograph_id)
+    values ('Not mine', 'Bangkok', 'Thailand', 'TH', 13.75, 100.5,
+            'dddddddd-0000-4000-8000-000000000004', 'eeeeeeee-1111-4000-8000-000000000001')$$, '42501');
+select public.test_accepts('proposing a place with one''s own photograph',
+  $$insert into public.location_submissions
+      (id, proposed_name, city, country, country_code, latitude, longitude, submitted_by, photograph_id)
+    values ('5ab00000-0000-4000-8000-000000000034', 'Wet Junction', 'Bangkok', 'Thailand', 'TH', 13.7501, 100.5002,
+            'dddddddd-0000-4000-8000-000000000004', 'cafecafe-0000-4000-8000-000000000034')$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('a moderator approving the proposal',
+  $$select public.approve_location_submission('5ab00000-0000-4000-8000-000000000034', '33333333-3333-4333-8333-333333333333')$$);
+commit;
+
+do $$
+declare v_location uuid; v_placed uuid; v_count integer;
+begin
+  select approved_location_id into v_location from public.location_submissions where id = '5ab00000-0000-4000-8000-000000000034';
+  select location_id into v_placed from public.photographs where id = 'cafecafe-0000-4000-8000-000000000034';
+  if v_location is null or v_placed is distinct from v_location then
+    raise exception 'LINK GAP  approval did not credit the proposing photograph to the place (% vs %)', v_placed, v_location;
+  end if;
+  select photograph_count into v_count from public.locations where id = v_location;
+  if v_count <> 1 then raise exception 'LINK GAP  the new place counts % photographs, expected 1', v_count; end if;
+  raise notice 'link ok      approving a proposal credits the photograph that proposed it';
+end $$;
+
+-- A member may place their own frame at an approved place later, and nowhere else.
+reset "app.current_user_id";
+insert into public.locations (id, slug, name, city, country, country_code, latitude, longitude, status)
+values ('aaaaaaaa-0000-4000-8000-000000000034', 'still-pending', 'Still pending', 'Bangkok', 'Thailand', 'TH', 13.76, 100.51, 'pending')
+on conflict (id) do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('placing a photograph at a place that is not approved',
+  $$update public.photographs set location_id = 'aaaaaaaa-0000-4000-8000-000000000034'
+     where id = 'cafecafe-0000-4000-8000-000000000002'$$, '42501');
+select public.test_accepts('placing one''s own photograph at an approved place',
+  $$update public.photographs set location_id = 'aaaaaaaa-0000-4000-8000-000000000033'
+     where id = 'cafecafe-0000-4000-8000-000000000002'$$);
+select public.test_accepts('taking the place off one''s own photograph',
+  $$update public.photographs set location_id = null
+     where id = 'cafecafe-0000-4000-8000-000000000002'$$);
+commit;
+
+
+-- ===========================================================================
+-- 0035  The same words in the other language
+-- ===========================================================================
+-- Translations are written only by the service role and read only by whoever
+-- can already read what they translate. The checks below are about that pair
+-- of claims, and about the table refusing a translation that is not one.
+
+-- A photograph nobody may see yet, to prove its translation is invisible too.
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, image_width, image_height)
+values
+  ('ba5e0000-0000-4000-8000-000000000035', 'waiting-on-review',
+   '11111111-1111-4111-8111-111111111111', 'Waiting on review',
+   'A photograph still sitting in the moderation queue, not yet published.',
+   'street', 'under_review', 1800, 1200)
+on conflict (id) do nothing;
+
+-- The shape of a translation row.
+select public.test_rejects('a translation into the language it was written in',
+  $$insert into public.content_translations
+      (subject_type, subject_id, field, language, value, source_language, source_hash)
+    values ('photograph', 'bbbbbbbb-0000-4000-8000-000000000001', 'title', 'en', 'Test published', 'en',
+            '0000000000000000000000000000000000000000000000000000000000000000')$$, '23514');
+
+select public.test_rejects('a photograph with a biography',
+  $$insert into public.content_translations
+      (subject_type, subject_id, field, language, value, source_language, source_hash)
+    values ('photograph', 'bbbbbbbb-0000-4000-8000-000000000001', 'biography', 'th', 'ประวัติ', 'en',
+            '0000000000000000000000000000000000000000000000000000000000000000')$$, '23514');
+
+select public.test_rejects('a source hash that is not a sha-256',
+  $$insert into public.content_translations
+      (subject_type, subject_id, field, language, value, source_language, source_hash)
+    values ('photograph', 'bbbbbbbb-0000-4000-8000-000000000001', 'title', 'th', 'ภาพทดสอบ', 'en', 'nope')$$, '23514');
+
+select public.test_accepts('a translation of a published photograph',
+  $$insert into public.content_translations
+      (subject_type, subject_id, field, language, value, source_language, source_hash)
+    values ('photograph', 'bbbbbbbb-0000-4000-8000-000000000001', 'title', 'th', 'ภาพทดสอบ', 'en',
+            '1111111111111111111111111111111111111111111111111111111111111111'),
+           ('photograph', 'bbbbbbbb-0000-4000-8000-000000000001', 'alt_text', 'th', 'ถนนแคบยามค่ำ', 'en',
+            '2222222222222222222222222222222222222222222222222222222222222222'),
+           ('photograph', 'ba5e0000-0000-4000-8000-000000000035', 'title', 'th', 'รออนุมัติ', 'en',
+            '3333333333333333333333333333333333333333333333333333333333333333')$$);
+
+-- Who can see them.
+begin;
+set local role anon;
+do $$
+declare n_published integer; n_queued integer;
+begin
+  select count(*) into n_published from public.content_translations
+   where subject_id = 'bbbbbbbb-0000-4000-8000-000000000001';
+  select count(*) into n_queued from public.content_translations
+   where subject_id = 'ba5e0000-0000-4000-8000-000000000035';
+
+  if n_published <> 2 then
+    raise exception 'TRANSLATION GAP  a visitor sees % of 2 translations of a published photograph', n_published;
+  end if;
+  if n_queued <> 0 then
+    raise exception 'TRANSLATION LEAK  a visitor sees % translation(s) of a photograph still under review', n_queued;
+  end if;
+  raise notice 'translate ok a translation is visible exactly when the photograph is';
+end $$;
+commit;
+
+-- Nobody writes them from a session: the table has no insert, update or
+-- delete policy, so even the photograph's own owner cannot put words in it.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '11111111-1111-4111-8111-111111111111';
+select public.test_rejects('a member writing a translation',
+  $$insert into public.content_translations
+      (subject_type, subject_id, field, language, value, source_language, source_hash)
+    values ('photograph', 'bbbbbbbb-0000-4000-8000-000000000001', 'description', 'th', 'ของปลอม', 'en',
+            '4444444444444444444444444444444444444444444444444444444444444444')$$, '42501');
+commit;
+
+-- Not merely filtered to nothing by a policy: the grant itself is absent, so
+-- the attempt is refused outright. That is the stronger guarantee of the two,
+-- and the one the migration actually makes.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '11111111-1111-4111-8111-111111111111';
+select public.test_rejects('a member rewriting a translation',
+  $$update public.content_translations set value = 'ของปลอม'
+     where subject_id = 'bbbbbbbb-0000-4000-8000-000000000001' and field = 'title'$$, '42501');
+select public.test_rejects('a member deleting a translation',
+  $$delete from public.content_translations
+     where subject_id = 'bbbbbbbb-0000-4000-8000-000000000001'$$, '42501');
+commit;
+
+do $$
+begin
+  raise notice 'translate ok only the service role writes a translation';
+end $$;
+
+-- An edit drops the translation of the field that changed, and only that one.
+update public.photographs
+   set title = 'Test published, retitled'
+ where id = 'bbbbbbbb-0000-4000-8000-000000000001';
+
+do $$
+declare n_title integer; n_alt integer;
+begin
+  select count(*) into n_title from public.content_translations
+   where subject_id = 'bbbbbbbb-0000-4000-8000-000000000001' and field = 'title';
+  select count(*) into n_alt from public.content_translations
+   where subject_id = 'bbbbbbbb-0000-4000-8000-000000000001' and field = 'alt_text';
+
+  if n_title <> 0 then
+    raise exception 'STALE TRANSLATION  the old title survived its own edit';
+  end if;
+  if n_alt <> 1 then
+    raise exception 'TRANSLATION GAP  editing the title threw away the alt text translation too';
+  end if;
+  raise notice 'translate ok editing a field drops that field''s translation and no other';
+end $$;
+
+-- And a translation does not outlive what it translates.
+delete from public.photographs where id = 'ba5e0000-0000-4000-8000-000000000035';
+
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.content_translations
+   where subject_id = 'ba5e0000-0000-4000-8000-000000000035';
+  if n <> 0 then
+    raise exception 'ORPHAN TRANSLATION  % row(s) outlived the deleted photograph', n;
+  end if;
+  raise notice 'translate ok a translation does not outlive the words it translates';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

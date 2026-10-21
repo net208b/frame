@@ -25,6 +25,7 @@ import type {
   SuspiciousUpload,
   Photobook,
   PhotoSeries,
+  PhotoCategory,
 } from '@/types/domain';
 
 import * as demo from './demo-repository';
@@ -166,6 +167,21 @@ export interface MapPin {
    * the place's own page agree about which frame is the latest.
    */
   recentImageUrls: string[];
+  /**
+   * The newest published frame at the place, for the pin's card: its title,
+   * category and appreciation, and who made it. Null for a place with no
+   * frame, which the map draws as a bare dot.
+   */
+  latest: MapPinFrame | null;
+}
+
+export interface MapPinFrame {
+  slug: string;
+  title: string;
+  category: PhotoCategory;
+  appreciationCount: number;
+  /** Null on a photographer's own footprints map, where it would be redundant. */
+  photographer: PhotographerSummary | null;
 }
 
 
