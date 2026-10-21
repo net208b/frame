@@ -17,6 +17,7 @@ import {
   editComment,
   hideComment,
   postComment,
+  unhideComment,
 } from '@/server/actions/comments';
 import type { CritiquePreference, PhotographComment, PhotographThread } from '@/types/domain';
 
@@ -165,6 +166,12 @@ function CommentNode({
   const canEdit = isMine && isLive;
   const canDelete = (isMine || isOwner || isModerator) && !comment.isDeleted;
   const canHide = (isOwner || isModerator) && isLive;
+  // The mirror of the database's rule: a moderator restores anything, the
+  // photographer only what they hid themselves.
+  const canUnhide =
+    comment.isHidden &&
+    !comment.isDeleted &&
+    (isModerator || (isOwner && viewer !== null && comment.hiddenById === viewer.id));
   const canReport = viewer !== null && !isMine && isLive;
   const canReply = viewer !== null && !isReply && isLive;
 
@@ -219,6 +226,16 @@ function CommentNode({
             </p>
             {comment.hiddenReason ? (
               <p className="mt-1 text-caption text-muted">{comment.hiddenReason}</p>
+            ) : null}
+            {canUnhide ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => run(() => unhideComment(comment.id))}
+                className="mt-2 text-caption font-semibold text-ink-soft transition-colors duration-150 hover:text-ink disabled:opacity-60"
+              >
+                {t('unhide')}
+              </button>
             ) : null}
           </div>
         ) : editing ? (

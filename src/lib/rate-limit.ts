@@ -1,5 +1,5 @@
 import { isDatabaseConfigured } from '@/lib/config';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 /**
  * Rate limiting for write actions.
@@ -139,7 +139,25 @@ export async function checkRateLimit(
     return checkInProcess(key, limit, windowSeconds);
   }
 
-  const supabase = await createClient();
+  // The service-role client, not the visitor's. check_rate_limit() takes the
+  // bucket name as an argument, so a function the browser could call was one
+  // anybody could use to record hits against somebody else's bucket and lock
+  // them out. Migration 0025 takes EXECUTE away from the public roles; from
+  // here the bucket is only ever one this server chose.
+  let supabase: ReturnType<typeof createAdminClient>;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    // No service-role key is a deployment problem, like a missing function:
+    // keep the app usable on the per-instance limiter and say so loudly.
+    console.error(
+      `FRAME rate limit: the service-role client is unavailable (${
+        error instanceof Error ? error.message : 'unknown error'
+      }); using the per-instance fallback.`,
+    );
+    return checkInProcess(key, limit, windowSeconds);
+  }
+
   const { data, error } = await supabase.rpc('check_rate_limit', {
     p_bucket: key,
     p_limit: limit,

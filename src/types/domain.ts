@@ -472,6 +472,11 @@ export interface PhotographComment {
   isDeleted: boolean;
   isHidden: boolean;
   hiddenReason: string | null;
+  /**
+   * Who hid it. The photographer may restore only a comment they hid
+   * themselves, so the page needs to know whose decision it was.
+   */
+  hiddenById: string | null;
   /** Replies to this comment, oldest first. Only a top-level comment has any. */
   replies: PhotographComment[];
 }
