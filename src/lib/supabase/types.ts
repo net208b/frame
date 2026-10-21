@@ -128,12 +128,15 @@ export interface NotificationRow {
     | 'photograph_published'
     | 'challenge_award'
     | 'editors_pick'
-    | 'featured';
+    | 'featured'
+    | 'admin_notice';
   actor_id: string | null;
   subject_type: 'photograph' | 'profile' | 'comment' | 'challenge' | 'feature';
   subject_id: string;
   subject_label: string;
   subject_slug: string | null;
+  /** What the admin wrote (0032); null for every other kind. */
+  message: string | null;
   read_at: string | null;
   created_at: string;
 }
@@ -909,6 +912,14 @@ export interface Database {
       publish_challenge_results: {
         Args: { p_challenge_id: string };
         Returns: string;
+      };
+      send_admin_notice: {
+        Args: { p_photograph_id: string; p_message: string };
+        Returns: undefined;
+      };
+      admin_email_is_staff: {
+        Args: { p_email: string };
+        Returns: boolean;
       };
       set_editors_pick: {
         Args: { p_photograph_id: string; p_pick: boolean };

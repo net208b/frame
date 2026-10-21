@@ -3137,7 +3137,7 @@ export async function followersOf(profileId: string, limit = 24): Promise<Photog
 /* ------------------------------------------------------------------------ */
 
 const NOTIFICATION_FIELDS =
-  'id, kind, actor_id, subject_type, subject_id, subject_label, subject_slug, read_at, created_at';
+  'id, kind, actor_id, subject_type, subject_id, subject_label, subject_slug, message, read_at, created_at';
 
 interface NotificationJoined
   extends Pick<
@@ -3149,6 +3149,7 @@ interface NotificationJoined
     | 'subject_id'
     | 'subject_label'
     | 'subject_slug'
+    | 'message'
     | 'read_at'
     | 'created_at'
   > {
@@ -3193,6 +3194,7 @@ export async function notificationsFor(limit = 40): Promise<AppNotification[]> {
       subjectId,
       subjectLabel: toText(row.subject_label) ?? '',
       subjectSlug: toText(row.subject_slug),
+      message: toText(row.message),
       readAt: toText(row.read_at),
       createdAt: toText(row.created_at) ?? '',
     });

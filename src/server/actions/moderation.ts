@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { fail, NOT_CONFIGURED_MESSAGE, ok, type ActionResult } from '@/lib/action-result';
 import { getViewer, getViewerSuspension, isModerator, type Viewer } from '@/lib/auth';
-import { isDemoMode } from '@/lib/config';
+import { isDemoMode, serverEnv } from '@/lib/config';
 import { storageKeys } from '@/lib/images/variants';
 import { storageDriver } from '@/lib/storage';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -769,6 +769,24 @@ export async function actOnUpload(input: unknown): Promise<ActionResult<void>> {
     moderatorId: viewer.id,
   });
 
+  // A request for changes reaches the member as a notice (0032): what to fix
+  // and where to reply. Until this, the reason went only to the audit trail,
+  // which members cannot read, and the photograph simply stayed unpublished.
+  let noticeSent = decision !== 'request_changes';
+  if (decision === 'request_changes' && reason !== null) {
+    const contact = serverEnv().adminContactEmail;
+    const message = contact ? `${reason}\n\nReply to ${contact}.` : reason;
+    const { error: noticeError } = await supabase.rpc('send_admin_notice', {
+      p_photograph_id: photographId,
+      p_message: message,
+    });
+    if (noticeError) {
+      console.error(`FRAME moderation: the notice for ${photographId} was not sent — ${noticeError.message}`);
+    } else {
+      noticeSent = true;
+    }
+  }
+
   const ownerUsername = await usernameOf(supabase, current.owner_id);
   revalidateLocalisedPath('/moderation');
   revalidateLocalisedPath('/discover');
@@ -783,9 +801,9 @@ export async function actOnUpload(input: unknown): Promise<ActionResult<void>> {
       ? 'The photograph is published.'
       : decision === 'remove_content'
         ? `The photograph is removed and the member can read your reason.${filesWithdrawn ? '' : FILES_STILL_SERVED}`
-        : // `removed_reason` is the only member-readable note on a photograph,
-          // and a hold does not set it, so this reason stays internal.
-          'The photograph stays under review. Your reason is in the moderation trail, which only moderators can read.',
+        : noticeSent
+          ? 'The photograph stays under review and the member has been sent your message.'
+          : 'The photograph stays under review, but the message to the member could not be sent — check the logs.',
   );
 }
 

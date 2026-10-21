@@ -419,6 +419,7 @@ export const NOTIFICATION_KINDS = [
   'challenge_award',
   'editors_pick',
   'featured',
+  'admin_notice',
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -441,6 +442,8 @@ export interface AppNotification {
   subjectLabel: string;
   /** The photograph's slug or the member's username, for the link. */
   subjectSlug: string | null;
+  /** What the admin wrote, for an admin notice. Null for every other kind. */
+  message: string | null;
   readAt: string | null;
   createdAt: string;
 }
