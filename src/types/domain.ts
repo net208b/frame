@@ -353,6 +353,8 @@ export interface Photobook {
   visibility: PhotobookVisibility;
   /** Times the book page has been served. A number, never who. */
   opens: number;
+  /** Where it sits on the owner's shelf, 1..12. */
+  position: number;
   owner: PhotographerSummary;
   /** In position order. A page whose photograph is no longer published is absent. */
   pages: PhotobookPage[];

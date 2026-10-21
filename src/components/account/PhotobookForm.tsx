@@ -64,12 +64,15 @@ export interface PhotobookFormValues {
 export function PhotobookForm({
   candidates,
   initial,
+  bookId,
   existingSlug,
   brands,
   disabled = false,
 }: {
   candidates: readonly PhotobookCandidate[];
   initial: PhotobookFormValues;
+  /** The book on the shelf this form edits; null binds a new one. */
+  bookId: string | null;
   /** Set when a book already exists: its address does not change on save. */
   existingSlug: string | null;
   /** Brand names to suggest; the member may type any other. */
@@ -106,6 +109,9 @@ export function PhotobookForm({
   return (
     <div className="space-y-8">
       <form action={saveAction} onSubmit={keepTypedValues(saveAction)} className="space-y-6">
+        {/* Which book this is. Absent on a new one; the action checks the
+            id is the member's own before it writes a word. */}
+        {bookId ? <input type="hidden" name="bookId" value={bookId} /> : null}
         <FormStatus state={saveState}>
           {saveState?.ok ? (
             <FormSuccess title={saveState.message ?? ''}>
@@ -351,8 +357,9 @@ export function PhotobookForm({
         </fieldset>
       </form>
 
-      {existingSlug ? (
+      {bookId && existingSlug ? (
         <form action={deleteAction} className="space-y-3 border-t border-line pt-6">
+          <input type="hidden" name="bookId" value={bookId} />
           <FormStatus state={deleteState} />
           <p className="text-caption text-muted">{t('photobook.deleteHint')}</p>
           <Button type="submit" variant="ghost" loading={deleting} disabled={disabled || saving}>

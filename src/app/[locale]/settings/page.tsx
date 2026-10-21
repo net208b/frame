@@ -13,7 +13,11 @@ import { withLocalePrefix } from '@/i18n/locales';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { getOwnSettings } from '@/lib/account';
 import { requireViewer } from '@/lib/auth';
-import { getGearFacets, getPhotobookByOwner, getPortfolio } from '@/lib/data/repository';
+import { BookCover } from '@/components/photobook/BookCover';
+import { Button } from '@/components/ui/Button';
+import { Link } from '@/i18n/navigation';
+import { getGearFacets, getPhotobooksByOwner, getPortfolio } from '@/lib/data/repository';
+import { PHOTOBOOK_LIMITS } from '@/lib/validation/photobook';
 import { countryOptions } from '@/lib/geo/countries';
 import { isDemoMode } from '@/lib/config';
 import { buildMetadata } from '@/lib/seo';
@@ -58,7 +62,14 @@ export async function generateMetadata({
 
 const SECTION = 'border-t border-line pt-10';
 
-export default async function SettingsPage({ params }: { params: LocaleParams }) {
+export default async function SettingsPage({
+  params,
+  searchParams,
+}: {
+  params: LocaleParams;
+  /** `?book=<id>` opens that book in the editor; `?book=new` opens an empty one. */
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const { locale } = await readLocaleParams(params);
   setRequestLocale(locale);
 
@@ -93,11 +104,24 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
 
   // The frames a cover may be: this member's own published photographs, newest
   // first, which is the same read the profile page makes.
-  const [portfolio, photobook, gear] = await Promise.all([
+  const [portfolio, photobooks, gear] = await Promise.all([
     getPortfolio(viewer.id),
-    getPhotobookByOwner(viewer.id),
+    getPhotobooksByOwner(viewer.id),
     getGearFacets(),
   ]);
+
+  /*
+   * Which book the editor is open on. `?book=<id>` names one of the shelf's
+   * own; `?book=new` asks for an empty one; nothing at all shows the shelf and,
+   * when it is empty, the editor for a first book — so a member with no book
+   * yet lands straight in it, as they always did.
+   */
+  const bookParam = (await searchParams)?.book;
+  const bookQuery = typeof bookParam === 'string' ? bookParam : null;
+  const shelfFull = photobooks.length >= PHOTOBOOK_LIMITS.maxBooks;
+  const photobook = bookQuery ? (photobooks.find((book) => book.id === bookQuery) ?? null) : null;
+  const creating = (bookQuery === 'new' && !shelfFull) || (photobooks.length === 0 && !bookQuery);
+  const editorOpen = photobook !== null || creating;
   const coverCandidates = portfolio.map((photograph) => ({ id: photograph.id, title: photograph.title }));
   // The book is made from the same published frames, with a thumbnail to pick by.
   const bookCandidates = portfolio.map((photograph) => ({
@@ -172,9 +196,77 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
             {t('photobook.heading')}
           </h2>
           <p className="mt-2 text-body text-muted">{t('photobook.intro')}</p>
-          <div className="mt-8">
+
+          {/* The shelf: every book, with the one the editor is open on marked. */}
+          {photobooks.length > 0 ? (
+            <div className="mt-8">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h3 className="text-body font-bold">{t('photobook.shelfHeading')}</h3>
+                <p className="text-meta text-muted tabular-nums">
+                  {t('photobook.shelfCount', { count: photobooks.length, max: PHOTOBOOK_LIMITS.maxBooks })}
+                </p>
+              </div>
+              <ul className="mt-4 grid grid-cols-2 gap-5 sm:grid-cols-3 md:grid-cols-4">
+                {photobooks.map((book) => {
+                  const current = photobook?.id === book.id;
+                  return (
+                    <li key={book.id} className={current ? 'rounded-[8px] ring-2 ring-ink ring-offset-4 ring-offset-paper' : undefined}>
+                      <BookCover
+                        cover={book.cover}
+                        subject={{
+                          title: book.title,
+                          author: viewer.displayName,
+                          handle: viewer.username,
+                          slug: book.slug,
+                          gearMode: book.gearMode,
+                          gearBrand: book.gearBrand,
+                          gearModel: book.gearModel,
+                        }}
+                        className="rounded-[3px_6px_6px_3px] shadow-popover"
+                      />
+                      <p className="mt-2 truncate text-caption font-bold">{book.title}</p>
+                      <p className="text-meta text-muted">
+                        {book.visibility === 'public' ? t('photobook.public') : t('photobook.unlisted')}
+                        {' · '}
+                        {book.pages.length}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <Button asChild size="sm" variant={current ? 'primary' : 'secondary'}>
+                          <Link href={`/settings?book=${book.id}#settings-photobook`} scroll={false}>
+                            {t('photobook.shelfEdit')}
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost">
+                          <Link href={`/books/${book.slug}`}>{t('photobook.open')}</Link>
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-5">
+                {shelfFull ? (
+                  <p className="text-caption text-muted">{t('photobook.shelfFull', { max: PHOTOBOOK_LIMITS.maxBooks })}</p>
+                ) : (
+                  <Button asChild variant={creating ? 'primary' : 'secondary'}>
+                    <Link href="/settings?book=new#settings-photobook" scroll={false}>
+                      {t('photobook.shelfNew')}
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {editorOpen ? (
+          <div className="mt-8 border-t border-line pt-8">
+            <h3 className="text-body font-bold">
+              {photobook ? t('photobook.editing', { title: photobook.title }) : t('photobook.creating')}
+            </h3>
             <PhotobookForm
+              key={photobook?.id ?? 'new'}
               candidates={bookCandidates}
+              bookId={photobook?.id ?? null}
               existingSlug={photobook?.slug ?? null}
               brands={gear.cameraBrands.map((brand) => brand.label)}
               disabled={settings.isSuspended}
@@ -191,6 +283,7 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
               }}
             />
           </div>
+          ) : null}
         </section>
 
         <section aria-labelledby="settings-username" className={SECTION}>

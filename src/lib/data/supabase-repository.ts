@@ -1746,7 +1746,7 @@ type PhotobookColumns = Nullable<
   Pick<
     Tables<'photobooks'>,
     | 'id' | 'owner_id' | 'slug' | 'title' | 'dedication' | 'cover_preset' | 'paper_preset'
-    | 'gear_mode' | 'gear_brand' | 'gear_model' | 'visibility' | 'opens' | 'updated_at'
+    | 'gear_mode' | 'gear_brand' | 'gear_model' | 'visibility' | 'opens' | 'position' | 'updated_at'
   >
 >;
 
@@ -1761,7 +1761,7 @@ interface PhotobookJoined extends PhotobookColumns {
  */
 const PHOTOBOOK_SELECT = `
   id, owner_id, slug, title, dedication, cover_preset, paper_preset, gear_mode, gear_brand,
-  gear_model, visibility, opens, updated_at, profiles!owner_id(${PROFILE_SUMMARY_FIELDS})
+  gear_model, visibility, opens, position, updated_at, profiles!owner_id(${PROFILE_SUMMARY_FIELDS})
 `;
 
 /**
@@ -1841,6 +1841,7 @@ function photobookFromRow(
     gearModel: toText(row.gear_model),
     visibility: row.visibility === 'public' ? 'public' : 'unlisted',
     opens: toNumber(row.opens) ?? 0,
+    position: toNumber(row.position) ?? 1,
     owner: parts.owner,
     pages: parts.pages,
     updatedAt: toText(row.updated_at) ?? '',
@@ -1883,6 +1884,34 @@ export async function publicPhotobooks(limit: number): Promise<Photobook[]> {
       .order('updated_at', { ascending: false })
       .limit(limit),
   );
+  return assemblePhotobooks(supabase, rows, 'the public photobooks');
+}
+
+/**
+ * One member's shelf, in the order they put it. Every book, public and
+ * unlisted: the caller decides what a given reader may see on a profile,
+ * which the policy already allows them to read by address anyway.
+ */
+export async function photobooksByOwner(ownerId: string): Promise<Photobook[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<PhotobookJoined>(
+    "reading a member's photobooks",
+    await supabase
+      .from('photobooks')
+      .select(PHOTOBOOK_SELECT)
+      .eq('owner_id', ownerId)
+      .order('position', { ascending: true })
+      .order('created_at', { ascending: true }),
+  );
+  return assemblePhotobooks(supabase, rows, "a member's photobooks");
+}
+
+/** Many books in three queries, whatever the count — see `publicPhotobooks`. */
+async function assemblePhotobooks(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: readonly PhotobookJoined[],
+  what: string,
+): Promise<Photobook[]> {
   if (rows.length === 0) return [];
 
   const bookIds = rows
@@ -1895,7 +1924,7 @@ export async function publicPhotobooks(limit: number): Promise<Photobook[]> {
     photograph_id: string | null;
     position: number | null;
   }>(
-    'reading the pages of the public photobooks',
+    `reading the pages of ${what}`,
     await supabase
       .from('photobook_pages')
       .select('photobook_id, photograph_id, position')
@@ -1917,7 +1946,7 @@ export async function publicPhotobooks(limit: number): Promise<Photobook[]> {
       ? await mapPhotographRows(
           supabase,
           unwrapList<PhotographJoined>(
-            'reading the photographs of the public photobooks',
+            `reading the photographs of ${what}`,
             await supabase
               .from('photographs')
               .select(photographSelect())
@@ -1951,16 +1980,6 @@ export async function publicPhotobooks(limit: number): Promise<Photobook[]> {
     books.push(photobookFromRow(row, { id, slug, title, owner, pages: pagesByBook.get(id) ?? [] }));
   }
   return books;
-}
-
-/** The one book a member has, for Settings and for their profile tab. */
-export async function photobookByOwner(ownerId: string): Promise<Photobook | null> {
-  const supabase = await createClient();
-  const row = unwrap<PhotobookJoined>(
-    'reading a member\'s photobook',
-    await supabase.from('photobooks').select(PHOTOBOOK_SELECT).eq('owner_id', ownerId).maybeSingle(),
-  );
-  return row ? assemblePhotobook(supabase, row) : null;
 }
 
 /**

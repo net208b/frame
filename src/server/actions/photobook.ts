@@ -10,7 +10,7 @@ import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { slugify } from '@/lib/utils';
 import { parseForm } from '@/lib/validation';
-import { photobookSchema } from '@/lib/validation/photobook';
+import { PHOTOBOOK_LIMITS, photobookSchema } from '@/lib/validation/photobook';
 
 /**
  * The photobook: one per member, made from their own published photographs.
@@ -101,18 +101,25 @@ export async function savePhotobook(
   const limited = await limit(member.id);
   if (limited) return limited;
 
-  const { title, dedication, cover, paper, gearMode, gearBrand, gearModel, visibility, pages } =
+  const { bookId, title, dedication, cover, paper, gearMode, gearBrand, gearModel, visibility, pages } =
     parsed.data;
 
-  // The existing book, if there is one: its id and its address are kept.
-  const { data: existing, error: readError } = await supabase
-    .from('photobooks')
-    .select('id, slug')
-    .eq('owner_id', member.id)
-    .maybeSingle();
-  if (readError) {
-    log('reading the existing book', readError.message, readError.code);
-    return fail(t('actions.bookFailed'), 'unknown');
+  // The book being edited, if any — looked up by id AND owner, so a foreign
+  // id gets a sentence rather than a silent no-op. Its address is kept.
+  let existing: { id: string; slug: string } | null = null;
+  if (bookId) {
+    const { data, error: readError } = await supabase
+      .from('photobooks')
+      .select('id, slug')
+      .eq('id', bookId)
+      .eq('owner_id', member.id)
+      .maybeSingle();
+    if (readError) {
+      log('reading the book being edited', readError.message, readError.code);
+      return fail(t('actions.bookFailed'), 'unknown');
+    }
+    if (!data) return fail(t('actions.bookNotYours'), 'forbidden');
+    existing = data as { id: string; slug: string };
   }
 
   const fields = {
@@ -126,42 +133,58 @@ export async function savePhotobook(
     visibility,
   };
 
-  let bookId: string;
+  let savedId: string;
   let slug: string;
 
   if (existing) {
-    const row = existing as { id: string; slug: string };
-    bookId = row.id;
-    slug = row.slug;
-    const { error } = await supabase.from('photobooks').update(fields).eq('id', bookId).eq('owner_id', member.id);
+    savedId = existing.id;
+    slug = existing.slug;
+    const { error } = await supabase.from('photobooks').update(fields).eq('id', savedId).eq('owner_id', member.id);
     if (error) {
       log('updating the book', error.message, error.code);
       return fail(t('actions.bookFailed'), 'unknown');
     }
   } else {
+    // A new book goes at the end of the shelf. The count is also the early,
+    // friendlier form of the cap: the trigger in 0019 refuses a thirteenth
+    // regardless, and is caught below as the same sentence.
+    const { count, error: countError } = await supabase
+      .from('photobooks')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', member.id);
+    if (countError) {
+      log('counting the shelf', countError.message, countError.code);
+      return fail(t('actions.bookFailed'), 'unknown');
+    }
+    const shelved = count ?? 0;
+    if (shelved >= PHOTOBOOK_LIMITS.maxBooks) {
+      return fail(t('actions.bookLimit', { max: PHOTOBOOK_LIMITS.maxBooks }), 'validation');
+    }
+
     // `username-title`, like the profile's own address: memorable enough to
     // read aloud, unique enough that two members' "Bangkok" do not collide.
     slug = slugify(`${member.username}-${title}`).slice(0, 70) || slugify(member.username);
     const { data, error } = await supabase
       .from('photobooks')
-      .insert({ owner_id: member.id, slug, ...fields })
+      .insert({ owner_id: member.id, slug, position: shelved + 1, ...fields })
       .select('id, slug')
       .single();
     if (error || !data) {
       log('creating the book', error?.message ?? 'no row returned', error?.code);
-      return fail(
-        error?.code === '23505' ? t('actions.bookSlugTaken') : t('actions.bookFailed'),
-        error?.code === '23505' ? 'conflict' : 'unknown',
-      );
+      if (error?.code === '23505') return fail(t('actions.bookSlugTaken'), 'conflict');
+      if (error?.code === '23514') {
+        return fail(t('actions.bookLimit', { max: PHOTOBOOK_LIMITS.maxBooks }), 'validation');
+      }
+      return fail(t('actions.bookFailed'), 'unknown');
     }
-    bookId = (data as { id: string }).id;
+    savedId = (data as { id: string }).id;
   }
 
   // The pages: cleared and rewritten in the member's order. Two statements,
   // not one transaction — PostgREST has none — so the order is the one that
   // fails safely: a failed insert leaves a book with no pages and a sentence
   // saying so, never a book with somebody else's page or a duplicate.
-  const { error: clearError } = await supabase.from('photobook_pages').delete().eq('photobook_id', bookId);
+  const { error: clearError } = await supabase.from('photobook_pages').delete().eq('photobook_id', savedId);
   if (clearError) {
     log('clearing the pages', clearError.message, clearError.code);
     return fail(t('actions.bookFailed'), 'unknown');
@@ -169,7 +192,7 @@ export async function savePhotobook(
 
   const { error: pagesError } = await supabase
     .from('photobook_pages')
-    .insert(pages.map((photographId, index) => ({ photobook_id: bookId, photograph_id: photographId, position: index + 1 })));
+    .insert(pages.map((photographId, index) => ({ photobook_id: savedId, photograph_id: photographId, position: index + 1 })));
   if (pagesError) {
     log('writing the pages', pagesError.message, pagesError.code);
     // 42501 is the trigger: a page that is not this member's own published
@@ -187,7 +210,7 @@ export async function savePhotobook(
 
 export async function deletePhotobook(
   _state: PreviousState,
-  _formData: FormData,
+  formData: FormData,
 ): Promise<ActionResult<void>> {
   const t = await messages();
   if (isDemoMode()) return fail(t('actions.notConfigured'), 'not_configured');
@@ -199,9 +222,16 @@ export async function deletePhotobook(
   const limited = await limit(member.id);
   if (limited) return limited;
 
+  // One book, named by id, and only the member's own. Deleting "all my books"
+  // from a single button is not a thing this form offers.
+  const raw = formData.get('bookId');
+  const bookId = typeof raw === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(raw.trim()) ? raw.trim() : null;
+  if (!bookId) return fail(t('actions.bookNotYours'), 'forbidden');
+
   const { data, error } = await supabase
     .from('photobooks')
     .delete()
+    .eq('id', bookId)
     .eq('owner_id', member.id)
     .select('slug');
   if (error) {

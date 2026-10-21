@@ -220,9 +220,10 @@ export async function getPublicPhotobooks(limit: number): Promise<Photobook[]> {
   return demo.demoPublicPhotobooks(limit);
 }
 
-export async function getPhotobookByOwner(ownerId: string): Promise<Photobook | null> {
-  if (useLive()) return live.photobookByOwner(ownerId);
-  return demo.demoPhotobookByOwner(ownerId);
+/** A member's whole shelf, public and unlisted, in their order. */
+export async function getPhotobooksByOwner(ownerId: string): Promise<Photobook[]> {
+  if (useLive()) return live.photobooksByOwner(ownerId);
+  return demo.demoPhotobooksByOwner(ownerId);
 }
 
 /** Demo mode counts nothing: there is no book to count against. */

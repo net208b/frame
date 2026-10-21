@@ -30,6 +30,8 @@ export const PHOTOBOOK_LIMITS = {
   gear: 30,
   minPages: PHOTOBOOK_MIN_PAGES,
   maxPages: PHOTOBOOK_MAX_PAGES,
+  /** Books per member. The trigger in migration 0019 is the rule; this is the hint. */
+  maxBooks: 12,
 } as const;
 
 const IDENTIFIER = /^[A-Za-z0-9_-]{1,64}$/;
@@ -50,6 +52,17 @@ function optionalText(max: number, code: string) {
 }
 
 export const photobookSchema = z.object({
+  /**
+   * Which book on the shelf this save is for. Absent on a new book. The action
+   * still checks the id belongs to the member — row-level security refuses a
+   * foreign one regardless, but a clear sentence beats a silent no-op.
+   */
+  bookId: z
+    .string()
+    .trim()
+    .transform((value) => (IDENTIFIER.test(value) ? value : null))
+    .optional()
+    .transform((value) => value ?? null),
   title: z
     .string({ error: validationCode('bookTitle.required') })
     .trim()
