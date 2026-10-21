@@ -1,4 +1,4 @@
-import { CopyCheck, Flag, MapPinned, ScanSearch, ScrollText, Trophy, UsersRound } from 'lucide-react';
+import { CopyCheck, Flag, MapPinned, Newspaper, ScanSearch, ScrollText, Trophy, UsersRound } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import type { Locale } from '@/i18n/locales';
@@ -21,6 +21,7 @@ export const MODERATION_QUEUES = [
   'submissions',
   'reports',
   'challenges',
+  'features',
   'duplicates',
   'actions',
   'team',
@@ -36,6 +37,7 @@ const QUEUE_ICONS: Record<QueueKey, typeof MapPinned> = {
   submissions: MapPinned,
   reports: Flag,
   challenges: Trophy,
+  features: Newspaper,
   uploads: ScanSearch,
   duplicates: CopyCheck,
   actions: ScrollText,

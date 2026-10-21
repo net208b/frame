@@ -417,6 +417,8 @@ export const NOTIFICATION_KINDS = [
   'follow',
   'photograph_published',
   'challenge_award',
+  'editors_pick',
+  'featured',
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -434,13 +436,49 @@ export interface AppNotification {
   id: string;
   kind: NotificationKind;
   actor: PhotographerSummary | null;
-  subjectType: 'photograph' | 'profile' | 'comment' | 'challenge';
+  subjectType: 'photograph' | 'profile' | 'comment' | 'challenge' | 'feature';
   subjectId: string;
   subjectLabel: string;
   /** The photograph's slug or the member's username, for the link. */
   subjectSlug: string | null;
   readAt: string | null;
   createdAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Features                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/** A feature needs at least this many published photographs to go up (0030). */
+export const FEATURE_MIN_ITEMS = 3;
+export const FEATURE_MAX_ITEMS = 24;
+
+/** One photograph in a feature, with the editors' caption. */
+export interface FeatureItem {
+  photograph: PhotographDetail;
+  position: number;
+  caption: { en: string | null; th: string | null };
+}
+
+/**
+ * A short piece by FRAME's editors: a title and an introduction in both
+ * languages, and a sequence of published photographs. Drafts reach only
+ * staff; a photograph taken down drops out of the piece.
+ */
+export interface FeatureSummary {
+  id: string;
+  slug: string;
+  title: { en: string; th: string };
+  intro: { en: string; th: string };
+  status: 'draft' | 'published';
+  publishedAt: string | null;
+  /** The first photograph, for a card. */
+  cover: PhotographDetail | null;
+  itemCount: number;
+}
+
+export interface FeatureDetail extends FeatureSummary {
+  items: FeatureItem[];
 }
 
 /* ------------------------------------------------------------------------ */

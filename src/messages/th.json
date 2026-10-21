@@ -819,7 +819,10 @@
       "photobooksMetaDescription": "ช่างภาพบน FRAME เย็บภาพที่เผยแพร่แล้วเป็นเล่มที่เปิดและพลิกหน้าได้ พร้อมลิงก์เป็นของตัวเอง",
       "challenges": "โจทย์ประจำเดือน",
       "challengesMetaTitle": "โจทย์ประจำเดือน",
-      "challengesMetaDescription": "โจทย์ใหม่ทุกเดือน ตัดสินโดยบรรณาธิการของ FRAME — ส่งภาพสตรีทของคุณเข้าร่วม"
+      "challengesMetaDescription": "โจทย์ใหม่ทุกเดือน ตัดสินโดยบรรณาธิการของ FRAME — ส่งภาพสตรีทของคุณเข้าร่วม",
+      "features": "บทความคัดสรร",
+      "featuresMetaTitle": "บทความคัดสรรจากบรรณาธิการ",
+      "featuresMetaDescription": "บทความสั้นโดยบรรณาธิการของ FRAME เล่าผ่านภาพสตรีทของสมาชิก"
     }
   },
   "auth": {
@@ -2091,6 +2094,11 @@
         "label": "โจทย์ประจำเดือน",
         "count": "{count, plural, =0 {ไม่มีโจทย์ที่รอประกาศผล} other {มี # โจทย์ที่รอประกาศผล}}",
         "countCapped": "อย่างน้อย {count, number} โจทย์ที่รอประกาศผล"
+      },
+      "features": {
+        "label": "บทความคัดสรร",
+        "count": "{count, plural, =0 {ไม่มีฉบับร่าง} other {ฉบับร่าง # เรื่อง}}",
+        "countCapped": "ฉบับร่างอย่างน้อย {count, number} เรื่อง"
       }
     },
     "severity": {
@@ -2916,7 +2924,9 @@
       "appreciation": "{name} ชื่นชมภาพ “{subject}”",
       "follow": "{name} เริ่มติดตามคุณ",
       "photograph_published": "ภาพ “{subject}” ของคุณเผยแพร่แล้ว",
-      "challenge_award": "ภาพ “{subject}” ของคุณได้รับรางวัลจากโจทย์ประจำเดือน"
+      "challenge_award": "ภาพ “{subject}” ของคุณได้รับรางวัลจากโจทย์ประจำเดือน",
+      "editors_pick": "ภาพ “{subject}” ได้รับเลือกเป็น Editor’s pick",
+      "featured": "ผลงานของคุณได้รับคัดเลือกใน “{subject}” บทความโดยบรรณาธิการ FRAME"
     }
   },
   "challenges": {
@@ -3008,6 +3018,57 @@
       "published": "ประกาศผลแล้ว",
       "allTitle": "โจทย์ทั้งหมด",
       "none": "ยังไม่มีการตั้งโจทย์"
+    }
+  },
+  "features": {
+    "pick": {
+      "intro": "เฉพาะบรรณาธิการ: Editor’s pick จะขึ้นหน้าแรกและอยู่ลำดับแรกในการเรียงแบบ Editors’ picks ของ Discover และช่างภาพจะได้รับแจ้ง",
+      "add": "เลือกเป็น Editor’s pick",
+      "remove": "นำออกจาก Editor’s picks",
+      "picked": "เลือกเป็น Editor’s pick แล้ว",
+      "unpicked": "นำออกจาก Editor’s picks แล้ว"
+    },
+    "draft": "ฉบับร่าง",
+    "photographCount": "{count, plural, other {# ภาพ}}",
+    "overview": {
+      "eyebrow": "จากบรรณาธิการ",
+      "title": "บทความคัดสรร",
+      "lead": "บทความสั้นโดยบรรณาธิการของ FRAME: หัวข้อ เมือง หรือวิธีมอง เล่าผ่านภาพของสมาชิก",
+      "emptyTitle": "ยังไม่มีบทความ",
+      "emptyDescription": "บทความแรกจะขึ้นที่นี่เมื่อบรรณาธิการเผยแพร่"
+    },
+    "home": {
+      "eyebrow": "จากบรรณาธิการ",
+      "read": "อ่านบทความ"
+    },
+    "breadcrumb": {
+      "label": "เส้นทาง",
+      "features": "บทความคัดสรร"
+    },
+    "reader": {
+      "eyebrow": "บทความโดยบรรณาธิการ FRAME · {date}"
+    },
+    "desk": {
+      "createTitle": "เริ่มบทความใหม่",
+      "slug": "ที่อยู่",
+      "slugHint": "ส่วนท้ายของ /features/… ใช้ตัวพิมพ์เล็กและขีดกลาง",
+      "titleEn": "ชื่อเรื่อง (อังกฤษ)",
+      "titleTh": "ชื่อเรื่อง (ไทย)",
+      "introEn": "บทนำ (อังกฤษ)",
+      "introTh": "บทนำ (ไทย)",
+      "create": "บันทึกฉบับร่าง",
+      "created": "บันทึกฉบับร่างแล้ว",
+      "statusPublished": "เผยแพร่แล้ว",
+      "statusDraft": "ฉบับร่าง",
+      "view": "ดู",
+      "lines": "ภาพตามลำดับ",
+      "linesHint": "บรรทัดละหนึ่งภาพ: ที่อยู่ภาพหรือ slug ตามด้วยคำบรรยาย (ไม่บังคับ) — ที่อยู่ | คำบรรยายอังกฤษ | คำบรรยายไทย",
+      "savePhotographs": "บันทึกภาพ",
+      "saved": "บันทึกแล้ว",
+      "takeDown": "ถอนการเผยแพร่",
+      "publish": "เผยแพร่",
+      "needsThree": "บทความต้องมีภาพที่เผยแพร่แล้วอย่างน้อย {count} ภาพจึงจะเผยแพร่ได้",
+      "none": "ยังไม่มีการเริ่มบทความ"
     }
   }
 }

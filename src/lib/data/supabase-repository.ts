@@ -20,6 +20,9 @@ import {
   CRITIQUE_PREFERENCES,
   CHALLENGE_AWARDS,
   NOTIFICATION_KINDS,
+  type FeatureDetail,
+  type FeatureItem,
+  type FeatureSummary,
   type AppNotification,
   type ChallengeAward,
   type ChallengeCandidate,
@@ -877,6 +880,11 @@ async function fetchPhotographRows(
 
   if (options.order === 'appreciated') {
     query = query.order('appreciation_count', { ascending: false });
+  }
+  // Editors' picks come in the order they were picked (0030), so "the latest
+  // picks" means what an editor chose most recently, not what was uploaded.
+  if (options.editorsOnly) {
+    query = query.order('editors_picked_at', { ascending: false, nullsFirst: false });
   }
   query = query.order('published_at', { ascending: false, nullsFirst: false });
 
@@ -3172,7 +3180,7 @@ export async function notificationsFor(limit = 40): Promise<AppNotification[]> {
     const id = toText(row.id);
     const kind = NOTIFICATION_KINDS.find((candidate) => candidate === row.kind);
     const subjectId = toText(row.subject_id);
-    const subjectType = (['photograph', 'profile', 'comment', 'challenge'] as const).find(
+    const subjectType = (['photograph', 'profile', 'comment', 'challenge', 'feature'] as const).find(
       (candidate) => candidate === row.subject_type,
     );
     if (!id || !kind || !subjectId || !subjectType) continue;
@@ -3500,4 +3508,121 @@ export async function challengeCandidates(
         !challenge.requiresNewWork || (captured !== null && Date.parse(captured) >= opensAt),
     };
   });
+}
+
+/* ------------------------------------------------------------------------ */
+/* Features                                                                 */
+/* ------------------------------------------------------------------------ */
+
+const FEATURE_FIELDS = 'id, slug, title_en, title_th, intro_en, intro_th, status, published_at';
+
+type FeatureColumns = Nullable<
+  Pick<
+    Tables<'features'>,
+    'id' | 'slug' | 'title_en' | 'title_th' | 'intro_en' | 'intro_th' | 'status' | 'published_at'
+  >
+>;
+
+type FeatureItemColumns = Nullable<
+  Pick<Tables<'feature_items'>, 'feature_id' | 'photograph_id' | 'position' | 'caption_en' | 'caption_th'>
+>;
+
+function mapFeature(row: FeatureColumns): Omit<FeatureSummary, 'cover' | 'itemCount'> | null {
+  const id = toText(row.id);
+  const slug = toText(row.slug);
+  if (!id || !slug) return null;
+  return {
+    id,
+    slug,
+    title: { en: toText(row.title_en) ?? '', th: toText(row.title_th) ?? '' },
+    intro: { en: toText(row.intro_en) ?? '', th: toText(row.intro_th) ?? '' },
+    status: row.status === 'published' ? 'published' : 'draft',
+    publishedAt: toText(row.published_at),
+  };
+}
+
+/**
+ * The items of these features, in position order, with their photographs.
+ * Row-level security already leaves out a photograph that has been taken
+ * down (and, for the public, every item of a draft); the published-photograph
+ * read drops anything that slipped through between the two reads.
+ */
+async function featureItems(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  featureIds: readonly string[],
+): Promise<Map<string, FeatureItem[]>> {
+  const byFeature = new Map<string, FeatureItem[]>();
+  if (featureIds.length === 0) return byFeature;
+
+  const rows = unwrapList<FeatureItemColumns>(
+    'feature items',
+    await supabase
+      .from('feature_items')
+      .select('feature_id, photograph_id, position, caption_en, caption_th')
+      .in('feature_id', [...featureIds])
+      .order('position', { ascending: true }),
+  );
+  const photos = await publishedPhotographsById(
+    supabase,
+    rows.map((row) => toText(row.photograph_id)).filter((id): id is string => id !== null),
+  );
+
+  for (const row of rows) {
+    const featureId = toText(row.feature_id);
+    const photographId = toText(row.photograph_id);
+    const photograph = photographId ? photos.get(photographId) : undefined;
+    if (!featureId || !photograph) continue;
+    const list = byFeature.get(featureId) ?? [];
+    list.push({
+      photograph,
+      position: toNumber(row.position) ?? list.length + 1,
+      caption: { en: toText(row.caption_en), th: toText(row.caption_th) },
+    });
+    byFeature.set(featureId, list);
+  }
+  return byFeature;
+}
+
+/**
+ * Features, newest published first; staff also get their drafts, which
+ * row-level security hands them and nobody else.
+ */
+export async function featureList(limit = 24): Promise<FeatureSummary[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<FeatureColumns>(
+    'the feature list',
+    await supabase
+      .from('features')
+      .select(FEATURE_FIELDS)
+      .order('published_at', { ascending: false, nullsFirst: true })
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  );
+  const features = rows
+    .map(mapFeature)
+    .filter((feature): feature is NonNullable<typeof feature> => feature !== null);
+  const items = await featureItems(
+    supabase,
+    features.map((feature) => feature.id),
+  );
+  return features.map((feature) => {
+    const list = items.get(feature.id) ?? [];
+    return { ...feature, cover: list[0]?.photograph ?? null, itemCount: list.length };
+  });
+}
+
+export async function featureBySlug(slug: string): Promise<FeatureDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('features')
+    .select(FEATURE_FIELDS)
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error) throw new Error(`FRAME features: reading "${slug}" failed — ${error.message}`);
+  if (!data) return null;
+
+  const feature = mapFeature(data as FeatureColumns);
+  if (!feature) return null;
+  const list = (await featureItems(supabase, [feature.id])).get(feature.id) ?? [];
+  return { ...feature, cover: list[0]?.photograph ?? null, itemCount: list.length, items: list };
 }

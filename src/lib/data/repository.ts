@@ -12,6 +12,8 @@ import type {
   ChallengeCandidate,
   ChallengeDetail,
   ChallengeSummary,
+  FeatureDetail,
+  FeatureSummary,
   PhotographDetail,
   PhotographerProfile,
   PhotographerSummary,
@@ -397,4 +399,19 @@ export async function getChallengeCandidates(
 ): Promise<ChallengeCandidate[]> {
   if (useLive()) return live.challengeCandidates(challenge, viewerId);
   return [];
+}
+
+/* ------------------------------------------------------------------------ */
+/* Features                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/** Published features (and, for staff, drafts). The demo deployment has none. */
+export async function getFeatures(limit?: number): Promise<FeatureSummary[]> {
+  if (useLive()) return live.featureList(limit);
+  return [];
+}
+
+export async function getFeature(slug: string): Promise<FeatureDetail | null> {
+  if (useLive()) return live.featureBySlug(slug);
+  return null;
 }

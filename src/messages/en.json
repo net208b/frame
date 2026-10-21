@@ -819,7 +819,10 @@
       "photobooksMetaDescription": "Street photographers on FRAME bind their published work into a book that opens and turns its pages, with a link of its own.",
       "challenges": "Challenges",
       "challengesMetaTitle": "Monthly challenges",
-      "challengesMetaDescription": "A theme each month, judged by FRAME’s editors — enter your own street photographs."
+      "challengesMetaDescription": "A theme each month, judged by FRAME’s editors — enter your own street photographs.",
+      "features": "Features",
+      "featuresMetaTitle": "Features from the editors",
+      "featuresMetaDescription": "Short pieces by FRAME’s editors, told through members’ street photographs."
     }
   },
   "auth": {
@@ -2091,6 +2094,11 @@
         "label": "Challenges",
         "count": "{count, plural, =0 {nothing waiting for results} one {# challenge waiting for results} other {# challenges waiting for results}}",
         "countCapped": "at least {count, number} challenges waiting for results"
+      },
+      "features": {
+        "label": "Features",
+        "count": "{count, plural, =0 {no drafts} one {# draft} other {# drafts}}",
+        "countCapped": "at least {count, number} drafts"
       }
     },
     "severity": {
@@ -2916,7 +2924,9 @@
       "appreciation": "{name} appreciated “{subject}”",
       "follow": "{name} started following you",
       "photograph_published": "“{subject}” is now published",
-      "challenge_award": "“{subject}” received an award in a challenge"
+      "challenge_award": "“{subject}” received an award in a challenge",
+      "editors_pick": "“{subject}” was chosen as an editor’s pick",
+      "featured": "Your work appears in “{subject}”, a feature by FRAME’s editors"
     }
   },
   "challenges": {
@@ -3008,6 +3018,57 @@
       "published": "Results published.",
       "allTitle": "All challenges",
       "none": "No challenge has been set yet."
+    }
+  },
+  "features": {
+    "pick": {
+      "intro": "Editors only: an editor’s pick appears on the home page and first in Discover’s editors’ order, and the photographer is told.",
+      "add": "Mark as an editor’s pick",
+      "remove": "Remove from editors’ picks",
+      "picked": "Marked as an editor’s pick.",
+      "unpicked": "Removed from the editors’ picks."
+    },
+    "draft": "Draft",
+    "photographCount": "{count, plural, one {# photograph} other {# photographs}}",
+    "overview": {
+      "eyebrow": "From the editors",
+      "title": "Features",
+      "lead": "Short pieces by FRAME’s editors: a theme, a city or a way of seeing, told through members’ photographs.",
+      "emptyTitle": "No features yet",
+      "emptyDescription": "The first piece will appear here when the editors publish it."
+    },
+    "home": {
+      "eyebrow": "From the editors",
+      "read": "Read the feature"
+    },
+    "breadcrumb": {
+      "label": "Breadcrumb",
+      "features": "Features"
+    },
+    "reader": {
+      "eyebrow": "A feature by FRAME’s editors · {date}"
+    },
+    "desk": {
+      "createTitle": "Start a feature",
+      "slug": "Address",
+      "slugHint": "The last part of /features/…, lowercase with hyphens.",
+      "titleEn": "Title (English)",
+      "titleTh": "Title (Thai)",
+      "introEn": "Introduction (English)",
+      "introTh": "Introduction (Thai)",
+      "create": "Save draft",
+      "created": "Draft saved.",
+      "statusPublished": "Published",
+      "statusDraft": "Draft",
+      "view": "View",
+      "lines": "Photographs, in order",
+      "linesHint": "One per line: the photograph’s address or slug, then optional captions — address | English caption | Thai caption.",
+      "savePhotographs": "Save photographs",
+      "saved": "Saved.",
+      "takeDown": "Take down",
+      "publish": "Publish",
+      "needsThree": "A feature needs at least {count} published photographs to go up.",
+      "none": "No feature has been started yet."
     }
   }
 }

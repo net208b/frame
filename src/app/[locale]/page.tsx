@@ -5,6 +5,7 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CommunityCta } from '@/components/home/CommunityCta';
 import { CuratedGallery } from '@/components/home/CuratedGallery';
 import { FeaturedPhotographers } from '@/components/home/FeaturedPhotographers';
+import { FromTheEditors } from '@/components/home/FromTheEditors';
 import { CityMap } from '@/components/home/CityMap';
 import { Hero, type HeroCover } from '@/components/home/Hero';
 import { PlatformStatsRow } from '@/components/home/PlatformStatsRow';
@@ -13,7 +14,9 @@ import { getViewer } from '@/lib/auth';
 import { SITE } from '@/lib/config';
 import {
   getDiscoverFeed,
+  getFeature,
   getFeaturedPhotographers,
+  getFeatures,
   getLocations,
   getMapPins,
   getPlatformStats,
@@ -80,6 +83,12 @@ export default async function HomePage({ params }: HomePageProps) {
       getTranslations({ locale, namespace: 'home' }),
     ]);
 
+  // The newest published feature, read in full for its first photographs. A
+  // draft never reaches here: staff browsing the home page would otherwise
+  // see their own work in progress presented as published.
+  const latestPublished = (await getFeatures(6)).find((feature) => feature.status === 'published');
+  const latestFeature = latestPublished ? await getFeature(latestPublished.slug) : null;
+
   // "<" escaped for the same reason as on the photograph page: a description
   // containing "</script>" must not end the block early.
   const jsonLd = JSON.stringify(siteJsonLd(locale, t('meta.description'))).replace(/</g, '\\u003c');
@@ -133,6 +142,8 @@ export default async function HomePage({ params }: HomePageProps) {
       <PlatformStatsRow stats={stats} locale={locale} className="mt-9" />
 
       <CuratedGallery photos={curated} locale={locale} />
+
+      <FromTheEditors feature={latestFeature} locale={locale} />
 
       <TrendingLocations
         locations={locationPage.items.slice(0, TRENDING_LOCATION_COUNT)}
