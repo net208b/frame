@@ -765,6 +765,20 @@
   line-height: 1.35;
 }
 
+/* Latin display and section type run on tight negative tracking, which at
+   these sizes narrows the space between words until long pairs touch — the
+   serif-italic "bound as a book" read as "boundasabook". A little word-spacing
+   puts the gap back without loosening the letters themselves. Scoped away from
+   Thai, which already has normal tracking and sets its own spacing above, and
+   whose occasional spaces should not be widened. */
+:root:not([lang='th']) :is(.text-display, .text-display-fluid) {
+  word-spacing: 0.12em;
+}
+
+:root:not([lang='th']) :is(.text-section, .text-section-fluid) {
+  word-spacing: 0.08em;
+}
+
 /* =========================================================================
    MAPLIBRE'S OWN CHROME
    The attribution line and the zoom buttons are rendered by MapLibre from its
