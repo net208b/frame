@@ -909,6 +909,46 @@ update public.photographs
    set status = 'removed', removed_reason = 'Not the uploader''s own work.'
  where id = 'eeeeeeee-1111-4000-8000-000000000002';
 
+-- 0021: the camera-only rule. Without a camera verdict on file the owner
+-- cannot send the photograph to review; a refused verdict is no better; only
+-- a camera verdict, which members cannot write themselves, opens the door.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+
+select public.test_rejects('sending a photograph to review with no EXIF verdict on file',
+  $$update public.photographs set status = 'under_review'
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '42501');
+
+select public.test_rejects('a member writing their own EXIF verdict',
+  $$insert into public.photograph_exif_checks (photograph_id, verdict, device_class)
+    values ('eeeeeeee-1111-4000-8000-000000000001', 'camera', 'camera')$$, '42501');
+commit;
+
+reset "app.current_user_id";
+insert into public.photograph_exif_checks (photograph_id, verdict, device_class, missing, make, model)
+values ('eeeeeeee-1111-4000-8000-000000000001', 'rejected', 'phone', '{}', 'Apple', 'iPhone 15 Pro');
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+select public.test_rejects('sending a photograph to review whose file was judged a phone',
+  $$update public.photographs set status = 'under_review'
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '42501');
+commit;
+
+reset "app.current_user_id";
+select public.test_rejects('an EXIF verdict outside the vocabulary',
+  $$update public.photograph_exif_checks set verdict = 'maybe'
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '23514');
+select public.test_accepts('a declared film scan as a verdict',
+  $$update public.photograph_exif_checks set verdict = 'film', film_declared = true
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000001'$$);
+update public.photograph_exif_checks
+   set verdict = 'camera', device_class = 'camera', film_declared = false, make = 'Fujifilm', model = 'X-Pro3',
+       aperture = 1.4, shutter_speed = '1/60', iso = 1600, focal_length_mm = 35, captured_at = now()
+ where photograph_id = 'eeeeeeee-1111-4000-8000-000000000001';
+
 -- The owner submits, and cannot publish.
 begin;
 set local role authenticated;

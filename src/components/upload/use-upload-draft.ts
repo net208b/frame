@@ -110,6 +110,8 @@ export interface UploadDraftState {
   previewUrl: string | null;
   exif: ExifReadout | null;
   exifStatus: 'idle' | 'reading' | 'read';
+  /** The member says the file is a scanned negative — the camera-only rule's way in for film. */
+  filmDeclared: boolean;
   title: string;
   description: string;
   category: PhotoCategory | '';
@@ -153,6 +155,7 @@ const INITIAL_STATE: UploadDraftState = {
   previewUrl: null,
   exif: null,
   exifStatus: 'idle',
+  filmDeclared: false,
   title: '',
   description: '',
   category: '',
@@ -638,6 +641,7 @@ export interface UploadDraft {
   update: (patch: Partial<UploadDraftState>) => void;
   updateCapture: (patch: Partial<CaptureFields>) => void;
   updateEditing: (patch: Partial<EditingFields>) => void;
+  setFilmDeclared: (value: boolean) => void;
   updateProposal: (patch: Partial<ProposalFields>) => void;
   answerGps: (choice: GpsChoice) => void;
   /** Records the draft row the server created, so a retry reuses it. */
@@ -711,6 +715,11 @@ export function useUploadDraft(): UploadDraft {
   const updateEditing = useCallback((patch: Partial<EditingFields>) => {
     setDirty(true);
     setState((current) => ({ ...current, editing: { ...current.editing, ...patch } }));
+  }, []);
+
+  const setFilmDeclared = useCallback((value: boolean) => {
+    setDirty(true);
+    setState((current) => ({ ...current, filmDeclared: value }));
   }, []);
 
   const updateProposal = useCallback((patch: Partial<ProposalFields>) => {
@@ -920,6 +929,7 @@ export function useUploadDraft(): UploadDraft {
     update,
     updateCapture,
     updateEditing,
+    setFilmDeclared,
     updateProposal,
     answerGps,
     setPhotographId,

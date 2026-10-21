@@ -10,6 +10,8 @@ import { getViewer, getViewerSuspension, type Viewer } from '@/lib/auth';
 import { isDemoMode, UPLOAD_POLICY } from '@/lib/config';
 import { distanceMetres } from '@/lib/geo';
 import { blurPlaceholder, buildVariants, verifyImageBytes } from '@/lib/images/process';
+import { readExif, type ExifReadout } from '@/lib/images/exif';
+import { assessCameraEvidence, type ExifVerdict } from '@/lib/images/exif-gate';
 import { checkImageContent, type ContentCheckResult } from '@/lib/moderation/content-check';
 import { storageKeys } from '@/lib/images/variants';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -410,6 +412,8 @@ export async function createDraft(
 
 const attachInputSchema = z.object({
   photographId: discardDraftSchema.shape.photographId,
+  /** The member says this is a scanned negative — see lib/images/exif-gate. */
+  filmDeclared: z.boolean().optional().transform((value) => value === true),
 });
 
 /** A short wait between availability checks on a just-written object. */
@@ -604,6 +608,34 @@ export async function attachVariants(
   if (!verified.ok) {
     await setStatus('draft');
     return fail(verified.reason, 'validation', { file: verified.reason });
+  }
+
+  // THE CAMERA-ONLY RULE, on the bytes that arrived — never on what the form
+  // said. The verdict is written with the service role whatever it is, so a
+  // moderator can see what the file carried, and the trigger in 0021 will not
+  // let this photograph go to review without a `camera` on file. A refused
+  // file is removed from storage: it will not be published, and it may carry
+  // a position the member never agreed to publish.
+  const readout = await readExif(original.bytes.slice().buffer);
+  const verdict = assessCameraEvidence(readout, { filmDeclared: parsed.data.filmDeclared });
+  const recorded = await recordExifCheck(photograph.id, readout, verdict, parsed.data.filmDeclared);
+  if (!recorded) {
+    await setStatus('draft');
+    return fail(t('actions.exifNotRecorded'), 'unknown');
+  }
+  if (verdict.verdict === 'rejected') {
+    try {
+      await driver.remove([keys.original]);
+    } catch (error) {
+      console.error(
+        `FRAME upload: removing the refused original for ${photograph.id} failed — ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    await setStatus('draft');
+    const reason = await describeExifRefusal(verdict);
+    return fail(reason, 'validation', { file: reason });
   }
 
   let built: Awaited<ReturnType<typeof buildVariants>>;
@@ -822,6 +854,102 @@ async function recordContentCheck(photographId: string, image: Uint8Array | null
       }`,
     );
   }
+}
+
+/**
+ * Store the EXIF verdict, as the service role. Returns false when it could
+ * not be stored — and then the upload stops, because without a record the
+ * trigger would refuse the photograph later with a sentence that would not
+ * make sense to the member.
+ */
+async function recordExifCheck(
+  photographId: string,
+  readout: ExifReadout,
+  verdict: ExifVerdict,
+  filmDeclared: boolean,
+): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.from('photograph_exif_checks').upsert(
+      {
+        photograph_id: photographId,
+        verdict: verdict.verdict,
+        device_class: verdict.deviceClass,
+        missing: verdict.missing,
+        make: readout.cameraBrand,
+        model: readout.cameraModel,
+        lens_make: readout.lensBrand,
+        lens_model: readout.lensModel,
+        body_serial: readout.bodySerial,
+        lens_serial: readout.lensSerial,
+        focal_length_mm: readout.focalLengthMm,
+        aperture: readout.aperture,
+        shutter_speed: readout.shutterSpeed,
+        iso: readout.iso,
+        metering_mode: readout.meteringMode,
+        flash: readout.flash,
+        software: readout.software,
+        captured_at: readout.capturedAt,
+        // A yes/no only. The coordinates stay out of this table by design.
+        has_gps: readout.gps !== null,
+        film_declared: filmDeclared,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: 'photograph_id' },
+    );
+    if (error) {
+      console.error(`FRAME upload: recording the EXIF check for ${photographId} failed — ${error.message}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(
+      `FRAME upload: the EXIF check for ${photographId} could not be recorded — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
+/**
+ * The one signal the server adds from the EXIF verdict: a declared film scan.
+ * High severity, so `publishIfCleared` never publishes it on its own — the
+ * claim and the absent camera record are for a person to look at together.
+ */
+async function filmSignals(photographId: string): Promise<UploadSignal[]> {
+  try {
+    const { data } = await createAdminClient()
+      .from('photograph_exif_checks')
+      .select('verdict, film_declared')
+      .eq('photograph_id', photographId)
+      .maybeSingle();
+    const row = data as { verdict?: string; film_declared?: boolean } | null;
+    if (row?.verdict === 'film') {
+      return [
+        {
+          kind: 'film-declared',
+          severity: 'high',
+          message: 'The member declared a film scan: the file carries no camera record. Check the frame and the gear by eye.',
+        },
+      ];
+    }
+  } catch (error) {
+    console.error(
+      `FRAME upload: reading the EXIF verdict for ${photographId} failed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return [];
+}
+
+/** The refusal, in the reader's language, naming what was missing. */
+async function describeExifRefusal(verdict: ExifVerdict): Promise<string> {
+  const t = await messages();
+  if (verdict.deviceClass === 'phone') return t('actions.exifRejectedPhone');
+  const fields = verdict.missing.map((field) => t(`exifGate.fields.${field}`)).join(', ');
+  return `${t('actions.exifRejectedMissing', { fields })} ${t('actions.exifRejectedHelp')}`;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1116,14 +1244,15 @@ export async function publishPhotograph(
   const width = displaySize?.width ?? photograph.imageWidth;
   const height = displaySize?.height ?? photograph.imageHeight;
 
-  const signals = reviewSignals({
+  const signals = await filmSignals(photograph.id);
+  signals.push(...reviewSignals({
     exif: payload.exif,
     capture: payload.capture,
     shareExifGps: payload.shareExifGps,
     location,
     width,
     height,
-  });
+  }));
 
   // The member's own write always lands as 'under_review' (0012 makes this a
   // database rule: an owner cannot set 'published'). Further down, the server

@@ -234,6 +234,30 @@ export interface PhotoSeriesItemRow {
   caption: string | null;
 }
 
+export interface PhotographExifCheckRow {
+  photograph_id: string;
+  verdict: 'camera' | 'film' | 'rejected';
+  device_class: 'camera' | 'phone' | 'unknown';
+  missing: string[];
+  make: string | null;
+  model: string | null;
+  lens_make: string | null;
+  lens_model: string | null;
+  body_serial: string | null;
+  lens_serial: string | null;
+  focal_length_mm: number | null;
+  aperture: number | null;
+  shutter_speed: string | null;
+  iso: number | null;
+  metering_mode: string | null;
+  flash: string | null;
+  software: string | null;
+  captured_at: string | null;
+  has_gps: boolean;
+  film_declared: boolean;
+  checked_at: string;
+}
+
 export interface CollectionItemRow {
   id: string;
   collection_id: string;
@@ -536,6 +560,20 @@ export interface Database {
             foreignKeyName: 'photo_series_items_photograph_id_fkey';
             columns: ['photograph_id'];
             isOneToOne: false;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      photograph_exif_checks: {
+        Row: PhotographExifCheckRow;
+        Insert: Insertable<PhotographExifCheckRow, 'photograph_id' | 'verdict' | 'device_class'>;
+        Update: Partial<PhotographExifCheckRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photograph_exif_checks_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: true;
             referencedRelation: 'photographs';
             referencedColumns: ['id'];
           },
