@@ -233,11 +233,11 @@
       "loading": "Drawing the world…",
       "failed": "The globe could not be drawn. The map and the places index still work.",
       "yourCountry": "Where you are",
-      "selected": "Chosen",
-      "places": "{count, plural, one {# place on FRAME} other {# places on FRAME}}",
       "placesShort": "{count, plural, one {# place} other {# places}}",
-      "noPlaces": "No places on FRAME yet — be the first to pin one.",
-      "browse": "See the places"
+      "noPlaces": "No places yet",
+      "browse": "See the places in {country}",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out"
     }
   },
   "discover": {
