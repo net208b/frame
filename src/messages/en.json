@@ -2612,14 +2612,15 @@
       },
       "thirdParties": {
         "heading": "Who else handles this",
-        "intro": "FRAME is a small application standing on four services, and on a fifth only if you choose it:",
+        "intro": "FRAME is a small application standing on five services, and on a sixth only if you choose it:",
         "list": {
           "database": "<strong>The database and authentication provider</strong> (Supabase, Postgres and its auth service) holds accounts, profiles, photographs, appreciation, reports and the email address and password hash.",
           "storage": "<strong>The image storage provider</strong> (Supabase Storage, or Cloudflare R2 where that is configured instead) holds the sizes generated from your upload. The file you uploaded is deleted as soon as those sizes exist, so its EXIF data — including any position it recorded — is not kept.",
           "contentCheck": "<strong>The automated content check</strong> (Google Cloud Vision SafeSearch) receives one copy of each uploaded photograph — the display size FRAME generated, with every tag removed — and answers how likely it is to be adult, violent or graphic. Google processes it to give that answer and nothing else; FRAME keeps only the answer, which moderators can see.",
           "tiles": "<strong>The map tile provider</strong> supplies the style and tiles for the map. Your browser requests those tiles directly, so that provider sees the request, including your IP address, the way any website you visit does. FRAME ships with no tile provider configured and deliberately falls back to no map rather than to somebody’s evaluation server.",
           "hosting": "<strong>The hosting provider</strong> runs the application and logs requests as described above.",
-          "signIn": "<strong>A sign-in provider</strong> — Google, Apple, Meta for Facebook, or X — only if you choose to sign in with one. That provider learns that you signed in to FRAME, and when. How to disconnect it is set out under “Signing in with another account”."
+          "signIn": "<strong>A sign-in provider</strong> — Google, Apple, Meta for Facebook, or X — only if you choose to sign in with one. That provider learns that you signed in to FRAME, and when. How to disconnect it is set out under “Signing in with another account”.",
+          "translation": "<strong>The translation provider</strong> (Google Cloud Translation) receives the words you write — a photograph’s title, description and alt text, a comment, a place’s name and description, a biography — and returns them in the other of FRAME’s two languages, so a reader who does not share your language can still read them. Only text that is already published is sent: a draft, and an upload still waiting for a moderator, never leave FRAME. Google processes the text to produce that translation and nothing else. A translation is always labelled as automatic, and the words as you wrote them are always one click away."
         },
         "demo": "A deployment with no database configured shows a bundled sample dataset instead, and says so on every page. The sample photographs in that mode are served from Unsplash under the Unsplash licence and describe nobody real.",
         "outstanding": "Each of those providers needs to be named specifically, with a data-processing agreement in place, before FRAME handles anybody’s real data. See <terms>the terms</terms> for what is still outstanding."
@@ -3186,6 +3187,16 @@
       "reasonPlaceholder": "Why — the member will read this",
       "cancel": "Cancel",
       "done": "Done."
+    }
+  },
+  "translation": {
+    "auto": "Translated automatically",
+    "writtenIn": "Written in {language}",
+    "showOriginal": "See the original",
+    "showTranslation": "See the translation",
+    "language": {
+      "en": "English",
+      "th": "Thai"
     }
   }
 }

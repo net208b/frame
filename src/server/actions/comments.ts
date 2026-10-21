@@ -12,6 +12,7 @@ import { COMMENT_POLICY, isDemoMode } from '@/lib/config';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
+import { scheduleTranslation } from '@/lib/translation/store';
 import {
   commentIdSchema,
   editCommentSchema,
@@ -115,12 +116,20 @@ export async function postComment(input: {
   if (!parsed.success) return failFromZod(parsed.error);
 
   const supabase = await createClient();
-  const { error } = await supabase.from('photograph_comments').insert({
-    photograph_id: parsed.data.photographId,
-    author_id: viewer.id,
-    parent_id: parsed.data.parentId,
-    body: parsed.data.body,
-  });
+  const { data: created, error } = await supabase
+    .from('photograph_comments')
+    .insert({
+      photograph_id: parsed.data.photographId,
+      author_id: viewer.id,
+      parent_id: parsed.data.parentId,
+      body: parsed.data.body,
+    })
+    // The new comment's id, so it can be translated (0035). Deliberately
+    // without `.single()`: that turns "no row came back" into an error, and a
+    // comment the author cannot immediately read back would then be reported
+    // as a failed post although it saved. An empty answer costs a translation,
+    // not the comment.
+    .select('id');
 
   if (error) {
     if (RLS_OR_RULE.has(error.code ?? '')) {
@@ -128,6 +137,11 @@ export async function postComment(input: {
     }
     return fail('Your comment could not be saved. Try again in a moment.', 'unknown');
   }
+
+  // A comment is public as soon as it is posted — there is no queue in front
+  // of it — so it is translated straight away (0035).
+  const createdId = created?.[0]?.id;
+  if (typeof createdId === 'string') scheduleTranslation('comment', createdId);
 
   revalidate(await slugForPhotograph(supabase, parsed.data.photographId));
   return ok(undefined, 'Comment posted.');

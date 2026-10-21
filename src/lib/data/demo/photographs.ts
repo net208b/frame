@@ -586,6 +586,8 @@ const RAW: RawPhotograph[] = [
 
 function toDetail(raw: RawPhotograph): PhotographDetail {
   return {
+    // The demo sample is written in one language and never translated.
+    translations: {},
     id: `c3e7a200-0000-4000-8000-${String(raw.n).padStart(12, '0')}`,
     slug: raw.slug,
     title: raw.title,

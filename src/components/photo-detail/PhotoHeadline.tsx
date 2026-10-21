@@ -2,6 +2,8 @@ import { getLocale, getTranslations } from 'next-intl/server';
 
 import { AppreciateButton } from '@/components/photo/AppreciateButton';
 import { CategoryTag } from '@/components/photo/CategoryTag';
+import { TranslationBlock, Translated } from '@/components/translation/AutoTranslated';
+import { anyTranslation } from '@/lib/translation/applies';
 import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
 import { cn, formatDate } from '@/lib/utils';
 import type { PhotographDetail } from '@/types/domain';
@@ -44,11 +46,27 @@ export async function PhotoHeadline({
         ) : null}
       </div>
 
-      <h1 className="text-section-fluid mt-4 font-bold">{photo.title}</h1>
+      <TranslationBlock
+        className="mt-4"
+        locale={locale}
+        available={anyTranslation(locale, photo.translations.title, photo.translations.description)}
+      >
+        <Translated
+          as="h1"
+          className="text-section-fluid font-bold"
+          original={photo.title}
+          translation={photo.translations.title}
+        />
 
-      {photo.description ? (
-        <p className="mt-4 text-lead text-ink-soft">{photo.description}</p>
-      ) : null}
+        {photo.description ? (
+          <Translated
+            as="p"
+            className="mt-4 text-lead text-ink-soft"
+            original={photo.description}
+            translation={photo.translations.description}
+          />
+        ) : null}
+      </TranslationBlock>
 
       <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
         <AppreciateButton

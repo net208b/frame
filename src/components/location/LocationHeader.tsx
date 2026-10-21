@@ -6,6 +6,8 @@ import { StaticLocationMap } from '@/components/map/StaticLocationMap';
 import { CategoryTag } from '@/components/photo/CategoryTag';
 import { Avatar } from '@/components/photographer/Avatar';
 import { ReportDialog } from '@/components/system/ReportDialog';
+import { TranslationBlock, Translated } from '@/components/translation/AutoTranslated';
+import { anyTranslation } from '@/lib/translation/applies';
 import { INTL_LOCALES, type Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { cn, formatCount, formatDate } from '@/lib/utils';
@@ -51,7 +53,18 @@ export async function LocationHeader({
         {t('header.allLocations')}
       </Link>
 
-      <h1 className="text-display-fluid mt-5 max-w-[22ch]">{location.name}</h1>
+      <TranslationBlock
+        className="mt-5"
+        locale={locale}
+        available={anyTranslation(locale, location.translations.name)}
+      >
+        <Translated
+          as="h1"
+          className="text-display-fluid max-w-[22ch]"
+          original={location.name}
+          translation={location.translations.name}
+        />
+      </TranslationBlock>
 
       <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-lead text-muted">
         <span>
@@ -71,9 +84,17 @@ export async function LocationHeader({
       <div className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-14">
         <div className="min-w-0">
           {location.description ? (
-            <p className="max-w-[56ch] text-lead leading-relaxed text-ink-soft">
-              {location.description}
-            </p>
+            <TranslationBlock
+              locale={locale}
+              available={anyTranslation(locale, location.translations.description)}
+            >
+              <Translated
+                as="p"
+                className="max-w-[56ch] text-lead leading-relaxed text-ink-soft"
+                original={location.description}
+                translation={location.translations.description}
+              />
+            </TranslationBlock>
           ) : (
             <p className="max-w-[56ch] text-lead leading-relaxed text-muted">
               {t('header.noDescription')}

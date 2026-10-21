@@ -20,6 +20,8 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000001',
     username: 'kenjiwatanabe',
+    // The demo sample is written in one language and never translated.
+    translations: {},
     displayName: 'Kenji Watanabe',
     avatarUrl: avatar('photo-1500648767791-00dcc994a43e'),
     basedIn: 'Tokyo, Japan',
@@ -44,6 +46,8 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000002',
     username: 'annakeller',
+    // The demo sample is written in one language and never translated.
+    translations: {},
     displayName: 'Anna Keller',
     avatarUrl: avatar('photo-1534528741775-53994a69daeb'),
     basedIn: 'Amsterdam, Netherlands',
@@ -71,6 +75,8 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000003',
     username: 'marcosilva',
+    // The demo sample is written in one language and never translated.
+    translations: {},
     displayName: 'Marco Silva',
     avatarUrl: avatar('photo-1506794778202-cad84cf45f1d'),
     basedIn: 'Rome, Italy',
@@ -95,6 +101,8 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000004',
     username: 'mayachen',
+    // The demo sample is written in one language and never translated.
+    translations: {},
     displayName: 'Maya Chen',
     avatarUrl: avatar('photo-1544005313-94ddf0286df2'),
     basedIn: 'New York, United States',
@@ -122,6 +130,8 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000005',
     username: 'pimframes',
+    // The demo sample is written in one language and never translated.
+    translations: {},
     displayName: 'Pim Thanaphon',
     avatarUrl: null,
     basedIn: 'Bangkok, Thailand',
@@ -146,6 +156,8 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000006',
     username: 'elliotreyes',
+    // The demo sample is written in one language and never translated.
+    translations: {},
     displayName: 'Elliot Reyes',
     avatarUrl: null,
     basedIn: 'London, United Kingdom',

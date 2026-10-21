@@ -3,6 +3,8 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 
 import { Avatar } from '@/components/photographer/Avatar';
+import { TranslationBlock, Translated } from '@/components/translation/AutoTranslated';
+import { anyTranslation } from '@/lib/translation/applies';
 import { FollowButton } from '@/components/photographer/FollowButton';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Eyebrow } from '@/components/ui/SectionHead';
@@ -211,12 +213,19 @@ export async function ProfileHeader({
             ) : null}
           </p>
 
-          {biography.length > 0 ? (
-            <div className="mt-6 max-w-[58ch] space-y-3 text-lead leading-relaxed text-ink-soft">
-              {biography.map((block) => (
-                <p key={block}>{block}</p>
-              ))}
-            </div>
+          {photographer.biography && biography.length > 0 ? (
+            <TranslationBlock
+              className="mt-6 max-w-[58ch]"
+              locale={locale}
+              available={anyTranslation(locale, photographer.translations.biography)}
+            >
+              <Translated
+                paragraphs
+                className="space-y-3 text-lead leading-relaxed text-ink-soft"
+                original={photographer.biography}
+                translation={photographer.translations.biography}
+              />
+            </TranslationBlock>
           ) : null}
 
           {photographer.styles.length > 0 ? (

@@ -10,6 +10,7 @@ import {
   UPLOAD_POLICY,
 } from '@/lib/config';
 import type { MapPin, MapPinFrame, ModerationQueues } from '@/lib/data/repository';
+import { NO_TRANSLATIONS, translationsFor } from '@/lib/data/translations';
 import { boundingBoxAround, distanceMetres, publishableCoordinates } from '@/lib/geo';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
 import { trendingScore } from '@/lib/ranking';
@@ -736,6 +737,9 @@ function mapPhotograph(
     publishedAt: toText(row.published_at) ?? toText(row.created_at) ?? '',
     editorsPick: row.editors_pick === true,
     description: toText(row.description),
+    // Filled in by mapPhotographRows, which asks for the whole page's
+    // translations in one query rather than one per photograph.
+    translations: NO_TRANSLATIONS,
     capture: {
       cameraBrand: toText(metadata?.camera_brand_text),
       cameraModel: toText(metadata?.camera_model_text),
@@ -808,13 +812,19 @@ async function mapPhotographRows(
   rows: PhotographJoined[],
 ): Promise<PhotographDetail[]> {
   const ids = rows.map((row) => toText(row.id)).filter((value): value is string => value !== null);
-  const lookup = await appreciationLookup(supabase, ids);
+  const [lookup, translations] = await Promise.all([
+    appreciationLookup(supabase, ids),
+    // One query for the page, not one per photograph (0035).
+    translationsFor(supabase, 'photograph', ids),
+  ]);
 
   const mapped: PhotographDetail[] = [];
   for (const row of rows) {
     const id = toText(row.id);
     const photo = mapPhotograph(row, id ? lookup.has(id) : null);
-    if (photo) mapped.push(photo);
+    if (!photo) continue;
+    if (id) photo.translations = translations.get(id) ?? NO_TRANSLATIONS;
+    mapped.push(photo);
   }
   return mapped;
 }
@@ -1139,6 +1149,7 @@ function mapLocationDetail(row: LocationJoined): LocationDetail | null {
   return {
     ...summary,
     description: toText(row.description),
+    translations: NO_TRANSLATIONS,
     coordinates,
     pinPrecision: oneOrNull(PIN_PRECISIONS, row.pin_precision) ?? 'approximate',
     categories: toStringList(row.categories).filter(isCategory),
@@ -1206,7 +1217,13 @@ export async function locationBySlug(slug: string): Promise<LocationDetail | nul
       .maybeSingle(),
   );
 
-  return row ? mapLocationDetail(row) : null;
+  if (!row) return null;
+  const place = mapLocationDetail(row);
+  if (!place) return null;
+  // The place's own name and description in the other language (0035).
+  const translations = await translationsFor(supabase, 'location', [place.id]);
+  place.translations = translations.get(place.id) ?? NO_TRANSLATIONS;
+  return place;
 }
 
 /**
@@ -1577,6 +1594,7 @@ async function buildProfiles(
     profiles.push({
       ...summary,
       biography: toText(row.biography),
+      translations: NO_TRANSLATIONS,
       website: toText(row.website),
       countryCode: toText(row.country_code),
       styles: toStringList(row.style_tags).filter(isPhotographyStyle),
@@ -1598,6 +1616,12 @@ async function buildProfiles(
       memberSince: toText(row.member_since) ?? toText(row.created_at) ?? '',
       role: oneOf(['member', 'moderator', 'admin'] as const, row.role, 'member'),
     });
+  }
+
+  // One query for every profile being built (0035).
+  const translations = await translationsFor(supabase, 'profile', ids);
+  for (const profile of profiles) {
+    profile.translations = translations.get(profile.id) ?? NO_TRANSLATIONS;
   }
 
   return profiles;
@@ -3008,6 +3032,7 @@ function mapComment(row: CommentJoined): PhotographComment | null {
     // A deleted comment carries an empty body from the database already; this
     // keeps the shape honest even if a row is read mid-delete.
     body: isDeleted ? '' : (toText(row.body) ?? ''),
+    translations: NO_TRANSLATIONS,
     createdAt: toText(row.created_at) ?? '',
     editedAt: toText(row.edited_at),
     isDeleted,
@@ -3061,6 +3086,14 @@ export async function photographThread(photographId: string): Promise<Photograph
       // no home in the tree; it is left out rather than promoted to the top.
       if (parent) parent.replies.push(node);
     }
+  }
+
+  // One query for the whole conversation (0035). A deleted comment has no body
+  // left to translate, so it is not asked about.
+  const translatable = [...byId.values()].filter((node) => !node.isDeleted).map((node) => node.id);
+  const translations = await translationsFor(supabase, 'comment', translatable);
+  for (const node of byId.values()) {
+    node.translations = translations.get(node.id) ?? NO_TRANSLATIONS;
   }
 
   // The number a card shows: live comments the reader can see, counting a

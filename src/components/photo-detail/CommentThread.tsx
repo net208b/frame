@@ -6,6 +6,8 @@ import { useState, useTransition } from 'react';
 import { Avatar } from '@/components/photographer/Avatar';
 import { useToast } from '@/components/system/Toast';
 import { ReportDialog } from '@/components/system/ReportDialog';
+import { TranslationBlock, Translated } from '@/components/translation/AutoTranslated';
+import { anyTranslation } from '@/lib/translation/applies';
 import { Button } from '@/components/ui/Button';
 import { TextAreaField } from '@/components/ui/Field';
 import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
@@ -251,9 +253,18 @@ function CommentNode({
             />
           </div>
         ) : (
-          <p className="mt-1 whitespace-pre-wrap break-words text-body leading-relaxed text-ink">
-            {comment.body}
-          </p>
+          <TranslationBlock
+            className="mt-1"
+            locale={locale}
+            available={anyTranslation(locale, comment.translations.body)}
+          >
+            <Translated
+              as="p"
+              className="whitespace-pre-wrap break-words text-body leading-relaxed text-ink"
+              original={comment.body}
+              translation={comment.translations.body}
+            />
+          </TranslationBlock>
         )}
 
         {/* Controls. Hidden while an inline form for this comment is open. */}

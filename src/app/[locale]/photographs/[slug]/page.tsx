@@ -13,6 +13,7 @@ import { LocationPanel } from '@/components/photo-detail/LocationPanel';
 import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
 import { PhotographerPanel } from '@/components/photo-detail/PhotographerPanel';
 import { PhotoStage } from '@/components/photo-detail/PhotoStage';
+import { translationApplies } from '@/lib/translation/applies';
 import { RelatedStrip } from '@/components/photo-detail/RelatedStrip';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Notice } from '@/components/ui/states';
@@ -215,7 +216,14 @@ export default async function PhotographPage({ params }: PageProps) {
         {/* The frame first in the source, so it is also first on a phone. */}
         <PhotoStage
           image={photo.image}
-          altText={photo.altText}
+          // Alt text is an attribute, so there is no room beside it for a note
+          // and a toggle: a screen reader simply gets the description in the
+          // reader's own language when one exists (0035).
+          altText={
+            translationApplies(photo.translations.altText, locale)
+              ? photo.translations.altText.value
+              : photo.altText
+          }
           title={photo.title}
           caption={place}
         />
