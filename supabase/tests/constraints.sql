@@ -2334,6 +2334,73 @@ begin
   raise notice 'challenge ok privileges were revoked first and granted back on purpose';
 end $$;
 
+-- ------------------------------- 0028–0029: the capture time is the owner's call
+-- A capture time the owner did not publish must not be readable at all — not
+-- dropped by the page, refused by the database. The public column carries it
+-- only when they chose to.
+reset "app.current_user_id";
+update public.photographs
+   set captured_at = '2026-09-01T18:30:00Z', publish_captured_at = false
+ where id = 'cafecafe-0000-4000-8000-000000000002';
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status,
+   published_at, rights_confirmed_at, image_width, image_height, captured_at, publish_captured_at)
+values
+  ('cafecafe-0000-4000-8000-000000000004', 'capture-published', 'dddddddd-0000-4000-8000-000000000004',
+   'A published capture time', 'A man carrying a ladder across a crossing in the late afternoon rain.',
+   'street', 'published', now(), now(), 1800, 1200, '2026-09-02T07:15:00Z', true)
+on conflict (id) do nothing;
+
+begin;
+set local role anon;
+select public.test_rejects('a visitor reading the raw capture time',
+  $$select captured_at from public.photographs limit 1$$, '42501');
+do $$
+declare v_withheld timestamptz; v_published timestamptz;
+begin
+  select public_captured_at into v_withheld from public.photographs
+   where id = 'cafecafe-0000-4000-8000-000000000002';
+  select public_captured_at into v_published from public.photographs
+   where id = 'cafecafe-0000-4000-8000-000000000004';
+  if v_withheld is not null then raise exception 'CAPTURE GAP  a withheld capture time reached a visitor'; end if;
+  if v_published is distinct from '2026-09-02T07:15:00Z'::timestamptz then
+    raise exception 'CAPTURE GAP  a published capture time did not reach a visitor (%)', v_published;
+  end if;
+  raise notice 'capture ok   a withheld time reads as nothing, a published one reads as itself';
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('a member reading the raw capture time, even of their own photograph',
+  $$select captured_at from public.photographs where owner_id = 'dddddddd-0000-4000-8000-000000000004'$$, '42501');
+select public.test_accepts('the owner still setting the capture time of their own draft',
+  $$update public.photographs set captured_at = '2026-09-03T09:00:00Z'
+     where id = 'cafecafe-0000-4000-8000-000000000003'$$);
+commit;
+
+-- Every other column stays readable, so the deliberate list in 0029 cannot
+-- quietly fall behind the table: a column added without a grant fails here.
+do $$
+declare v_missing text;
+begin
+  select string_agg(column_name, ', ' order by column_name) into v_missing
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'photographs'
+     and column_name <> 'captured_at'
+     and not (has_column_privilege('anon', 'public.photographs', column_name, 'SELECT')
+              and has_column_privilege('authenticated', 'public.photographs', column_name, 'SELECT'));
+  if v_missing is not null then
+    raise exception 'GRANT GAP  photographs columns no public role can read: % — add them to the grant in 0029''s successor', v_missing;
+  end if;
+  if has_column_privilege('anon', 'public.photographs', 'captured_at', 'SELECT')
+     or has_column_privilege('authenticated', 'public.photographs', 'captured_at', 'SELECT') then
+    raise exception 'CAPTURE GAP  a public role can still read photographs.captured_at';
+  end if;
+  raise notice 'capture ok   every column but captured_at is readable, and captured_at by no public role';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

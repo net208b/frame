@@ -188,8 +188,11 @@ export interface PhotographRow extends Timestamps {
   appreciation_count: number;
   comment_count: number;
   published_at: string | null;
+  /** Writable by the owner; readable by no public role since 0029. */
   captured_at: string | null;
   publish_captured_at: boolean;
+  /** captured_at when the owner published it, null otherwise (0028, generated). */
+  public_captured_at: string | null;
   rights_confirmed_at: string | null;
   storage_prefix: string | null;
   image_width: number | null;
