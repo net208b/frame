@@ -389,6 +389,36 @@ grant execute on function public.mark_notifications_read(uuid[]) to authenticate
 alter table public.profile_follows enable row level security;
 alter table public.notifications enable row level security;
 
+-- -----------------------------------------------------------------------------
+-- Revoked first, then granted back deliberately
+-- -----------------------------------------------------------------------------
+-- This is the rule migration 0007 set out and the one these two tables have to
+-- follow: a grant on its own is an ADDITION to whatever a default privilege
+-- already left behind, not a statement of what a role may attempt.
+--
+-- This database has `alter default privileges in schema public grant all on
+-- tables to anon, authenticated, service_role`, so every table arrives with
+-- ALL privileges already granted to both roles. Granting SELECT on top of that
+-- changes nothing, and the table is left with INSERT, UPDATE, DELETE and
+-- TRUNCATE for anybody holding the public key. Row-level security still
+-- refuses the first three where no policy admits them — but TRUNCATE is not
+-- subject to row-level security at all, so it has to be revoked rather than
+-- merely left unpoliced.
+--
+-- public.photograph_comments is in this list because migration 0022 granted
+-- without revoking and shipped with the same gap; a later migration repairing
+-- an earlier one is the honest fix, and the alternative is a comment in 0022
+-- claiming a privilege that was never actually withheld.
+revoke all on table
+  public.profile_follows, public.notifications, public.photograph_comments
+  from anon, authenticated;
+
+-- Comments: readable by everyone, written and edited by members. No DELETE —
+-- a comment is deleted through delete_comment(), which clears the body and
+-- keeps the thread's shape.
+grant select on table public.photograph_comments to anon, authenticated;
+grant insert, update on table public.photograph_comments to authenticated;
+
 -- Who follows whom is public: the counts are on every profile already, and a
 -- follower list nobody can read is a count nobody can check.
 grant select on table public.profile_follows to anon, authenticated;
@@ -416,8 +446,11 @@ create policy profile_follows_delete_own
   to authenticated
   using (follower_id = (select auth.uid()));
 
--- A notification is the recipient's and nobody else's. No INSERT privilege at
--- all — the triggers above are the only writer.
+-- A notification is the recipient's and nobody else's: `anon` gets nothing at
+-- all, and `authenticated` gets no INSERT and no DELETE, so the triggers above
+-- are the only writer and a member cannot manufacture one for anybody —
+-- themselves included. That is now true of the privileges as well as of the
+-- policies, which is the point of the revoke above.
 grant select, update on table public.notifications to authenticated;
 
 drop policy if exists notifications_select_own on public.notifications;
