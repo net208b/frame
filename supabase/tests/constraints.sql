@@ -1871,6 +1871,101 @@ begin
   raise notice 'notify ok    marking read clears the badge and changes nothing else';
 end $$;
 
+-- ------------------------------- 0024: the approval gate, from the outside
+-- The bug this replaces: approve_location_submission compared auth.uid() to
+-- the moderator named in the argument only when auth.uid() was not null, so an
+-- unauthenticated caller naming a real moderator's id passed both gates. The
+-- probe below is the one that mattered — a signed-out caller naming the
+-- moderator — and it must now be refused before anything is read or written.
+reset "app.current_user_id";
+insert into public.location_submissions
+  (id, proposed_name, city, country, country_code, latitude, longitude, status, submitted_by)
+values
+  ('0ca11050-0000-4000-8000-000000000001'::uuid, 'Gate Test Alley', 'Bangkok', 'Thailand', 'TH',
+   13.7563, 100.5018, 'pending', 'dddddddd-0000-4000-8000-000000000004')
+on conflict (id) do nothing;
+
+begin;
+set local role anon;
+select public.test_rejects('a signed-out caller approving a submission as a real moderator',
+  $$select public.approve_location_submission(
+      '0ca11050-0000-4000-8000-000000000001'::uuid,
+      '33333333-3333-4333-8333-333333333333'::uuid)$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('an ordinary member approving a submission as a real moderator',
+  $$select public.approve_location_submission(
+      '0ca11050-0000-4000-8000-000000000001'::uuid,
+      '33333333-3333-4333-8333-333333333333'::uuid)$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('a moderator approving under somebody else''s account',
+  $$select public.approve_location_submission(
+      '0ca11050-0000-4000-8000-000000000001'::uuid,
+      'dddddddd-0000-4000-8000-000000000004'::uuid)$$, '42501');
+
+select public.test_accepts('a moderator approving under their own account',
+  $$select public.approve_location_submission(
+      '0ca11050-0000-4000-8000-000000000001'::uuid,
+      '33333333-3333-4333-8333-333333333333'::uuid)$$);
+commit;
+
+do $$
+declare v_status text; v_approver uuid;
+begin
+  select status, resolved_by into v_status, v_approver
+    from public.location_submissions where id = '0ca11050-0000-4000-8000-000000000001';
+  if v_status <> 'approved' then
+    raise exception 'GATE GAP  a moderator''s own approval did not go through (status %)', v_status;
+  end if;
+  if v_approver <> '33333333-3333-4333-8333-333333333333' then
+    raise exception 'GATE GAP  the approval was recorded against %', v_approver;
+  end if;
+  raise notice 'gate ok      only the signed-in moderator themselves may approve, and it still works';
+end $$;
+
+-- The privileges these six tables were always supposed to withhold. TRUNCATE
+-- is the one that matters most: row-level security does not cover it, so a
+-- missing policy was never standing in front of it.
+do $$
+declare
+  v_table text;
+  v_role  text;
+  v_priv  text;
+  v_leaks text := '';
+begin
+  foreach v_table in array array[
+    'photobooks', 'photobook_pages', 'photo_series', 'photo_series_items',
+    'photograph_exif_checks', 'photograph_content_checks',
+    'photograph_comments', 'profile_follows', 'notifications']
+  loop
+    foreach v_role in array array['anon', 'authenticated'] loop
+      foreach v_priv in array array['TRUNCATE', 'TRIGGER', 'REFERENCES'] loop
+        if has_table_privilege(v_role, 'public.' || v_table, v_priv) then
+          v_leaks := v_leaks || ' ' || v_role || ':' || v_priv || ' on ' || v_table || ';';
+        end if;
+      end loop;
+    end loop;
+    -- anon writes nowhere, on any of them.
+    foreach v_priv in array array['INSERT', 'UPDATE', 'DELETE'] loop
+      if has_table_privilege('anon', 'public.' || v_table, v_priv) then
+        v_leaks := v_leaks || ' anon:' || v_priv || ' on ' || v_table || ';';
+      end if;
+    end loop;
+  end loop;
+
+  if length(v_leaks) > 0 then
+    raise exception 'PRIVILEGE GAP %', v_leaks;
+  end if;
+  raise notice 'privilege ok no TRUNCATE, TRIGGER or REFERENCES for either public role, and anon writes nowhere';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
