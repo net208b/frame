@@ -3169,7 +3169,7 @@
     },
     "live": {
       "title": "Published",
-      "lead": "The latest photographs and places that are live. Anything here can be sent back or taken down, and a place can be re-pinned.",
+      "lead": "The latest photographs and places that are live. A photograph can be sent back or taken down; a place can be re-pinned, taken down, or deleted outright.",
       "photographsTitle": "{count, plural, =0 {No published photographs} one {# published photograph} other {# published photographs}}",
       "photographsEmpty": "Nothing is published yet.",
       "placesTitle": "{count, plural, =0 {No approved places} one {# approved place} other {# approved places}}",
@@ -3190,7 +3190,8 @@
       "done": "Done.",
       "deletePlace": "Delete this place",
       "deletePlaceEffect": "Deletes the place and its pin for good. This cannot be undone. Any photograph taken there stays on the site and simply has no place on the map. A place that still holds a photograph anyone can see cannot be deleted — take it down instead.",
-      "deleteConfirm": "Delete for good"
+      "deleteConfirm": "Delete for good",
+      "deleteReasonPlaceholder": "Why — kept on the record, not sent to anybody"
     }
   },
   "translation": {
