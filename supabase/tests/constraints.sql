@@ -870,7 +870,7 @@ begin
     raise exception 'STORAGE GAP  write policy with no owner check: %', v_missing;
   end if;
 
-  raise notice 'storage ok    the photographs bucket is public, capped at 25 MiB, and writable only inside the owner prefix';
+  raise notice 'storage ok    the photographs bucket is public, capped at 50 MiB, and writable only inside the owner prefix';
 end $$;
 
 -- --------------------------------------------------- review before publishing
