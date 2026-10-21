@@ -35,6 +35,13 @@ export interface ExifReadout {
   gps: { latitude: number; longitude: number } | null;
   width: number | null;
   height: number | null;
+  /* The rest is evidence for the camera-only rule (lib/images/exif-gate):
+     recorded for moderators, never required except as that module says. */
+  meteringMode: string | null;
+  flash: string | null;
+  bodySerial: string | null;
+  lensSerial: string | null;
+  software: string | null;
 }
 
 const EMPTY_READOUT: ExifReadout = {
@@ -50,6 +57,11 @@ const EMPTY_READOUT: ExifReadout = {
   gps: null,
   width: null,
   height: null,
+  meteringMode: null,
+  flash: null,
+  bodySerial: null,
+  lensSerial: null,
+  software: null,
 };
 
 /** Only the tags this readout uses, so a 40 MB file is barely touched. */
@@ -70,6 +82,12 @@ const PICKED_TAGS = [
   'GPSLatitudeRef',
   'GPSLongitude',
   'GPSLongitudeRef',
+  'MeteringMode',
+  'Flash',
+  'BodySerialNumber',
+  'SerialNumber',
+  'LensSerialNumber',
+  'Software',
 ] as const;
 
 /* ------------------------------------------------------------------------ */
@@ -299,6 +317,14 @@ export async function readExif(file: File | Blob | ArrayBuffer): Promise<ExifRea
     capturedAt: normaliseCapturedAt(tags.DateTimeOriginal),
     gps: readGps(tags),
     ...readDimensions(tags),
+    // exifr translates these two to phrases ("Pattern", "Flash did not fire")
+    // by default; a number is kept as its digits.
+    meteringMode: cleanString(String(tags.MeteringMode ?? ''), 60),
+    flash: cleanString(String(tags.Flash ?? ''), 80),
+    // Two spellings of the body serial exist in the wild; either will do.
+    bodySerial: cleanString(tags.BodySerialNumber, 64) ?? cleanString(tags.SerialNumber, 64),
+    lensSerial: cleanString(tags.LensSerialNumber, 64),
+    software: cleanString(tags.Software, 80),
   };
 }
 

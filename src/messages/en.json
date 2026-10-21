@@ -1346,7 +1346,10 @@
       "imageNotDeleted": "The stored image could not be deleted, so the draft was kept rather than leaving files behind with nothing pointing at them. Try again in a moment.",
       "imageDeletedRecordKept": "The stored image was deleted but the draft record could not be. Reload the page and try again.",
       "filesNotDeleted": "The image files could not be deleted, so the photograph was kept rather than leaving files behind with nothing pointing at them. Try again in a moment.",
-      "filesDeletedRecordKept": "The image files were deleted but the photograph record could not be. Reload the page and try again."
+      "filesDeletedRecordKept": "The image files were deleted but the photograph record could not be. Reload the page and try again.",
+      "exifRejectedPhone": "FRAME publishes photographs from cameras only, and this file was made by a phone. It was not kept.",
+      "exifRejectedMissing": "FRAME publishes photographs that carry a camera’s own record, and this file is missing: {fields}. It was not kept.",
+      "exifNotRecorded": "The camera record could not be saved, so the file was not processed. Try again in a moment."
     },
     "meta": {
       "title": "Upload a photograph",
@@ -1754,6 +1757,23 @@
       "editingNotesMax": "The editing notes must be {max, number} characters or fewer.",
       "editingNotesInvalid": "The editing notes must be text.",
       "rightsConfirmedRequired": "Confirm the declaration below: FRAME cannot publish a photograph without it."
+    },
+    "exifGate": {
+      "passTitle": "This file carries a camera record",
+      "passBody": "Make, model, exposure settings and the moment it was taken were all read from the file. The server reads the uploaded file again and decides for itself.",
+      "failTitle": "This file will be refused",
+      "failPhone": "It was made by a phone.",
+      "failMissing": "It is missing: {fields}.",
+      "rule": "FRAME publishes photographs that carry a camera’s own record — make and model, aperture, shutter speed, ISO, focal length and the time taken. A scanned film negative, a manual lens, or an export that stripped its metadata will not pass.",
+      "fields": {
+        "cameraBrand": "camera make",
+        "cameraModel": "camera model",
+        "aperture": "aperture",
+        "shutterSpeed": "shutter speed",
+        "iso": "ISO",
+        "focalLengthMm": "focal length",
+        "capturedAt": "date and time taken"
+      }
     }
   },
   "collections": {

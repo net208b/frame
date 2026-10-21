@@ -10,6 +10,8 @@ import { getViewer, getViewerSuspension, type Viewer } from '@/lib/auth';
 import { isDemoMode, UPLOAD_POLICY } from '@/lib/config';
 import { distanceMetres } from '@/lib/geo';
 import { blurPlaceholder, buildVariants, verifyImageBytes } from '@/lib/images/process';
+import { readExif, type ExifReadout } from '@/lib/images/exif';
+import { assessCameraEvidence, type ExifVerdict } from '@/lib/images/exif-gate';
 import { checkImageContent, type ContentCheckResult } from '@/lib/moderation/content-check';
 import { storageKeys } from '@/lib/images/variants';
 import { checkRateLimit } from '@/lib/rate-limit';
@@ -606,6 +608,34 @@ export async function attachVariants(
     return fail(verified.reason, 'validation', { file: verified.reason });
   }
 
+  // THE CAMERA-ONLY RULE, on the bytes that arrived — never on what the form
+  // said. The verdict is written with the service role whatever it is, so a
+  // moderator can see what the file carried, and the trigger in 0021 will not
+  // let this photograph go to review without a `camera` on file. A refused
+  // file is removed from storage: it will not be published, and it may carry
+  // a position the member never agreed to publish.
+  const readout = await readExif(original.bytes.slice().buffer);
+  const verdict = assessCameraEvidence(readout);
+  const recorded = await recordExifCheck(photograph.id, readout, verdict);
+  if (!recorded) {
+    await setStatus('draft');
+    return fail(t('actions.exifNotRecorded'), 'unknown');
+  }
+  if (verdict.verdict !== 'camera') {
+    try {
+      await driver.remove([keys.original]);
+    } catch (error) {
+      console.error(
+        `FRAME upload: removing the refused original for ${photograph.id} failed — ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    await setStatus('draft');
+    const reason = await describeExifRefusal(verdict);
+    return fail(reason, 'validation', { file: reason });
+  }
+
   let built: Awaited<ReturnType<typeof buildVariants>>;
   try {
     built = await buildVariants(original.bytes);
@@ -822,6 +852,68 @@ async function recordContentCheck(photographId: string, image: Uint8Array | null
       }`,
     );
   }
+}
+
+/**
+ * Store the EXIF verdict, as the service role. Returns false when it could
+ * not be stored — and then the upload stops, because without a record the
+ * trigger would refuse the photograph later with a sentence that would not
+ * make sense to the member.
+ */
+async function recordExifCheck(
+  photographId: string,
+  readout: ExifReadout,
+  verdict: ExifVerdict,
+): Promise<boolean> {
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.from('photograph_exif_checks').upsert(
+      {
+        photograph_id: photographId,
+        verdict: verdict.verdict,
+        device_class: verdict.deviceClass,
+        missing: verdict.missing,
+        make: readout.cameraBrand,
+        model: readout.cameraModel,
+        lens_make: readout.lensBrand,
+        lens_model: readout.lensModel,
+        body_serial: readout.bodySerial,
+        lens_serial: readout.lensSerial,
+        focal_length_mm: readout.focalLengthMm,
+        aperture: readout.aperture,
+        shutter_speed: readout.shutterSpeed,
+        iso: readout.iso,
+        metering_mode: readout.meteringMode,
+        flash: readout.flash,
+        software: readout.software,
+        captured_at: readout.capturedAt,
+        // A yes/no only. The coordinates stay out of this table by design.
+        has_gps: readout.gps !== null,
+        checked_at: new Date().toISOString(),
+      },
+      { onConflict: 'photograph_id' },
+    );
+    if (error) {
+      console.error(`FRAME upload: recording the EXIF check for ${photographId} failed — ${error.message}`);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error(
+      `FRAME upload: the EXIF check for ${photographId} could not be recorded — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
+/** The refusal, in the reader's language, naming what was missing. */
+async function describeExifRefusal(verdict: ExifVerdict): Promise<string> {
+  const t = await messages();
+  if (verdict.deviceClass === 'phone') return t('actions.exifRejectedPhone');
+  const fields = verdict.missing.map((field) => t(`exifGate.fields.${field}`)).join(', ');
+  return t('actions.exifRejectedMissing', { fields });
 }
 
 /* ------------------------------------------------------------------------ */
