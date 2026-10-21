@@ -30,12 +30,23 @@ import { checkRateLimit } from '@/lib/rate-limit';
  */
 
 /**
- * Per member, per hour. A member proposing places as fast as the form allows —
- * five a day, by `LOCATION_POLICY.maxSubmissionsPerDay` — needs a handful of
- * lookups each. Sixty an hour leaves room to drag a pin around and change their
- * mind repeatedly, and still stops a loop in a client this route cannot see.
+ * Per member, per hour.
+ *
+ * Sixty was sized for dragging a pin. Since the name field suggests as the
+ * member types, typing spends this budget too: one request per pause in a word
+ * rather than one per search pressed, so naming a single place now costs
+ * several lookups instead of one. A member proposing places as fast as the form
+ * allows — five a day, by `LOCATION_POLICY.maxSubmissionsPerDay` — can spend a
+ * dozen or more on each, between typing a name, changing their mind and
+ * dragging the pin afterwards.
+ *
+ * Three a minute sustained is the new figure: comfortable for somebody working
+ * carefully through a proposal, and still a firm stop on a loop in a client
+ * this route cannot see. The cap matters because the far end is a free
+ * community service; when it is reached the answer is empty rather than an
+ * error, so suggestions quietly stop and the member keeps typing.
  */
-const LOOKUPS_PER_HOUR = 60;
+const LOOKUPS_PER_HOUR = 180;
 const HOUR_SECONDS = 60 * 60;
 
 const JSON_HEADERS: Record<string, string> = {
