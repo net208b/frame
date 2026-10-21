@@ -4,7 +4,8 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { Link } from '@/i18n/navigation';
 import { buildDiscoverHref } from '@/lib/discover-query';
-import { cn } from '@/lib/utils';
+import { buildProfileGearHref, facetForGearLine, type GearFacet } from '@/lib/gear-filter';
+import { cn, formatCount } from '@/lib/utils';
 import type { PhotographDetail } from '@/types/domain';
 
 /**
@@ -104,10 +105,16 @@ function gearFilter(entry: string, brands: GearBrandIndex): GearFilter | null {
 export async function GearList({
   gear,
   brands,
+  facets = [],
+  username,
   className,
 }: {
   gear: readonly string[];
   brands?: GearBrandIndex;
+  /** The cameras and lenses this member's frames were shot on, with counts. */
+  facets?: readonly GearFacet[];
+  /** Needed to build a filter that stays on this profile. */
+  username?: string;
   className?: string;
 }) {
   const entries = gear.map((entry) => entry.trim()).filter(Boolean);
@@ -129,7 +136,12 @@ export async function GearList({
 
       <ul className="mt-4 divide-y divide-line border-y border-line">
         {entries.map((entry, position) => {
-          const filter = gearFilter(entry, index);
+          // First choice: the frames on THIS profile shot on that very model.
+          // A line that names a camera with frames here filters the page in
+          // place; only a line that matches nothing here falls back to the
+          // sitewide Discover filter below, exactly as before.
+          const own = username ? facetForGearLine(entry, facets) : null;
+          const filter = own ? null : gearFilter(entry, index);
 
           return (
             <li
@@ -138,7 +150,17 @@ export async function GearList({
             >
               <span className="text-caption text-ink-soft">{entry}</span>
 
-              {filter ? (
+              {own && username ? (
+                <Link
+                  href={buildProfileGearHref(username, own.key)}
+                  scroll={false}
+                  aria-label={t('gear.profileFilter', { gear: own.label })}
+                  className="inline-flex shrink-0 items-center gap-1 text-meta font-semibold text-muted transition-colors duration-150 hover:text-ink tabular-nums"
+                >
+                  {t('gearFilter.count', { count: formatCount(own.count, locale) })}
+                  <ArrowUpRight aria-hidden className="size-3" />
+                </Link>
+              ) : filter ? (
                 <Link
                   href={filter.href}
                   /*

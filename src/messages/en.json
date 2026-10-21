@@ -706,6 +706,7 @@
       "eyebrow": "Usual gear",
       "cameraFilter": "{brand} cameras on Discover",
       "lensFilter": "{brand} lenses on Discover",
+      "profileFilter": "Frames on this profile shot on {gear}",
       "note": "Written by the member. FRAME does not check gear against a photograph’s metadata."
     },
     "portfolio": {
@@ -713,6 +714,7 @@
       "title": "Published photographs",
       "countPublished": "{shown} published",
       "countOfTotal": "{shown} most recent of {total}",
+      "countFiltered": "{shown} of {total} frames · shot on {gear}",
       "emptyTitle": "Nothing published yet",
       "emptyDescription": "{name} has not published a photograph. Drafts and uploads still in review are never shown here."
     },
@@ -738,6 +740,11 @@
       "body": "This profile address does not belong to a FRAME member. The link may be mistyped, or the account may no longer be on FRAME.",
       "community": "Meet the community",
       "discover": "Browse photographs"
+    },
+    "gearFilter": {
+      "label": "Filter by gear",
+      "all": "All",
+      "count": "{count} frames"
     }
   },
   "community": {

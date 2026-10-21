@@ -5,6 +5,7 @@ import { cache } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { MasonryGallery } from '@/components/photo/MasonryGallery';
+import { GearChips } from '@/components/photographer/GearChips';
 import { gearBrandIndex, GearList } from '@/components/photographer/GearList';
 import { ProfileCollections } from '@/components/photographer/ProfileCollections';
 import { ProfileFootprints } from '@/components/photographer/ProfileFootprints';
@@ -26,6 +27,7 @@ import {
   getPhotographerMapPins,
   getPortfolio,
 } from '@/lib/data/repository';
+import { activeGearFacet, filterByGear, gearFacets, readGearKey } from '@/lib/gear-filter';
 import { buildMetadata } from '@/lib/seo';
 import { cn, formatCount, truncate } from '@/lib/utils';
 
@@ -194,7 +196,26 @@ export default async function PhotographerProfilePage({
     ...(footprints.length > 0 || isSelf ? (['footprints'] as const) : []),
     ...(publicCollections > 0 ? (['collections'] as const) : []),
   ];
-  const view = readProfileView((await searchParams)?.view, views);
+  const query = await searchParams;
+  const view = readProfileView(query?.view, views);
+
+  /*
+   * `?gear=` narrows the frames to one camera or lens. The facets come from
+   * the portfolio already in hand, so the filter is an array filter and a key
+   * that names nothing on this profile is simply ignored — a pasted link to a
+   * camera this member has since stopped using shows the whole portfolio,
+   * never an empty gallery. The filter only ever applies to the frames view.
+   */
+  const facets = gearFacets(portfolio);
+  const activeGear = activeGearFacet(facets, readGearKey(query?.gear));
+  const frames = activeGear ? filterByGear(portfolio, activeGear) : portfolio;
+  const framesCount = activeGear
+    ? t('portfolio.countFiltered', {
+        shown: formatCount(frames.length, locale),
+        total: formatCount(shown, locale),
+        gear: activeGear.label,
+      })
+    : portfolioCount;
 
   return (
     <div className="site-container pt-10 pb-20 lg:pt-14">
@@ -208,7 +229,12 @@ export default async function PhotographerProfilePage({
       >
         <ProfileStats photographer={photographer} />
         {hasGear ? (
-          <GearList gear={photographer.usualGear} brands={gearBrandIndex(portfolio)} />
+          <GearList
+            gear={photographer.usualGear}
+            brands={gearBrandIndex(portfolio)}
+            facets={facets}
+            username={photographer.username}
+          />
         ) : null}
       </div>
 
@@ -221,13 +247,26 @@ export default async function PhotographerProfilePage({
             title={t('portfolio.title')}
             action={
               shown > 0 ? (
-                <p className="text-meta text-muted tabular-nums">{portfolioCount}</p>
+                <p className="text-meta text-muted tabular-nums">{framesCount}</p>
               ) : null
             }
           />
 
+          {/* One chip is not a choice: the row appears only when there is
+              more than one kind of gear to choose between, or when a filter
+              is already on and needs a way off. */}
+          {facets.length > 1 || activeGear ? (
+            <GearChips
+              username={photographer.username}
+              facets={facets}
+              active={activeGear}
+              total={shown}
+              className="mb-6"
+            />
+          ) : null}
+
           {shown > 0 ? (
-            <MasonryGallery photos={portfolio} showPhotographer={false} priorityCount={4} />
+            <MasonryGallery photos={frames} showPhotographer={false} priorityCount={4} />
           ) : (
             <EmptyState
               title={t('portfolio.emptyTitle')}
