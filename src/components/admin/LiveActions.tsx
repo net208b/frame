@@ -7,7 +7,12 @@ import { useToast } from '@/components/system/Toast';
 import { Button } from '@/components/ui/Button';
 import { TextAreaField } from '@/components/ui/Field';
 import { useRouter } from '@/i18n/navigation';
-import { actOnUpload, setLocationPrecision, takeDownLocation } from '@/server/actions/moderation';
+import {
+  actOnUpload,
+  deleteLocation,
+  setLocationPrecision,
+  takeDownLocation,
+} from '@/server/actions/moderation';
 import { PIN_PRECISIONS, type PinPrecision } from '@/types/domain';
 
 /**
@@ -77,10 +82,17 @@ export function LocationLiveActions({
   locationId,
   name,
   pinPrecision,
+  canDelete = false,
 }: {
   locationId: string;
   name: string;
   pinPrecision: PinPrecision;
+  /**
+   * Only an admin may delete, so only an admin is shown the button. The
+   * database refuses everybody else regardless — this just stops a moderator
+   * being offered something that will be taken away from them.
+   */
+  canDelete?: boolean;
 }) {
   const t = useTranslations('admin.live');
   const tPrecision = useTranslations('moderation.form.coordinatePrivacy.options');
@@ -88,7 +100,9 @@ export function LocationLiveActions({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [precision, setPrecision] = useState<PinPrecision>(pinPrecision);
-  const [takingDown, setTakingDown] = useState(false);
+  // One panel open at a time. Taking down and deleting are different answers
+  // to different questions and must not be one button with two meanings.
+  const [mode, setMode] = useState<'idle' | 'takeDown' | 'delete'>('idle');
   const [reason, setReason] = useState('');
 
   function savePrecision(next: PinPrecision) {
@@ -105,14 +119,21 @@ export function LocationLiveActions({
     });
   }
 
-  function takeDown() {
+  function decide(kind: 'takeDown' | 'delete') {
     startTransition(async () => {
-      const result = await takeDownLocation({ locationId, reason });
+      const result =
+        kind === 'delete'
+          ? await deleteLocation({ locationId, reason })
+          : await takeDownLocation({ locationId, reason });
       if (result.ok) {
         toast.show(result.message ?? t('done'), 'success');
-        setTakingDown(false);
+        setMode('idle');
+        setReason('');
         router.refresh();
       } else {
+        // Left open with the reason still in it: the commonest refusal is
+        // "this place still holds photographs", which the admin answers by
+        // taking it down instead, not by typing it all again.
         toast.show(result.error, 'danger');
       }
     });
@@ -133,20 +154,30 @@ export function LocationLiveActions({
           ))}
         </select>
       </label>
-      {takingDown ? (
+      {mode !== 'idle' ? (
         <div className="rounded-card border border-line bg-surface-sunken p-3">
-          <p className="text-meta leading-relaxed text-ink-soft">{t('takeDownPlaceEffect')}</p>
+          <p className="text-meta leading-relaxed text-ink-soft">
+            {mode === 'delete' ? t('deletePlaceEffect') : t('takeDownPlaceEffect')}
+          </p>
           <TextAreaField label={t('reasonLabel', { title: name })} hideLabel placeholder={t('reasonPlaceholder')}
             value={reason} rows={2} maxLength={1000} onChange={(event) => setReason(event.target.value)} wrapperClassName="mt-2" />
           <div className="mt-2 flex gap-2">
-            <Button size="sm" variant="danger" loading={pending} disabled={reason.trim().length === 0} onClick={takeDown}>
-              {t('takeDownConfirm')}
+            <Button size="sm" variant="danger" loading={pending} disabled={reason.trim().length === 0}
+              onClick={() => decide(mode === 'delete' ? 'delete' : 'takeDown')}>
+              {mode === 'delete' ? t('deleteConfirm') : t('takeDownConfirm')}
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setTakingDown(false)}>{t('cancel')}</Button>
+            <Button size="sm" variant="ghost" onClick={() => { setMode('idle'); setReason(''); }}>
+              {t('cancel')}
+            </Button>
           </div>
         </div>
       ) : (
-        <Button size="sm" variant="ghost" onClick={() => setTakingDown(true)}>{t('takeDownPin')}</Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="ghost" onClick={() => setMode('takeDown')}>{t('takeDownPin')}</Button>
+          {canDelete ? (
+            <Button size="sm" variant="ghost" onClick={() => setMode('delete')}>{t('deletePlace')}</Button>
+          ) : null}
+        </div>
       )}
     </div>
   );

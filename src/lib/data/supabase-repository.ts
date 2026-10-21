@@ -277,6 +277,7 @@ const MODERATION_DECISIONS: readonly ModerationDecision[] = [
   'suspend_account',
   'dismiss',
   'change_role',
+  'delete',
 ];
 
 const RESTRICTION_KINDS: readonly LocationRestriction['kind'][] = [

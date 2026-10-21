@@ -3,7 +3,7 @@
 import { z } from 'zod';
 
 import { fail, NOT_CONFIGURED_MESSAGE, ok, type ActionResult } from '@/lib/action-result';
-import { getViewer, getViewerSuspension, isModerator, type Viewer } from '@/lib/auth';
+import { getViewer, getViewerSuspension, isAdmin, isModerator, type Viewer } from '@/lib/auth';
 import { isDemoMode, serverEnv } from '@/lib/config';
 import { storageKeys } from '@/lib/images/variants';
 import { storageDriver } from '@/lib/storage';
@@ -1046,4 +1046,80 @@ export async function takeDownLocation(input: unknown): Promise<ActionResult<voi
 
   if (!audit.ok) return fail(auditGapMessage('remove_content', `location ${locationId}`), 'unknown');
   return ok<void>(undefined, 'The place is taken down and its pin is gone.');
+}
+
+const deleteLocationSchema = z.object({
+  locationId: identifier('Location'),
+  reason: z.string().trim().min(1, { error: REASON_REQUIRED }).max(MODERATION_LIMITS.reasonMaxLength),
+});
+
+/**
+ * Delete a place outright (0036). The admin's verb, not the moderator's.
+ *
+ * Taking a place down is reversible and leaves the row where a moderator can
+ * see what was there. This removes it: for a duplicate, a mistake, or a pin
+ * left over from setting the site up. Photographs at the place are NOT deleted
+ * — a frame simply loses its place — and the record of the deletion outlives
+ * the place, because `moderation_actions` has no foreign key to `locations`.
+ *
+ * Everything that decides whether this is allowed lives in `delete_location`:
+ * that the caller is an admin, that they said why, and that the place holds no
+ * photograph anybody can still see. The checks are repeated here only to turn
+ * the database's error codes into something a reader can act on.
+ */
+export async function deleteLocation(input: unknown): Promise<ActionResult<void>> {
+  const started = await begin();
+  if (!started.ok) return started.refusal;
+  const { viewer, supabase } = started;
+
+  // Said plainly before the round trip. The function refuses a moderator too,
+  // but "only an admin deletes a place" is more use than a raw 42501.
+  if (!isAdmin(viewer)) {
+    return fail('Only an admin deletes a place. A moderator can take it down instead.', 'forbidden');
+  }
+
+  const parsed = parseForm(input, deleteLocationSchema);
+  if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
+  const { locationId, reason } = parsed.data;
+
+  // The slug before the place is gone, so the pages that showed it can be
+  // revalidated afterwards.
+  const { data: before } = await supabase
+    .from('locations')
+    .select('slug')
+    .eq('id', locationId)
+    .maybeSingle();
+  const slug = slugRowSchema.safeParse(before);
+
+  const { error } = await supabase.rpc('delete_location', {
+    p_location_id: locationId,
+    p_reason: reason,
+  });
+
+  if (error) {
+    // 23503 is raised by the function itself, with the count in the message:
+    // it is the one refusal the admin can do something about, so it is passed
+    // through rather than replaced.
+    if (error.code === '23503') return fail(error.message, 'conflict');
+    if (error.code === 'P0002') return fail('That place no longer exists.', 'not_found');
+    if (error.code === '42501') {
+      return fail('Only an admin deletes a place. A moderator can take it down instead.', 'forbidden');
+    }
+    if (error.code === '22023') return fail(REASON_REQUIRED, 'validation', { reason: REASON_REQUIRED });
+    return failFromQuery(error, 'deleting the place');
+  }
+
+  revalidateAfterReport({
+    photographSlug: null,
+    ownerUsername: null,
+    locationSlug: slug.success ? slug.data.slug : null,
+  });
+  // The map and the index listed it; both have to forget it.
+  revalidateLocalisedPath('/map');
+  revalidateLocalisedPath('/locations');
+
+  return ok<void>(
+    undefined,
+    'The place is deleted. Any photograph that was there has kept its place on the site, without a place on the map.',
+  );
 }

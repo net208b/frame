@@ -680,7 +680,9 @@ export type ModerationDecision =
   | 'remove_content'
   | 'suspend_account'
   | 'dismiss'
-  | 'change_role';
+  | 'change_role'
+  /** An admin removing a place outright (0036), not taking it down. */
+  | 'delete';
 
 /** A member of staff, as the team panel lists them. */
 export interface StaffMember {

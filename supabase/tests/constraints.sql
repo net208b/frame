@@ -2952,6 +2952,129 @@ begin
   raise notice 'translate ok a translation does not outlive the words it translates';
 end $$;
 
+
+-- ===========================================================================
+-- 0036  Deleting a place, for an admin
+-- ===========================================================================
+-- Taking a place down is a moderator's call and reversible. Deleting is the
+-- admin's and is not, so the checks below are about who may, what they must
+-- say, what stops them, and what is left behind afterwards.
+
+insert into public.locations
+  (id, slug, name, city, country, country_code, latitude, longitude, status, approved_at)
+values
+  ('de1e7e00-0000-4000-8000-000000000001', 'delete-me-empty', 'Delete me, empty',
+   'Bangkok', 'Thailand', 'TH', 13.70, 100.50, 'approved', now()),
+  ('de1e7e00-0000-4000-8000-000000000002', 'delete-me-busy', 'Delete me, busy',
+   'Bangkok', 'Thailand', 'TH', 13.71, 100.51, 'approved', now())
+on conflict (id) do nothing;
+
+-- A published frame at the second place, which is what must protect it.
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, location_id, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('de1e7e00-0000-4000-8000-00000000000f', 'frame-at-a-doomed-place',
+   '11111111-1111-4111-8111-111111111111', 'Frame at a doomed place',
+   'A photograph standing between an admin and the place they want to delete.',
+   'street', 'de1e7e00-0000-4000-8000-000000000002', 'published',
+   now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+-- Who may not.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '11111111-1111-4111-8111-111111111111';
+select public.test_rejects('a member deleting a place',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-000000000001', 'tidying up')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000002';
+select public.test_rejects('a moderator deleting a place',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-000000000001', 'tidying up')$$, '42501');
+commit;
+
+-- What the admin must say, and what stops them.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000003';
+select public.test_rejects('an admin deleting a place with no reason',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-000000000001', '   ')$$, '22023');
+select public.test_rejects('deleting a place that does not exist',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-0000000000ff', 'tidying up')$$, 'P0002');
+select public.test_rejects('deleting a place that still holds a photograph',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-000000000002', 'duplicate')$$, '23503');
+select public.test_accepts('an admin deleting an empty place',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-000000000001', 'a test pin from setting the site up')$$);
+commit;
+
+do $$
+declare n_place integer; n_audit integer; v_reason text;
+begin
+  select count(*) into n_place from public.locations
+   where id = 'de1e7e00-0000-4000-8000-000000000001';
+  if n_place <> 0 then
+    raise exception 'DELETE GAP  the place is still there after being deleted';
+  end if;
+
+  -- moderation_actions has no foreign key to locations, which is what lets the
+  -- record outlive the place. If that ever changes this assertion is the alarm.
+  select count(*), max(reason) into n_audit, v_reason
+    from public.moderation_actions
+   where subject_type = 'location'
+     and subject_id = 'de1e7e00-0000-4000-8000-000000000001'
+     and decision = 'delete';
+  if n_audit <> 1 then
+    raise exception 'AUDIT GAP  % audit rows for the deleted place, expected 1', n_audit;
+  end if;
+  if position('Delete me, empty' in coalesce(v_reason, '')) = 0 then
+    raise exception 'AUDIT GAP  the record does not say which place was deleted: %', v_reason;
+  end if;
+  raise notice 'delete ok    the place is gone and the record of it outlives it';
+end $$;
+
+-- The busy place survives, with its frame still on it.
+do $$
+declare v_place uuid;
+begin
+  select location_id into v_place from public.photographs
+   where id = 'de1e7e00-0000-4000-8000-00000000000f';
+  if v_place is distinct from 'de1e7e00-0000-4000-8000-000000000002' then
+    raise exception 'DELETE GAP  a refused delete still moved the photograph';
+  end if;
+  raise notice 'delete ok    a refused delete changes nothing at all';
+end $$;
+
+-- A frame that moderation has removed does not protect a place, and loses its
+-- place rather than being deleted with it.
+update public.photographs set status = 'removed', removed_reason = 'for the test'
+ where id = 'de1e7e00-0000-4000-8000-00000000000f';
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000003';
+select public.test_accepts('an admin deleting a place whose only frame was removed',
+  $$select public.delete_location('de1e7e00-0000-4000-8000-000000000002', 'duplicate of another pin')$$);
+commit;
+
+do $$
+declare n_photo integer; v_place uuid;
+begin
+  select count(*) into n_photo from public.photographs
+   where id = 'de1e7e00-0000-4000-8000-00000000000f';
+  if n_photo <> 1 then
+    raise exception 'DELETE GAP  deleting a place destroyed the photograph at it';
+  end if;
+  select location_id into v_place from public.photographs
+   where id = 'de1e7e00-0000-4000-8000-00000000000f';
+  if v_place is not null then
+    raise exception 'DELETE GAP  the photograph still points at a place that is gone';
+  end if;
+  raise notice 'delete ok    the frame outlives the place and is simply placeless';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
