@@ -33,9 +33,21 @@ const RING_WIDTH = 2;
  * selected pin grows a heavier ring and comes forward, and rebuilding the node
  * on every selection change would restart the image load.
  */
+export interface PhotoMarkerOptions {
+  /**
+   * The signed-in member has a published photograph at this place. The marker
+   * gets a lit ring, so a member can pick out their own work on the map at a
+   * glance. Nobody else sees it: the ring says "yours", not "popular".
+   */
+  own?: boolean;
+  /** What a screen reader hears after the place's name when `own` is set. */
+  ownLabel?: string;
+}
+
 export function createPhotoMarkerElement(
   pin: MapPin,
   onSelect: () => void,
+  options: PhotoMarkerOptions = {},
 ): { element: HTMLButtonElement; setSelected: (selected: boolean) => void } {
   const element = document.createElement('button');
   element.type = 'button';
@@ -48,7 +60,10 @@ export function createPhotoMarkerElement(
    * information. The count and the precision are on the card the button opens,
    * as text, in the reader's language.
    */
-  element.setAttribute('aria-label', pin.name);
+  element.setAttribute(
+    'aria-label',
+    options.own && options.ownLabel ? `${pin.name}. ${options.ownLabel}` : pin.name,
+  );
   element.className = [
     'group relative grid size-11 place-items-center rounded-pill',
     // The focus ring is the interface's own, not the browser's: a map is a
@@ -87,6 +102,24 @@ export function createPhotoMarkerElement(
   ].join(' ');
   if (!pin.isApproximate) frame.style.borderWidth = `${RING_WIDTH}px`;
   if (!pin.isApproximate) frame.style.borderStyle = 'solid';
+
+  /*
+   * The member's own ring. A lit band just outside the frame, breathing slowly,
+   * in the accent the site already uses for "this is live". Drawn behind the
+   * frame so the photograph stays whole, and only when `own` is set: a reader
+   * who is not signed in, or has no frame here, sees the marker exactly as
+   * before. Still, not breathing, for a reader who asked for reduced motion.
+   */
+  if (options.own) {
+    const glow = document.createElement('span');
+    glow.setAttribute('aria-hidden', 'true');
+    glow.className = [
+      'pointer-events-none absolute -inset-1.5 rounded-pill',
+      'border-2 border-accent own-ring-glow',
+      'motion-safe:animate-[own-ring_2.6s_ease-in-out_infinite]',
+    ].join(' ');
+    element.append(glow);
+  }
 
   const url = pin.recentImageUrls[0];
   if (url) {

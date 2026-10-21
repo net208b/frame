@@ -1419,6 +1419,27 @@ export async function mapPins(): Promise<MapPin[]> {
  * withheld is dropped, and a sensitive one is rounded, both by
  * `publishableCoordinates`.
  */
+/**
+ * Ids of the places where a member has a published photograph. Distinct, and
+ * only places the map would show: approved, with a publishable point.
+ */
+export async function ownPhotographedLocationIds(ownerId: string): Promise<string[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<{ location_id: string | null }>(
+    'reading where a member has photographed',
+    await supabase
+      .from('photographs')
+      .select('location_id, locations!inner(status, withhold_coordinates)')
+      .eq('owner_id', ownerId)
+      .eq('status', 'published')
+      .eq('locations.status', 'approved')
+      .eq('locations.withhold_coordinates', false)
+      .not('location_id', 'is', null)
+      .limit(AGGREGATE_SAMPLE_LIMIT),
+  );
+  return [...new Set(rows.map((row) => toText(row.location_id)).filter((id): id is string => id !== null))];
+}
+
 export async function photographerMapPins(ownerId: string): Promise<MapPin[]> {
   const supabase = await createClient();
 

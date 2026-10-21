@@ -23,11 +23,13 @@ import type { MapPin } from '@/lib/data/repository';
  */
 export function CityMapCanvas({
   pins,
+  ownLocationIds,
   centre,
   zoom,
   heightClassName,
 }: {
   pins: MapPin[];
+  ownLocationIds?: readonly string[];
   centre: [number, number];
   zoom: number;
   heightClassName: string;
@@ -37,6 +39,7 @@ export function CityMapCanvas({
   return (
     <MapCanvas
       pins={pins}
+      ownLocationIds={ownLocationIds}
       initialCenter={centre}
       initialZoom={zoom}
       selectedId={selected?.id ?? null}

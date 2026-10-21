@@ -446,6 +446,28 @@
     --color-danger-ink: #1a0f0d;
 }
 
+/* The lit ring on a member's own map pin. The band is a border; this is the
+   light around it. Written as plain CSS because a Tailwind arbitrary shadow
+   carrying color-mix() resolved to transparent in the browser. */
+.own-ring-glow {
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--color-accent) 30%, transparent),
+    0 0 18px 4px color-mix(in oklab, var(--color-accent) 60%, transparent);
+}
+
+/* The lit ring on a member's own map pin: a slow breath, never a blink. */
+@keyframes own-ring {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
 @keyframes shimmer {
   0% {
     background-position: -140% 0;

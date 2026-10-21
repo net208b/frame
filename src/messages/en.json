@@ -632,7 +632,8 @@
       "zoomOut": "Zoom out",
       "statusLoading": "Loading the map.",
       "statusReady": "The map is ready.",
-      "statusFailed": "The map could not be loaded."
+      "statusFailed": "The map could not be loaded.",
+      "yours": "You have a photograph here."
     },
     "explorer": {
       "listHeading": "Locations on the map",

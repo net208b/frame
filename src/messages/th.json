@@ -632,7 +632,8 @@
       "zoomOut": "ย่อออก",
       "statusLoading": "กำลังโหลดแผนที่",
       "statusReady": "แผนที่พร้อมใช้งานแล้ว",
-      "statusFailed": "โหลดแผนที่ไม่สำเร็จ"
+      "statusFailed": "โหลดแผนที่ไม่สำเร็จ",
+      "yours": "คุณลงภาพไว้ที่นี่"
     },
     "explorer": {
       "listHeading": "สถานที่บนแผนที่",

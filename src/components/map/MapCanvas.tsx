@@ -121,6 +121,7 @@ function fitToPins(instance: MapLibreMap, pins: readonly MapPin[]): void {
 
 export function MapCanvas({
   pins,
+  ownLocationIds,
   initialCenter,
   initialZoom,
   selectedId,
@@ -132,6 +133,11 @@ export function MapCanvas({
   heightClassName = 'h-[70vh]',
 }: {
   pins: MapPin[];
+  /**
+   * Places where the signed-in member has a published photograph. Their
+   * markers get the lit ring. Empty, or absent, for a visitor.
+   */
+  ownLocationIds?: readonly string[];
   initialCenter?: [number, number];
   initialZoom?: number;
   selectedId?: string | null;
@@ -182,6 +188,15 @@ export function MapCanvas({
   // Props the map reads from inside long-lived MapLibre handlers. Keeping them
   // in refs means a new `onSelect` identity never tears the map down.
   const pinsRef = useRef(pins);
+  // Read by the marker sync, which is created once: a Set for the lookup, and
+  // the label a screen reader hears on a member's own pin. Kept current from
+  // an effect, as onSelectRef is below, rather than written during render.
+  const ownRef = useRef<Set<string>>(new Set(ownLocationIds ?? []));
+  const ownLabelRef = useRef(t('canvas.yours'));
+  useEffect(() => {
+    ownRef.current = new Set(ownLocationIds ?? []);
+    ownLabelRef.current = t('canvas.yours');
+  }, [ownLocationIds, t]);
   const onSelectRef = useRef(onSelect);
   const onVisibleChangeRef = useRef(onVisibleChange);
   // The selection is here as well as in the effect below because a rebuilt map
@@ -270,8 +285,10 @@ export function MapCanvas({
         const pin = byId.get(id);
         if (!pin || pin.recentImageUrls.length === 0) continue;
 
-        const { element, setSelected } = createPhotoMarkerElement(pin, () =>
-          onSelectRef.current?.(pin),
+        const { element, setSelected } = createPhotoMarkerElement(
+          pin,
+          () => onSelectRef.current?.(pin),
+          { own: ownRef.current.has(pin.id), ownLabel: ownLabelRef.current },
         );
 
         const marker = new maplibregl.Marker({ element })

@@ -7,7 +7,8 @@ import { SELECTED_PARAM } from '@/components/map/map-style';
 import { precisionParts } from '@/components/map/precision';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { LOCATION_POLICY } from '@/lib/config';
-import { getMapPins } from '@/lib/data/repository';
+import { getViewer } from '@/lib/auth';
+import { getMapPins, getOwnPhotographedLocationIds } from '@/lib/data/repository';
 import { visitorPlace } from '@/lib/geo/visitor';
 import { buildMetadata } from '@/lib/seo';
 import { formatCount } from '@/lib/utils';
@@ -56,7 +57,10 @@ export default async function MapPage({
   // The geolocation headers make this page vary by reader, which it did not
   // before. It is the camera for an empty map and nothing else — see
   // `visitorPlace()` — so the cost is one header read per request.
-  const [pins, place] = await Promise.all([getMapPins(), visitorPlace()]);
+  const [pins, place, viewer] = await Promise.all([getMapPins(), visitorPlace(), getViewer()]);
+  // Only for a signed-in member, and only their own: the ring on a pin says
+  // "you have photographed here", and nobody is shown anybody else's.
+  const ownLocationIds = viewer ? await getOwnPhotographedLocationIds(viewer.id) : [];
   const approximateCount = pins.filter((pin) => pin.isApproximate).length;
 
   return (
@@ -102,6 +106,7 @@ export default async function MapPage({
           did before, left the one page about places with no map on it. */}
       <MapExplorer
         pins={pins}
+        ownLocationIds={ownLocationIds}
         initialSelectedSlug={selectedSlug}
         fallbackCamera={{ centre: place.centre, zoom: place.zoom }}
       />

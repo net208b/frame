@@ -60,11 +60,14 @@ function matchesFilters(pin: MapPin, filters: Filters): boolean {
 
 export function MapExplorer({
   pins,
+  ownLocationIds,
   initialSelectedSlug = null,
   fallbackCamera,
   className,
 }: {
   pins: MapPin[];
+  /** Where the signed-in member has photographed; their pins get the lit ring. */
+  ownLocationIds?: readonly string[];
   /** Read from the query string on the server, so a shared link arrives whole. */
   initialSelectedSlug?: string | null;
   /**
@@ -218,6 +221,7 @@ export function MapExplorer({
       >
         <MapCanvas
           pins={filtered}
+          ownLocationIds={ownLocationIds}
           initialCenter={pins.length === 0 ? fallbackCamera?.centre : undefined}
           initialZoom={pins.length === 0 ? fallbackCamera?.zoom : undefined}
           selectedId={selectedPin?.id ?? null}

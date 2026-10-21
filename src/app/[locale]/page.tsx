@@ -15,6 +15,7 @@ import { getViewer } from '@/lib/auth';
 import { SITE } from '@/lib/config';
 import {
   getDiscoverFeed,
+  getOwnPhotographedLocationIds,
   getFeature,
   getFeaturedPhotographers,
   getFeatures,
@@ -94,6 +95,9 @@ export default async function HomePage({ params }: HomePageProps) {
   // containing "</script>" must not end the block early.
   const jsonLd = JSON.stringify(siteJsonLd(locale, t('meta.description'))).replace(/</g, '\\u003c');
 
+  // A signed-in member's own places, for the lit ring on their map pins.
+  const ownLocationIds = viewer ? await getOwnPhotographedLocationIds(viewer.id) : [];
+
   // The hero's globe lights the countries FRAME has approved places in. The
   // pin read already carries every approved place with a publishable point,
   // so this is a count over it rather than a query of its own.
@@ -126,6 +130,7 @@ export default async function HomePage({ params }: HomePageProps) {
           city — and the sections below it are all empty until somebody has. */}
       <CityMap
         pins={pins.slice(0, CITY_MAP_PINS)}
+        ownLocationIds={ownLocationIds}
         totalPinCount={pins.length}
         place={place}
         signedIn={viewer !== null}
