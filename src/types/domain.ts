@@ -225,6 +225,23 @@ export interface LocationSummary {
   /** ISO 3166-1 alpha-2. */
   countryCode: string;
   photographCount: number;
+  /**
+   * The place's name in the other language (0035), so a reader sees "Bang
+   * Kapi" wherever a Thai-named place is credited rather than only on the
+   * place's own page.
+   *
+   * It travels with the summary because the name is written on a photograph
+   * too — in its breadcrumb, under its frame and in its `<title>` — and those
+   * readers hold a summary, not the full record.
+   *
+   * Empty unless the read fetched it. `translationsFor` is one query per list,
+   * so a read pays for it only where the name is rendered to a member: the
+   * photograph reads, the nearby list and a collection's places.
+   * `findDuplicateLocationCandidates` deliberately does not — it is a staff
+   * tool for comparing the names as written. `MapPin` is its own shape rather
+   * than a summary, so the map still labels a pin with the name as written.
+   */
+  translations: Translations<'name'>;
 }
 
 export interface Coordinates {
@@ -241,7 +258,7 @@ export interface Coordinates {
 
 export interface LocationDetail extends LocationSummary {
   description: string | null;
-  /** The name and description in the other language (0035). */
+  /** The name and the description, where the summary carries only the name. */
   translations: Translations<'name' | 'description'>;
   /** Null when the place is sensitive and no coordinate may be published. */
   coordinates: Coordinates | null;

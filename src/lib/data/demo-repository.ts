@@ -64,6 +64,7 @@ function toSummary(location: LocationDetail): LocationSummary {
     country: location.country,
     countryCode: location.countryCode,
     photographCount: location.photographCount,
+    translations: location.translations,
   };
 }
 
@@ -267,6 +268,7 @@ export function demoMapPins() {
     country: location.country,
     countryCode: location.countryCode,
     photographCount: location.photographCount,
+    translations: location.translations,
     categories: location.categories,
     latitude: location.coordinates!.latitude,
     longitude: location.coordinates!.longitude,
@@ -314,6 +316,7 @@ export function demoPhotographerMapPins(photographerId: string): DemoMapPin[] {
       city: place.city,
       country: place.country,
       countryCode: place.countryCode,
+      translations: place.translations,
       // Theirs, not the place's.
       photographCount: 1,
       categories: place.categories,

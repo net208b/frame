@@ -30,6 +30,7 @@ function summariseLocation(slug: string): LocationSummary {
     country: location.country,
     countryCode: location.countryCode,
     photographCount: location.photographCount,
+    translations: location.translations,
   };
 }
 

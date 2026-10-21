@@ -13,7 +13,7 @@ import { LocationPanel } from '@/components/photo-detail/LocationPanel';
 import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
 import { PhotographerPanel } from '@/components/photo-detail/PhotographerPanel';
 import { PhotoStage } from '@/components/photo-detail/PhotoStage';
-import { translationApplies } from '@/lib/translation/applies';
+import { translatedText } from '@/lib/translation/applies';
 import { RelatedStrip } from '@/components/photo-detail/RelatedStrip';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Notice } from '@/components/ui/states';
@@ -113,21 +113,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const place = photo.location ? `${photo.location.city}, ${photo.location.country}` : null;
+
+  // The tab, the search result and the link preview are the page in the
+  // reader's language, so they read the same words the page does. A Thai title
+  // on an English result is the reader being told this page is in Thai when it
+  // is not (0035); with no translation on file these are the original.
+  const title = translatedText(photo.title, photo.translations.title, locale);
+  const altText = translatedText(photo.altText, photo.translations.altText, locale);
   // The description the photographer wrote reads better than anything derived
   // from it; the alt text is the honest fallback because it is always present.
-  const excerpt = endWithStop(truncate(photo.description ?? photo.altText, 150));
+  const written = photo.description
+    ? translatedText(photo.description, photo.translations.description, locale)
+    : altText;
+  const excerpt = endWithStop(truncate(written, 150));
   const credit = place
     ? t('meta.creditWithPlace', { place, photographer: photo.photographer.displayName })
     : t('meta.credit', { photographer: photo.photographer.displayName });
 
   return buildMetadata({
-    title: place ? `${photo.title} — ${place}` : photo.title,
+    title: place ? `${title} — ${place}` : title,
     // A space joins the two sentences in both languages: Thai writes no full
     // stop, so the space is the sentence break rather than a gap after one.
     description: `${excerpt} ${credit}`,
     path: `/photographs/${photo.slug}`,
     locale,
-    image: { url: photo.image.displayUrl, alt: photo.altText },
+    image: { url: photo.image.displayUrl, alt: altText },
     type: 'article',
     // An unpublished frame is reachable only by its owner and by moderators,
     // and it has no business in an index.
@@ -167,9 +177,27 @@ export default async function PhotographPage({ params }: PageProps) {
     ]);
 
   const statusKey = STATUS_NOTE_KEY[photo.status];
-  const place = photo.location
-    ? `${photo.location.name} · ${photo.location.city}, ${photo.location.country}`
+
+  // The place's name in the reader's language, used wherever this page names
+  // it as a label: the breadcrumb, the caption under the frame and the heading
+  // over the related frames. A place name has no room beside it for the
+  // "translated automatically" note, so it takes the reader's language the way
+  // alt text does — and the place's own page still shows it as written, with
+  // the note and the toggle (0035).
+  const placeName = photo.location
+    ? translatedText(photo.location.name, photo.location.translations.name, locale)
     : null;
+  const place = photo.location
+    ? `${placeName} · ${photo.location.city}, ${photo.location.country}`
+    : null;
+
+  // The same for the title, for the places this page uses it as a label rather
+  // than as the frame's heading. `PhotoHeadline` is the heading and keeps the
+  // block, the note and the toggle; the breadcrumb above it and the caption
+  // under the frame would read as a different page's if they stayed Thai while
+  // the h1 beneath them read English.
+  const title = translatedText(photo.title, photo.translations.title, locale);
+  const altText = translatedText(photo.altText, photo.translations.altText, locale);
 
   // Member-authored text can contain "</script>", which would close this
   // element early. Escaping "<" is what keeps the block inert.
@@ -194,14 +222,14 @@ export default async function PhotographPage({ params }: PageProps) {
                   href={`/locations/${photo.location.slug}`}
                   className="transition-colors duration-150 hover:text-ink"
                 >
-                  {photo.location.name}
+                  {placeName}
                 </Link>
               </li>
             </>
           ) : null}
           <li aria-hidden>/</li>
           <li aria-current="page" className="text-ink-soft">
-            {photo.title}
+            {title}
           </li>
         </ol>
       </nav>
@@ -219,12 +247,8 @@ export default async function PhotographPage({ params }: PageProps) {
           // Alt text is an attribute, so there is no room beside it for a note
           // and a toggle: a screen reader simply gets the description in the
           // reader's own language when one exists (0035).
-          altText={
-            translationApplies(photo.translations.altText, locale)
-              ? photo.translations.altText.value
-              : photo.altText
-          }
-          title={photo.title}
+          altText={altText}
+          title={title}
           caption={place}
         />
 
@@ -292,7 +316,7 @@ export default async function PhotographPage({ params }: PageProps) {
       <RelatedStrip
         sameLocation={sameLocation}
         byPhotographer={byPhotographer}
-        locationName={photo.location?.name ?? null}
+        locationName={placeName}
         photographerName={photo.photographer.displayName}
         className="mt-16 lg:mt-24"
       />

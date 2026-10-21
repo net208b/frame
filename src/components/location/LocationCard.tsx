@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { CategoryTag } from '@/components/photo/CategoryTag';
 import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
+import { translatedText } from '@/lib/translation/applies';
 import { cn, formatCount } from '@/lib/utils';
 import type { LocationSummary, PhotoCategory } from '@/types/domain';
 
@@ -94,7 +95,10 @@ export function LocationCard({
             href={`/locations/${location.slug}`}
             className="before:absolute before:inset-0 before:content-['']"
           >
-            {location.name}
+            {/* A card is a label, so the name takes the reader's language with
+                no note and no toggle; the place's own page shows it as written
+                and says a machine translated it (0035). */}
+            {translatedText(location.name, location.translations.name, active)}
           </Link>
         </h3>
 

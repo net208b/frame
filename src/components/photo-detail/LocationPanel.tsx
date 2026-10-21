@@ -6,6 +6,7 @@ import { Eyebrow } from '@/components/ui/SectionHead';
 import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { precisionLabel } from '@/lib/geo';
+import { translatedText } from '@/lib/translation/applies';
 import { cn, formatCoordinates } from '@/lib/utils';
 import type { LocationDetail, LocationSummary } from '@/types/domain';
 
@@ -92,6 +93,14 @@ export async function LocationPanel({
   }
 
   const coordinates = detail?.coordinates ?? null;
+  // The detail's translations are the fuller set, but the summary carries the
+  // name too, so the panel still names the place in the reader's language on a
+  // frame whose place could not be read in full (0035).
+  const name = translatedText(
+    summary.name,
+    detail?.translations.name ?? summary.translations.name,
+    locale,
+  );
 
   return (
     <section className={cn('min-w-0', className)}>
@@ -101,7 +110,7 @@ export async function LocationPanel({
           href={`/locations/${summary.slug}`}
           className="inline-flex items-start gap-1.5 transition-colors duration-150 hover:text-ink-soft"
         >
-          {summary.name}
+          {name}
           <ArrowUpRight aria-hidden className="mt-1 size-4 shrink-0 text-muted" />
         </Link>
       </h2>
@@ -115,7 +124,7 @@ export async function LocationPanel({
           <StaticLocationMap
             latitude={coordinates.latitude}
             longitude={coordinates.longitude}
-            name={summary.name}
+            name={name}
             isApproximate={coordinates.isApproximate}
             precisionDecimals={coordinates.precisionDecimals}
             heightClassName="h-52"

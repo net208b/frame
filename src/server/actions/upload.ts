@@ -330,17 +330,70 @@ const createDraftSchema = uploadDraftSchema.extend(
   publishPhotographSchema.pick({ title: true, altText: true }).shape,
 );
 
-/** Slugs are `^[a-z0-9]+(-[a-z0-9]+)*$`, so a title in another script needs a fallback. */
-function slugBase(title: string): string {
-  const base = slugify(title).replace(/-+$/, '');
-  return base.length > 0 ? base : 'photograph';
+/**
+ * The address a frame is published at, derived from its title.
+ *
+ * Slugs are `^[a-z0-9]+(-[a-z0-9]+)*$` — the schema's own CHECK — so `slugify`
+ * keeps the Latin letters and digits of a title and drops everything else. A
+ * title written in Thai, Japanese, Korean, Arabic or Greek has none of those,
+ * and folds to the empty string.
+ *
+ * WHAT WENT WRONG. The fallback for an empty fold was the literal word
+ * `photograph`, returned as the first attempt. So the first frame titled
+ * "ตลาดเช้าบางกะปิ" was published at `/photographs/photograph`, which says
+ * nothing about it, and the next one had to lose a unique-violation race
+ * before it got an address at all. The attempts after the first appended
+ * `Math.random()`, so the same draft retried could land anywhere, and four
+ * attempts was the whole budget.
+ *
+ * WHAT IT DOES NOW. A title that folds to nothing is not translated here —
+ * nothing has been published yet, so there is no translation to read (0035),
+ * and transliterating one script well, let alone all of them, is not something
+ * this function can honestly claim to do. Instead the address is built from
+ * what the row actually knows: the member's username, which the schema already
+ * constrains to this same charset, and a slice of the photograph's own id.
+ * `nirutrps-7f3a9c1d` says whose frame it is and is unique by construction,
+ * which beats `photograph` on both counts.
+ *
+ * THE DISCRIMINATOR IS THE ID, NOT A RANDOM STRING. Two members publishing
+ * "Rain" on the same evening collide, and the retry has to separate them. The
+ * id does that without luck: no two rows share one, so the first retry is
+ * already the last one it needs, and a draft retried after a dropped response
+ * asks for the same address rather than a new one.
+ */
+interface SlugSeed {
+  /** The readable part of the address. */
+  base: string;
+  /** False when the title folded to nothing and the base is a stand-in. */
+  fromTitle: boolean;
 }
 
-function slugAttempt(base: string, attempt: number): string {
-  if (attempt === 0) return base;
-  const suffix = Math.random().toString(36).slice(2, 8).replace(/[^a-z0-9]/g, '');
-  const trimmed = base.slice(0, 60).replace(/-+$/, '');
-  return `${trimmed.length > 0 ? trimmed : 'photograph'}-${suffix.length > 0 ? suffix : String(attempt)}`;
+function slugBase(title: string, username: string): SlugSeed {
+  const fromTitle = slugify(title).replace(/-+$/, '');
+  if (fromTitle.length > 0) return { base: fromTitle, fromTitle: true };
+
+  const fromUsername = slugify(username).replace(/-+$/, '');
+  return { base: fromUsername.length > 0 ? fromUsername : 'photograph', fromTitle: false };
+}
+
+/** Hex out of the row's own id: `[0-9a-f]`, so always a legal slug segment. */
+function idDiscriminator(photographId: string, length: number): string {
+  return photographId.replace(/[^0-9a-f]/gi, '').toLowerCase().slice(0, length);
+}
+
+function slugAttempt(seed: SlugSeed, attempt: number, photographId: string): string {
+  // A stand-in base is shared by every frame this member titles in their own
+  // script, so it carries the discriminator from the first attempt instead of
+  // waiting to lose a race for it.
+  if (attempt === 0 && seed.fromTitle) return seed.base;
+
+  const trimmed = seed.base.slice(0, 60).replace(/-+$/, '') || 'photograph';
+  // Eight hex digits of a uuid, widened on each retry. The widening is there
+  // so the loop has somewhere to go, not because the first slice is expected
+  // to collide — it cannot collide with this row's own id, and a different
+  // row would have to match both the base and the first eight digits.
+  const suffix = idDiscriminator(photographId, Math.min(8 + attempt * 4, 32));
+  return suffix.length > 0 ? `${trimmed}-${suffix}` : `${trimmed}-${attempt + 1}`;
 }
 
 export async function createDraft(
@@ -369,10 +422,10 @@ export async function createDraft(
   // what makes every key derivable on the server and unchoosable by a client.
   const photographId = randomUUID();
   const storagePrefix = `${viewer.id}/${photographId}`;
-  const base = slugBase(draft.title);
+  const seed = slugBase(draft.title, viewer.username);
 
   for (let attempt = 0; attempt < 4; attempt += 1) {
-    const slug = slugAttempt(base, attempt);
+    const slug = slugAttempt(seed, attempt, photographId);
 
     const { error } = await supabase.from('photographs').insert({
       id: photographId,

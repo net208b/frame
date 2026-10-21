@@ -139,14 +139,15 @@ export async function getNearbyLocations(
   return demo.demoNearbyLocations(location);
 }
 
-export interface MapPin {
-  id: string;
-  slug: string;
-  name: string;
-  city: string;
-  country: string;
-  countryCode: string;
-  photographCount: number;
+/**
+ * A place as the map draws it.
+ *
+ * It extends the summary rather than restating its seven fields, which is what
+ * it always was — `MapPinPreview` hands a pin straight to `LocationCard`, so
+ * the two shapes had to agree anyway, and restating them meant a field added
+ * to a place arrived on the card without arriving on the pin.
+ */
+export interface MapPin extends LocationSummary {
   categories: LocationDetail['categories'];
   latitude: number;
   longitude: number;

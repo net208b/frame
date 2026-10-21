@@ -640,7 +640,40 @@ function mapLocationSummary(row: LocationSummaryColumns | null): LocationSummary
     country: toText(row.country) ?? '',
     countryCode: (toText(row.country_code) ?? '').toUpperCase(),
     photographCount: toNumber(row.photograph_count) ?? 0,
+    // Filled in by attachLocationNames() for the reads that render the name,
+    // which ask once for the whole list rather than once per place.
+    translations: NO_TRANSLATIONS,
   };
+}
+
+/**
+ * The translated name for a list of places, in one query (0035).
+ *
+ * Mutates in place, like the photograph and profile attachments above it, and
+ * for the same reason: the summary is already built and the ids are already
+ * known, so the alternative is rebuilding every object to set one field.
+ *
+ * A place appearing twice in the list — the same location under two
+ * photographs — is one id to `translationsFor`, so a feed of twenty-four
+ * frames at three places costs one round trip and asks about three rows.
+ */
+async function attachLocationNames(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  places: Array<LocationSummary | null | undefined>,
+): Promise<void> {
+  const present = places.filter((place): place is LocationSummary => Boolean(place));
+  if (present.length === 0) return;
+
+  const translations = await translationsFor(
+    supabase,
+    'location',
+    present.map((place) => place.id),
+  );
+  if (translations.size === 0) return;
+
+  for (const place of present) {
+    place.translations = translations.get(place.id) ?? NO_TRANSLATIONS;
+  }
 }
 
 /**
@@ -813,10 +846,20 @@ async function mapPhotographRows(
   rows: PhotographJoined[],
 ): Promise<PhotographDetail[]> {
   const ids = rows.map((row) => toText(row.id)).filter((value): value is string => value !== null);
-  const [lookup, translations] = await Promise.all([
+  // The place ids come off the raw rows rather than the mapped photographs so
+  // that both translation queries go out with the appreciation lookup instead
+  // of waiting behind it.
+  const placeIds = rows
+    .map((row) => toText(firstOf<LocationSummaryColumns>(row.locations)?.id))
+    .filter((value): value is string => value !== null);
+
+  const [lookup, translations, placeNames] = await Promise.all([
     appreciationLookup(supabase, ids),
     // One query for the page, not one per photograph (0035).
     translationsFor(supabase, 'photograph', ids),
+    // The place is named on the photograph as well as on its own page, so the
+    // frame carries the translated name with it.
+    translationsFor(supabase, 'location', placeIds),
   ]);
 
   const mapped: PhotographDetail[] = [];
@@ -825,6 +868,9 @@ async function mapPhotographRows(
     const photo = mapPhotograph(row, id ? lookup.has(id) : null);
     if (!photo) continue;
     if (id) photo.translations = translations.get(id) ?? NO_TRANSLATIONS;
+    if (photo.location) {
+      photo.location.translations = placeNames.get(photo.location.id) ?? NO_TRANSLATIONS;
+    }
     mapped.push(photo);
   }
   return mapped;
@@ -1195,6 +1241,9 @@ export async function locations(
     const mapped = mapLocationDetail(row);
     if (mapped) items.push(mapped);
   }
+  // The index names every place on it, so it needs the names in the reader's
+  // language as much as a place's own page does.
+  await attachLocationNames(supabase, items);
 
   return {
     items,
@@ -1288,7 +1337,10 @@ export async function nearbyLocations(
     nearby.push({ ...summary, distanceMetres: metres });
   }
 
-  return nearby.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, NEARBY_LIMIT);
+  const closest = nearby.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, NEARBY_LIMIT);
+  // After the slice, so the query is about the places actually listed.
+  await attachLocationNames(supabase, closest);
+  return closest;
 }
 
 interface MapPinPhotograph {
@@ -1399,6 +1451,8 @@ export async function mapPins(): Promise<MapPin[]> {
     });
   }
 
+  // The selected pin opens a LocationCard, which names the place.
+  await attachLocationNames(supabase, pins);
   return pins;
 }
 
@@ -1526,10 +1580,13 @@ export async function photographerMapPins(ownerId: string): Promise<MapPin[]> {
   // The preview is the newest frame that actually has a thumbnail, which is not
   // always the newest frame — the same rule as `mapPins()`, and the reason it is
   // read off the collected stack rather than set while grouping.
-  return [...byLocation.values()].map((pin) => ({
+  const pins = [...byLocation.values()].map((pin) => ({
     ...pin,
     previewImageUrl: pin.recentImageUrls[0] ?? null,
   }));
+
+  await attachLocationNames(supabase, pins);
+  return pins;
 }
 
 export async function approvedLocationSlugs(): Promise<string[]> {
@@ -2185,6 +2242,7 @@ export async function collectionBySlug(
         .map(mapLocationSummary)
         .filter((value): value is LocationSummary => value !== null)
     : [];
+  await attachLocationNames(supabase, locationSummaries);
 
   const photographsById = new Map(photographs.map((photo) => [photo.id, photo]));
   const locationsById = new Map(locationSummaries.map((location) => [location.id, location]));
