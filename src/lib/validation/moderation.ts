@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
+import { PIN_PRECISIONS } from '@/types/domain';
+
 import type { ModerationAction, ModerationDecision } from '@/types/domain';
 
 import { validationCode } from './codes';
-import { blankToNull, choice, flag, identifier } from './fields';
+import { blankToNull, choice, identifier } from './fields';
 import { REPORT_SUBJECT_TYPES } from './report';
 
 /**
@@ -144,12 +146,10 @@ export const submissionDecisionSchema = z
     ),
     reason: reasonField(),
     /**
-     * The coordinate-privacy decision, taken once, here. Both flags are read by
-     * `publishableCoordinates`: `isSensitive` publishes the point at reduced
-     * precision, `withholdCoordinates` publishes no point at all.
+     * How the place is pinned (0033): the point as submitted by default, or
+     * coarser for somewhere sensitive. Changeable afterwards from the console.
      */
-    isSensitive: flag(),
-    withholdCoordinates: flag(),
+    pinPrecision: z.enum(PIN_PRECISIONS).default('exact'),
   })
   .refine((value) => !NEGATIVE_DECISIONS.has(value.decision) || hasReason(value), {
     error: REASON_REQUIRED,

@@ -2688,6 +2688,69 @@ begin
   raise notice 'notice ok    a notice reaches its member unchanged, and only an admin''s address gets a code';
 end $$;
 
+-- ------------------------------------------ 0033: how a place is pinned
+-- One choice, derived flags, changeable by staff and by nobody else.
+-- (The backfill for places approved before 0033 cannot be exercised here:
+-- every fixture is inserted after the migration runs and so takes the new
+-- default. On production there were no approved places to backfill.)
+reset "app.current_user_id";
+
+insert into public.locations
+  (id, slug, name, city, country, country_code, latitude, longitude, status, approved_at)
+values ('aaaaaaaa-0000-4000-8000-000000000033', 'test-exact-pin', 'Exact pin', 'Bangkok', 'Thailand', 'TH',
+        13.7563, 100.5018, 'approved', now())
+on conflict (id) do nothing;
+
+do $$
+declare v_precision text; v_sensitive boolean; v_withhold boolean;
+begin
+  select pin_precision, is_sensitive, withhold_coordinates into v_precision, v_sensitive, v_withhold
+    from public.locations where id = 'aaaaaaaa-0000-4000-8000-000000000033';
+  if v_precision <> 'exact' or v_sensitive or v_withhold then
+    raise exception 'PRECISION GAP  a new place is pinned % (sensitive=%, withhold=%)', v_precision, v_sensitive, v_withhold;
+  end if;
+  raise notice 'precision ok a new place is pinned exactly by default';
+end $$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+-- A member's update matches nothing under row-level security rather than
+-- raising, so the check is that the precision is still what it was.
+update public.locations set pin_precision = 'none' where id = 'aaaaaaaa-0000-4000-8000-000000000033';
+commit;
+do $$
+declare v_precision text;
+begin
+  select pin_precision into v_precision from public.locations where id = 'aaaaaaaa-0000-4000-8000-000000000033';
+  if v_precision <> 'exact' then raise exception 'PRECISION GAP  a member changed how a place is pinned'; end if;
+  raise notice 'precision ok a member cannot change how a place is pinned';
+end $$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('a precision outside the four',
+  $$update public.locations set pin_precision = 'street' where id = 'aaaaaaaa-0000-4000-8000-000000000033'$$, '23514');
+select public.test_accepts('staff pinning a place as an area',
+  $$update public.locations set pin_precision = 'area' where id = 'aaaaaaaa-0000-4000-8000-000000000033'$$);
+commit;
+
+do $$
+declare v_sensitive boolean; v_withhold boolean;
+begin
+  select is_sensitive, withhold_coordinates into v_sensitive, v_withhold
+    from public.locations where id = 'aaaaaaaa-0000-4000-8000-000000000033';
+  if not v_sensitive or v_withhold then
+    raise exception 'PRECISION GAP  the flags did not follow the precision (sensitive=%, withhold=%)', v_sensitive, v_withhold;
+  end if;
+  -- Setting a flag directly is overruled by the precision: it is derived, not chosen.
+  update public.locations set withhold_coordinates = true where id = 'aaaaaaaa-0000-4000-8000-000000000033';
+  select withhold_coordinates into v_withhold from public.locations where id = 'aaaaaaaa-0000-4000-8000-000000000033';
+  if v_withhold then raise exception 'PRECISION GAP  a flag could be set apart from the precision'; end if;
+  raise notice 'precision ok the two old flags follow the precision and cannot be set apart from it';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

@@ -1465,7 +1465,7 @@
     },
     "exifGps": {
       "title": "This file records where it was taken",
-      "policy": "This file contains the coordinates your camera recorded. FRAME will not publish them unless you choose to: leave this question alone and the position stays out of the photograph entirely. If you do publish a place, the point shown is rounded by policy rather than exact, and rounded further for somewhere sensitive, so a published location never puts a doorway on a map. Camera metadata is also not a claim of authorship — it says which device wrote the file, not who holds the rights to the photograph.",
+      "policy": "This file contains the coordinates your camera recorded. FRAME will not publish them unless you choose to: leave this question alone and the position stays out of the photograph entirely. If you do publish a place, the point is shown as you submitted it — nobody posts in real time, and an exact point is what another photographer can actually use — unless a moderator judges the place sensitive, in which case it is coarsened or withheld. Camera metadata is also not a claim of authorship — it says which device wrote the file, not who holds the rights to the photograph.",
       "onFileStep": "You will be asked about it on the place step, and nothing happens with it unless you choose it there.",
       "usedTitle": "Using the position from the file",
       "usedBody": "The coordinates below were copied from the file because you chose to use them. Edit them freely — they are a starting point, not a fact.",
@@ -1494,7 +1494,7 @@
     },
     "place": {
       "heading": "Where was it made?",
-      "lead": "A place is what turns a photograph into something another photographer can go and see for themselves. It is also somewhere real, so FRAME publishes a rounded point and only after a person has looked at it.",
+      "lead": "A place is what turns a photograph into something another photographer can go and see for themselves. It is also somewhere real, so FRAME publishes it only after a person has looked at it, at the precision that person chooses.",
       "modeLegend": "How would you like to answer?",
       "modeNoneLabel": "No place for now",
       "modeNoneDescription": "Publish without a location. You can tell us where it was made later without re-uploading.",
@@ -1553,7 +1553,7 @@
       "signalPossibleDuplicate": "Within {metres, number} m of an existing location.",
       "proposalNoticeTitle": "What happens to a proposed place",
       "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes as soon as the automated checks clear it, with the place marked pending, and is credited to the location once it is approved.",
-      "proposalNoticePrecision": "A published point is rounded to {precision} rather than shown exactly, and further still for anywhere a moderator marks as sensitive. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
+      "proposalNoticePrecision": "A published point is shown as submitted unless a moderator marks the place as sensitive, when it is coarsened — to {precision} or to about a kilometre — or withheld. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
       "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them."
     },
     "gear": {
@@ -1656,7 +1656,7 @@
       "rightsConfirm": "I am the photographer or hold permission to publish this work, and I grant FRAME the licence described above.",
       "rightsConfirmDescription": "FRAME records the moment you tick this and checks it again on the server before anything is published.",
       "twoThingsTitle": "Two things are being sent",
-      "twoThingsBody": "Your photograph, which publishes as soon as the automated checks clear it, and your proposed place, which waits for a moderator. A published point is rounded to {precision} rather than shown exactly."
+      "twoThingsBody": "Your photograph, which publishes as soon as the automated checks clear it, and your proposed place, which waits for a moderator. A published point is shown as submitted unless the moderator decides the place is sensitive."
     },
     "submit": {
       "heading": "Send it",
@@ -2170,12 +2170,26 @@
       "submit": "Record decision",
       "submitWithDecision": "Record: {decision}",
       "coordinatePrivacy": {
-        "legend": "Coordinate privacy",
-        "intro": "Taken once, here. Precision is only ever reduced on publication, never widened afterwards, and withholding the point overrides reduced precision.",
-        "reducedLabel": "Publish at reduced precision",
-        "reducedDescription": "About a kilometre instead of about eleven metres. For a place where the exact point could expose a person or a private address.",
-        "withholdLabel": "Publish no coordinate at all",
-        "withholdDescription": "The place is listed and searchable but carries no point on the map."
+        "legend": "How the place is pinned",
+        "intro": "Chosen here, and changeable later from the console. The point as submitted is the default; coarsen it only for a place that is sensitive in itself.",
+        "options": {
+          "exact": {
+            "label": "Exact — as submitted",
+            "description": "The point the member gave. Nobody posts in real time, so this is the useful one."
+          },
+          "approximate": {
+            "label": "Approximate — about 11 m",
+            "description": "Rounded to the nearest few metres: the street, not the spot."
+          },
+          "area": {
+            "label": "Area only — about 1 km",
+            "description": "For a home, a shelter or anywhere an exact point could expose a person."
+          },
+          "none": {
+            "label": "No pin",
+            "description": "Listed and searchable, but with no point on the map."
+          }
+        }
       },
       "suspension": {
         "label": "Suspension length in days",
@@ -2566,7 +2580,7 @@
         "heading": "EXIF, and the place a photograph was made",
         "p1": "EXIF is read in your browser as you choose a file, so the upload form can offer the camera and the settings back to you instead of asking you to type them. You can change or clear any of it before publishing.",
         "gps": "<strong>A GPS coordinate found in EXIF is never published automatically.</strong> It is used for one purpose: to ask whether you want to pin the photograph to a place. If you do not answer, nothing is pinned. A coordinate that stays in the file you uploaded is not served to anyone, because what FRAME serves are generated derivatives with the metadata stripped out.",
-        "precision": "Where you do publish a place, the coordinate is rounded by policy to {publicUnit, select, km {about {publicValue, number} km} other {about {publicValue, number} m}} — enough to find a doorway, not enough to point at a window. Where a moderator has marked a place as privacy-sensitive it is coarsened further, to {reducedUnit, select, km {about {reducedValue, number} km} other {about {reducedValue, number} m}}, and where even that would be unsafe no coordinate is published at all. The map and the page both say when a point is deliberately approximate.",
+        "precision": "Where you do publish a place, the point is shown as you submitted it: nobody posts in real time, and an exact point is what another photographer can actually use. A moderator may instead publish it coarsened — to {publicUnit, select, km {about {publicValue, number} km} other {about {publicValue, number} m}}, or for a privacy-sensitive place to {reducedUnit, select, km {about {reducedValue, number} km} other {about {reducedValue, number} m}} — and where even that would be unsafe no coordinate is published at all. The map and the page both say when a point is deliberately approximate, and a moderator can change the precision of a published place at any time.",
         "reduction": "Precision is only ever reduced, never widened: a coarsened point stays coarsened, and there is no stored copy of the finer value that a later change could expose. If you published a place and now regret it, ask and it will be coarsened or removed."
       },
       "ipAddresses": {
@@ -2718,7 +2732,7 @@
           "sensitive": "a shelter, a refuge, a clinic, a school, a place of worship under threat, or anywhere a published coordinate increases the risk to the people who use it;",
           "dangerous": "a place where standing there is dangerous or unlawful — a rooftop, a tunnel, a live railway, a restricted site. Marking it as a photographic location sends somebody else there after you."
         },
-        "sensitive": "Where a place is genuinely sensitive but worth knowing about, pin the street or the district rather than the doorway. Every published coordinate is rounded before anyone sees it, and a moderator can coarsen or withhold a point entirely; the <privacy>privacy notice</privacy> sets out the precisions involved."
+        "sensitive": "Where a place is genuinely sensitive but worth knowing about, pin the street or the district rather than the doorway. A moderator reviews every place before it is published and can coarsen or withhold its point, then or later; the <privacy>privacy notice</privacy> sets out the precisions involved."
       },
       "appreciation": {
         "heading": "Appreciation is one per member",
@@ -3143,6 +3157,33 @@
       "rejectPlaceEffect": "Closes the proposal for good. The member can read your reason.",
       "dismissEffect": "Closes the report with no change to what was reported.",
       "removeReportedEffect": "Takes the reported content down. The owner can read your reason. Cannot be undone."
+    },
+    "tabs": {
+      "label": "Console sections",
+      "inbox": "{count, plural, =0 {Inbox} other {Inbox · #}}",
+      "live": "Published"
+    },
+    "live": {
+      "title": "Published",
+      "lead": "The latest photographs and places that are live. Anything here can be sent back or taken down, and a place can be re-pinned.",
+      "photographsTitle": "{count, plural, =0 {No published photographs} one {# published photograph} other {# published photographs}}",
+      "photographsEmpty": "Nothing is published yet.",
+      "placesTitle": "{count, plural, =0 {No approved places} one {# approved place} other {# approved places}}",
+      "placesEmpty": "No place is approved yet.",
+      "photographCount": "{count, plural, one {# photograph} other {# photographs}}",
+      "sendBack": "Send back to review",
+      "sendBackEffect": "The photograph comes off the site and returns to the inbox. The member is sent your message, with your contact address. You can approve it again later.",
+      "sendBackConfirm": "Send back",
+      "takeDown": "Take down",
+      "takeDownEffect": "Removes the photograph for good and deletes its files. The member can read your reason. Cannot be undone.",
+      "takeDownConfirm": "Take down",
+      "precision": "Pin",
+      "takeDownPin": "Take the place down",
+      "takeDownPlaceEffect": "The place and its pin disappear; its photographs stay, without a place. Cannot be undone from here.",
+      "reasonLabel": "Reason, about {title}",
+      "reasonPlaceholder": "Why — the member will read this",
+      "cancel": "Cancel",
+      "done": "Done."
     }
   }
 }

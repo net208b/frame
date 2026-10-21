@@ -492,6 +492,7 @@ function toDetail(raw: RawLocation): LocationDetail {
         }
       : null,
     approvedAt: raw.approvedAt,
+    pinPrecision: 'approximate',
   };
 }
 

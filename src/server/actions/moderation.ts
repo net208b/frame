@@ -11,14 +11,16 @@ import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
 import { parseForm } from '@/lib/validation';
+import { identifier } from '@/lib/validation/fields';
 import {
+  MODERATION_LIMITS,
   moderationDecisionSchema,
   reportResolutionSchema,
   submissionDecisionSchema,
   suspendAccountSchema,
   uploadActionSchema,
 } from '@/lib/validation/moderation';
-import type { ModerationAction, ModerationDecision } from '@/types/domain';
+import { PIN_PRECISIONS, type ModerationAction, type ModerationDecision } from '@/types/domain';
 
 /**
  * Moderation decisions.
@@ -358,7 +360,7 @@ export async function decideSubmission(input: unknown): Promise<ActionResult<voi
   const parsed = parseForm(input, submissionDecisionSchema);
   if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
 
-  const { submissionId, decision, isSensitive, withholdCoordinates } = parsed.data;
+  const { submissionId, decision, pinPrecision } = parsed.data;
   const checked = requireReason(decision, parsed.data.reason);
   if (!checked.ok) return checked.refusal;
   const reason = checked.reason;
@@ -382,19 +384,18 @@ export async function decideSubmission(input: unknown): Promise<ActionResult<voi
     // above does not carry it — so it is a second write. Both flags are only
     // ever read through publishableCoordinates(), which reduces precision and
     // never widens it.
-    let privacyNote = '';
-    if (isSensitive || withholdCoordinates) {
-      const { error: privacyError } = await supabase
+    // How the place is pinned (0033). The default is the point as submitted;
+    // written whatever it is, so the choice made here is the one on the row.
+    {
+      const { error: precisionError } = await supabase
         .from('locations')
-        .update({ is_sensitive: isSensitive, withhold_coordinates: withholdCoordinates })
+        .update({ pin_precision: pinPrecision })
         .eq('id', locationId);
-
-      if (privacyError) {
-        console.error(
-          `FRAME moderation: location ${locationId} was approved but its privacy flags were not saved — ${errorOf(privacyError).message ?? 'no message'}`,
+      if (precisionError) {
+        return fail(
+          'The place was approved but its pin precision could not be saved. Set it from the console.',
+          'unknown',
         );
-        privacyNote =
-          ' The place was published, but the coordinate-privacy flags were not saved, so its exact point is live. Set them again before leaving this queue.';
       }
     }
 
@@ -410,9 +411,6 @@ export async function decideSubmission(input: unknown): Promise<ActionResult<voi
     revalidateLocalisedPath('/map');
     if (slug.success) revalidateLocalisedPath(`/locations/${slug.data.slug}`);
 
-    if (privacyNote) {
-      return fail(`The submission was approved.${privacyNote}`, 'conflict');
-    }
     return ok<void>(undefined, 'The place is approved and published.');
   }
 
@@ -949,4 +947,94 @@ export async function recordDuplicateReview(input: unknown): Promise<ActionResul
       ? 'Noted: both places stay as they are.'
       : 'Flagged for merging. Nothing has been merged — the note is in the audit trail for a person to pick up.',
   );
+}
+
+/* ------------------------------------------------------------------------ */
+/* Published places: re-pin, or take down                                    */
+/* ------------------------------------------------------------------------ */
+
+const pinPrecisionSchema = z.object({
+  locationId: identifier('Location'),
+  pinPrecision: z.enum(PIN_PRECISIONS),
+});
+
+/**
+ * Change how a published place is pinned. The precision is a setting rather
+ * than a decision about a member, so it is not written to the audit trail;
+ * the row's updated_at records that it moved.
+ */
+export async function setLocationPrecision(input: unknown): Promise<ActionResult<void>> {
+  const started = await begin();
+  if (!started.ok) return started.refusal;
+  const { supabase } = started;
+
+  const parsed = parseForm(input, pinPrecisionSchema);
+  if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
+
+  const { data, error } = await supabase
+    .from('locations')
+    .update({ pin_precision: parsed.data.pinPrecision })
+    .eq('id', parsed.data.locationId)
+    .select('slug');
+  if (error) return failFromQuery(error, 'changing how a place is pinned');
+  if (!Array.isArray(data) || data.length === 0) {
+    return fail('That place no longer exists.', 'not_found');
+  }
+
+  const slug = slugRowSchema.safeParse(data[0]);
+  revalidateAfterReport({
+    photographSlug: null,
+    ownerUsername: null,
+    locationSlug: slug.success ? slug.data.slug : null,
+  });
+  return ok<void>(undefined, 'The pin precision is changed.');
+}
+
+const takeDownLocationSchema = z.object({
+  locationId: identifier('Location'),
+  reason: z.string().trim().min(1, { error: REASON_REQUIRED }).max(MODERATION_LIMITS.reasonMaxLength),
+});
+
+/**
+ * Take an approved place off the site. Its photographs stay, without a place;
+ * the pin disappears. Recorded as remove_content on the location, as a report
+ * resolution that removes a place is.
+ */
+export async function takeDownLocation(input: unknown): Promise<ActionResult<void>> {
+  const started = await begin();
+  if (!started.ok) return started.refusal;
+  const { viewer, supabase } = started;
+
+  const parsed = parseForm(input, takeDownLocationSchema);
+  if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
+  const { locationId, reason } = parsed.data;
+
+  const { data, error } = await supabase
+    .from('locations')
+    .update({ status: 'rejected' })
+    .eq('id', locationId)
+    .eq('status', 'approved')
+    .select('slug');
+  if (error) return failFromQuery(error, 'taking a place down');
+  if (!Array.isArray(data) || data.length === 0) {
+    return fail('That place is not published, so there is nothing to take down.', 'not_found');
+  }
+
+  const audit = await recordAuditRow(supabase, {
+    decision: 'remove_content',
+    subjectType: 'location',
+    subjectId: locationId,
+    reason,
+    moderatorId: viewer.id,
+  });
+
+  const slug = slugRowSchema.safeParse(data[0]);
+  revalidateAfterReport({
+    photographSlug: null,
+    ownerUsername: null,
+    locationSlug: slug.success ? slug.data.slug : null,
+  });
+
+  if (!audit.ok) return fail(auditGapMessage('remove_content', `location ${locationId}`), 'unknown');
+  return ok<void>(undefined, 'The place is taken down and its pin is gone.');
 }

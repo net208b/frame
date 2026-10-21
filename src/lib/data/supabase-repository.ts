@@ -20,6 +20,7 @@ import {
   CRITIQUE_PREFERENCES,
   CHALLENGE_AWARDS,
   NOTIFICATION_KINDS,
+  PIN_PRECISIONS,
   type FeatureDetail,
   type FeatureItem,
   type FeatureSummary,
@@ -478,7 +479,7 @@ type LocationSummaryColumns = Nullable<
 >;
 
 type LocationPointColumns = Nullable<
-  Pick<Tables<'locations'>, 'latitude' | 'longitude' | 'is_sensitive' | 'withhold_coordinates'>
+  Pick<Tables<'locations'>, 'latitude' | 'longitude' | 'is_sensitive' | 'withhold_coordinates' | 'pin_precision'>
 >;
 
 type ImageColumns = Nullable<
@@ -1097,7 +1098,7 @@ interface LocationJoined extends LocationSummaryColumns, LocationPointColumns {
 
 const LOCATION_DETAIL_SELECT: string = `
   ${LOCATION_SUMMARY_FIELDS}, description, latitude, longitude, is_sensitive,
-  withhold_coordinates, categories, shooting_notes, best_time_of_day, approved_at,
+  withhold_coordinates, pin_precision, categories, shooting_notes, best_time_of_day, approved_at,
   profiles!submitted_by(${PROFILE_SUMMARY_FIELDS}),
   location_restrictions(kind, note, source, recorded_at)
 `;
@@ -1130,6 +1131,7 @@ function mapLocationDetail(row: LocationJoined): LocationDetail | null {
     latitude === null || longitude === null
       ? null
       : publishableCoordinates(latitude, longitude, {
+          precision: oneOrNull(PIN_PRECISIONS, row.pin_precision),
           isSensitive: row.is_sensitive === true,
           withhold: row.withhold_coordinates === true,
         });
@@ -1138,6 +1140,7 @@ function mapLocationDetail(row: LocationJoined): LocationDetail | null {
     ...summary,
     description: toText(row.description),
     coordinates,
+    pinPrecision: oneOrNull(PIN_PRECISIONS, row.pin_precision) ?? 'approximate',
     categories: toStringList(row.categories).filter(isCategory),
     shootingNotes: toStringList(row.shooting_notes),
     restrictions: mapRestrictions(asArray<RestrictionColumns>(row.location_restrictions)),
@@ -1229,7 +1232,7 @@ export async function nearbyLocations(
 
   let query = supabase
     .from('locations')
-    .select(`${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates`)
+    .select(`${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates, pin_precision`)
     .eq('status', 'approved')
     .eq('withhold_coordinates', false)
     .neq('id', location.id)
@@ -1256,6 +1259,7 @@ export async function nearbyLocations(
     if (!summary || latitude === null || longitude === null) continue;
 
     const point = publishableCoordinates(latitude, longitude, {
+      precision: oneOrNull(PIN_PRECISIONS, row.pin_precision),
       isSensitive: row.is_sensitive === true,
       withhold: row.withhold_coordinates === true,
     });
@@ -1298,7 +1302,7 @@ export async function mapPins(): Promise<MapPin[]> {
     await supabase
       .from('locations')
       .select(
-        `${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates,
+        `${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates, pin_precision,
          categories, photographs(id, published_at, photograph_images(${IMAGE_FIELDS}))`,
       )
       .eq('status', 'approved')
@@ -1320,6 +1324,7 @@ export async function mapPins(): Promise<MapPin[]> {
     if (!summary || latitude === null || longitude === null) continue;
 
     const point = publishableCoordinates(latitude, longitude, {
+      precision: oneOrNull(PIN_PRECISIONS, row.pin_precision),
       isSensitive: row.is_sensitive === true,
       withhold: row.withhold_coordinates === true,
     });
