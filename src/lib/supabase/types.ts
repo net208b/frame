@@ -193,6 +193,27 @@ export interface CollectionRow extends Timestamps {
   item_count: number;
 }
 
+export interface PhotobookRow extends Timestamps {
+  id: string;
+  owner_id: string;
+  slug: string;
+  title: string;
+  dedication: string | null;
+  cover_preset: string;
+  paper_preset: string;
+  gear_mode: string;
+  gear_brand: string | null;
+  gear_model: string | null;
+  visibility: 'public' | 'unlisted';
+  opens: number;
+}
+
+export interface PhotobookPageRow {
+  photobook_id: string;
+  photograph_id: string;
+  position: number;
+}
+
 export interface CollectionItemRow {
   id: string;
   collection_id: string;
@@ -423,6 +444,41 @@ export interface Database {
           },
         ];
       };
+      photobooks: {
+        Row: PhotobookRow;
+        Insert: Insertable<PhotobookRow, 'owner_id' | 'slug' | 'title'>;
+        Update: Updatable<PhotobookRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photobooks_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      photobook_pages: {
+        Row: PhotobookPageRow;
+        Insert: PhotobookPageRow;
+        Update: Partial<PhotobookPageRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photobook_pages_photobook_id_fkey';
+            columns: ['photobook_id'];
+            isOneToOne: false;
+            referencedRelation: 'photobooks';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'photobook_pages_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: false;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       collections: {
         Row: CollectionRow;
         Insert: Insertable<CollectionRow, 'slug' | 'owner_id' | 'title'>;
@@ -491,6 +547,10 @@ export interface Database {
     };
     Views: Record<string, never>;
     Functions: {
+      bump_photobook_opens: {
+        Args: { p_slug: string };
+        Returns: undefined;
+      };
       toggle_appreciation: {
         Args: { p_photograph_id: string };
         Returns: Array<{ appreciated: boolean; count: number }>;

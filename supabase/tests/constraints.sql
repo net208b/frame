@@ -1371,6 +1371,88 @@ begin
   raise notice 'cover ok      deleting the photograph clears the profile cover';
 end $$;
 
+-- ------------------------------------------------------- 0018: photobooks
+-- Fixtures as the superuser: a second published frame for the email member,
+-- then the assertions as that member through the same path the editor uses.
+reset "app.current_user_id";
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, location_id, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('eeeeeeee-3333-4000-8000-000000000001', 'book-page-one',
+   'dddddddd-0000-4000-8000-000000000004', 'Book page one',
+   'A woman waiting at a crossing with a red umbrella against grey tower blocks.',
+   'street', 'aaaaaaaa-0000-4000-8000-000000000001', 'published', now(), now(), 1600, 1200),
+  ('eeeeeeee-3333-4000-8000-000000000002', 'book-page-draft',
+   'dddddddd-0000-4000-8000-000000000004', 'Book page draft',
+   'A half-finished frame of a station concourse, saved as a draft and never published.',
+   'street', 'aaaaaaaa-0000-4000-8000-000000000001', 'draft', null, null, 1600, 1200);
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_accepts('a member making their one photobook',
+  $$insert into public.photobooks (id, owner_id, slug, title, cover_preset, paper_preset, visibility)
+    values ('abcdabcd-0000-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000004',
+            'email-member-book', 'After Hours', 'linen', 'lustre', 'unlisted')$$);
+
+select public.test_rejects('a second photobook for the same member',
+  $$insert into public.photobooks (owner_id, slug, title)
+    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-book-two', 'Second')$$, '23505');
+
+select public.test_rejects('a photobook with a private visibility',
+  $$update public.photobooks set visibility = 'private'
+     where id = 'abcdabcd-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('a cover preset outside the vocabulary',
+  $$update public.photobooks set cover_preset = 'velvet'
+     where id = 'abcdabcd-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('a photobook owned by somebody else',
+  $$insert into public.photobooks (owner_id, slug, title)
+    values ('dddddddd-0000-4000-8000-000000000001', 'not-mine', 'Not mine')$$, '42501');
+
+select public.test_accepts('a page that is the member''s own published photograph',
+  $$insert into public.photobook_pages (photobook_id, photograph_id, position)
+    values ('abcdabcd-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000001', 1)$$);
+
+select public.test_rejects('a page that is the member''s own draft',
+  $$insert into public.photobook_pages (photobook_id, photograph_id, position)
+    values ('abcdabcd-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000002', 2)$$, '42501');
+
+select public.test_rejects('a page that is somebody else''s photograph',
+  $$insert into public.photobook_pages (photobook_id, photograph_id, position)
+    values ('abcdabcd-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001', 2)$$, '42501');
+
+select public.test_rejects('the same photograph on two pages',
+  $$insert into public.photobook_pages (photobook_id, photograph_id, position)
+    values ('abcdabcd-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000001', 2)$$, '23505');
+
+select public.test_rejects('a twenty-fifth position',
+  $$insert into public.photobook_pages (photobook_id, photograph_id, position)
+    values ('abcdabcd-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000001', 25)$$, '23514');
+commit;
+
+-- A visitor can open an unlisted book by its address and count an open, and
+-- nothing else.
+begin;
+set local role anon;
+do $$
+declare v_count integer; v_opens integer;
+begin
+  select count(*) into v_count from public.photobooks where slug = 'email-member-book';
+  if v_count <> 1 then raise exception 'BOOK GAP  an unlisted book is not readable by its address'; end if;
+  perform public.bump_photobook_opens('email-member-book');
+  select opens into v_opens from public.photobooks where slug = 'email-member-book';
+  if v_opens <> 1 then raise exception 'BOOK GAP  bump_photobook_opens did not count (opens = %)', v_opens; end if;
+  raise notice 'book ok       a visitor reads an unlisted book by its address and leaves one count';
+end $$;
+select public.test_rejects('a visitor editing a photobook',
+  $$update public.photobooks set title = 'Defaced' where slug = 'email-member-book'$$, '42501');
+commit;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

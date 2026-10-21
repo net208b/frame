@@ -63,6 +63,14 @@ const handleLocaleRouting = createIntlMiddleware(routing);
 const SHORT_PROFILE = /^(?:\/(en|th))?\/@([A-Za-z0-9_]{3,24})\/?$/;
 
 /**
+ * `/b/<slug>` — the short form of a photobook's address, the one a member
+ * pastes into a bio. The same rules as the profile short link above: a
+ * doorway, not a second front door (307, not 308), and a slug that does not
+ * look like one is left alone to 404.
+ */
+const SHORT_BOOK = /^(?:\/(en|th))?\/b\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
+
+/**
  * Route handlers are endpoints, not pages: they have no `[locale]` segment and
  * must not be redirected into one — `/api/uploads/sign` prefixed to
  * `/en/api/uploads/sign` is a 404. They still want the session refresh, which is
@@ -93,6 +101,17 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     // the next request exactly as it does for any other bare address.
     target.pathname = locale ? `/${locale}${profile}` : profile;
 
+    const redirect = NextResponse.redirect(target);
+    for (const cookie of sessionResponse.cookies.getAll()) redirect.cookies.set(cookie);
+    return redirect;
+  }
+
+  const shortBook = SHORT_BOOK.exec(request.nextUrl.pathname);
+  if (shortBook) {
+    const [, locale, slug] = shortBook;
+    const target = request.nextUrl.clone();
+    const book = `/books/${slug}`;
+    target.pathname = locale ? `/${locale}${book}` : book;
     const redirect = NextResponse.redirect(target);
     for (const cookie of sessionResponse.cookies.getAll()) redirect.cookies.set(cookie);
     return redirect;

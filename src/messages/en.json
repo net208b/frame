@@ -28,6 +28,28 @@
       "technical": "Technical notes welcome",
       "none": "Would rather not be critiqued"
     },
+    "photobookCovers": {
+      "linen": "Linen",
+      "darkroom": "Darkroom",
+      "kraft": "Kraft",
+      "gallery": "Gallery",
+      "signal": "Signal",
+      "contact": "Contact sheet",
+      "zine": "Zine",
+      "archive": "Archive",
+      "monolith": "Monolith",
+      "mat": "Mat",
+      "ticket": "Ticket",
+      "film": "Film",
+      "newsprint": "Newsprint",
+      "blueprint": "Blueprint",
+      "label": "Label"
+    },
+    "photobookPapers": {
+      "matte": "Matte",
+      "lustre": "Lustre",
+      "fineart": "Fine art"
+    },
     "loading": "Loading",
     "retry": "Try again",
     "cancel": "Cancel",
@@ -660,6 +682,7 @@
     "tabs": {
       "label": "Profile sections",
       "frames": "Frames",
+      "photobook": "Photobook",
       "footprints": "Footprints",
       "collections": "Collections"
     },
@@ -766,6 +789,13 @@
       "cta": "Create your profile",
       "signIn": "Already a member? <signin>Sign in</signin>.",
       "capabilityAction": "Creating an account"
+    },
+    "views": {
+      "label": "Community views",
+      "photographers": "Photographers",
+      "photobooks": "Photobooks",
+      "photobooksMetaTitle": "Photobooks",
+      "photobooksMetaDescription": "Street photographers on FRAME bind their published work into a book that opens and turns its pages, with a link of its own."
     }
   },
   "auth": {
@@ -963,6 +993,20 @@
       "cover": {
         "invalid": "Choose a photograph from the list."
       },
+      "bookTitle": {
+        "required": "Give the book a title.",
+        "max": "Keep the title to 60 characters."
+      },
+      "bookDedication": {
+        "max": "Keep the dedication to 160 characters."
+      },
+      "bookGear": {
+        "max": "Keep it to 30 characters."
+      },
+      "bookPages": {
+        "tooFew": "A book needs at least 4 pages.",
+        "tooMany": "A book holds at most 24 pages."
+      },
       "collaboration": {
         "invalid": "Choose one of the options, or leave it unset."
       },
@@ -1076,6 +1120,50 @@
       "submitPending": "Saving…",
       "viewProfile": "See your profile"
     },
+    "photobook": {
+      "heading": "Photobook",
+      "intro": "Your published photographs, bound as a book that opens and turns, at an address you can paste into a bio. One book per member for now.",
+      "pages": "Pages",
+      "pagesCount": "{count} of {max}",
+      "pagesHint": "Tap a frame below to add it. Pages are shown in this order, two to a spread.",
+      "pagesNeedMore": "{count, plural, one {Add # more frame to make a book.} other {Add # more frames to make a book.}}",
+      "pagesFull": "The book is full. Remove a page to add another.",
+      "candidates": "Your published frames",
+      "noCandidates": "A book is made from published photographs, and none of yours are published yet.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove from the book",
+      "add": "Add {title}",
+      "title": "Title",
+      "titleHint": "The address of the book is made from your username and this title, once, when you save.",
+      "titleHintExisting": "The address stays /b/{slug} whatever you rename the book to — links you have shared keep working.",
+      "dedication": "Dedication",
+      "dedicationHint": "One line inside the front cover, optional. Up to {max} characters.",
+      "cover": "Cover",
+      "coverHint": "Fifteen designs. Each is drawn from your title and name; the back always carries FRAME, your username and the address.",
+      "paper": "Paper",
+      "visibility": "Who can open it",
+      "visibilityHint": "Unlisted books open for anyone with the link but are not shown on your profile or to search engines.",
+      "visibilityUnlisted": "Anyone with the link",
+      "visibilityPublic": "Public, and on my profile",
+      "gear": "Camera on the cover",
+      "gearHint": "Printed as words in the cover’s own type — “Shot on Fujifilm X100VI” — never as a manufacturer’s logo.",
+      "gearMode": "Show",
+      "gearModes": {
+        "none": "Nothing",
+        "brand": "The brand",
+        "model": "Brand and model"
+      },
+      "gearBrand": "Brand",
+      "gearModel": "Model",
+      "submit": "Make the book",
+      "submitUpdate": "Save the book",
+      "submitPending": "Saving…",
+      "open": "Open the book",
+      "deleteHint": "Deleting the book removes its address. The photographs themselves stay published.",
+      "delete": "Delete the book",
+      "deleting": "Deleting…"
+    },
     "username": {
       "heading": "Username",
       "current": "Your profile is at <code>{address}</code>.",
@@ -1106,6 +1194,12 @@
       "profileSaved": "Profile saved.",
       "profileRefused": "One of these values wasn’t accepted. Check each field and try again.",
       "coverRefused": "That cover has to be one of your own published photographs. If you just took it down, choose another.",
+      "bookSaved": "Book saved.",
+      "bookDeleted": "Book deleted.",
+      "bookFailed": "The book couldn’t be saved. Try again in a moment.",
+      "bookSlugTaken": "A book with that address already exists. Change the title slightly.",
+      "bookPagesRefused": "One of the pages is no longer one of your published photographs. Remove it and save again.",
+      "bookPagesFailed": "The book was saved but its pages were not. Save again.",
       "profileFailed": "Your profile couldn’t be saved. Try again in a moment.",
       "avatarSaved": "Profile picture saved.",
       "avatarRemoved": "Profile picture removed.",
@@ -1701,6 +1795,90 @@
       "done": "Removed from the collection.",
       "nothingRemoved": "That entry was no longer in the collection, so nothing was removed.",
       "failed": "That could not be removed. Check your connection and try again."
+    }
+  },
+  "photobook": {
+    "eyebrow": "Photobook",
+    "metaTitle": "{title} — a photobook by {name}",
+    "metaDescription": "{count, plural, one {# photograph} other {# photographs}} by {name}, bound as a book that opens and turns.",
+    "pageCount": "{count, plural, one {# page} other {# pages}}",
+    "shotOn": "Shot on {gear}",
+    "opens": "{count} opens",
+    "colophon": "Every photograph in this book is by {name} and remains theirs. The book was made on FRAME from frames the photographer published here.",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "viewer": {
+      "closed": "Closed",
+      "end": "The end",
+      "pages": "Pages {from}–{to} of {total}",
+      "page": "Page {page} of {total}",
+      "loading": "Preparing the book…",
+      "hint": "Drag to turn it round · tap the right half to turn a page · left half to go back",
+      "open": "Open the book",
+      "next": "Next page",
+      "prev": "Back",
+      "close": "Close the book",
+      "flatNote": "The pages, two to a spread, in the order the photographer set."
+    },
+    "profile": {
+      "eyebrow": "Photobook",
+      "open": "Open the book",
+      "edit": "Edit the book",
+      "unlistedNote": "Unlisted: only you see this here. Anyone with the link can open it."
+    },
+    "notFound": {
+      "metaTitle": "Book not found",
+      "metaDescription": "There is no photobook at this address.",
+      "heading": "There is no book at this address.",
+      "body": "It may have been deleted, or the address was copied wrongly.",
+      "discover": "Browse photographs"
+    },
+    "showcase": {
+      "eyebrow": "Photobooks",
+      "heading": "Your photographs,<break></break><accent>bound as a book</accent><break></break>that really opens",
+      "lead": "Choose {min} to {max} of the photographs you have published here, pick a cover and a paper, and FRAME binds them into a book that opens and turns its pages in the browser. It gets an address of its own, so it is one link you can put in a bio.",
+      "makeYours": "Make your photobook",
+      "openLead": "Open this book",
+      "terms": "Free. Your photographs stay yours. You need at least {min} published frames, and you can delete the book whenever you like.",
+      "leadCaption": "“{title}” by {name} — the book below is real, and it is open on this page.",
+      "shelfEyebrow": "On the shelf",
+      "shelfTitle": "Books anyone can open",
+      "shelfEmptyTitle": "The shelf is still empty",
+      "shelfDescription": "Every book a member has made public, most-opened first. Unlisted books are not here: they answer only to their own address.",
+      "shelfOnlyOne": "This is the only public book so far — the one open above. The next one on this shelf could be yours.",
+      "emptyTitle": "Nobody has bound the first book yet",
+      "emptyDescription": "A photobook is made from photographs that have passed review and been published on FRAME. Upload your work, wait for a moderator, and yours will be the first book on this shelf.",
+      "emptyUpload": "Upload a photograph",
+      "emptyDiscover": "Look at the photographs first",
+      "coversEyebrow": "Covers",
+      "coversTitle": "{count} covers, three papers",
+      "coversDescription": "Each one is drawn by FRAME rather than being a stock cover image, and your title and name are set on it to fit. If you want to say what you shot it on, a camera line can go on the back.",
+      "coversCaption": "The {count} covers a book can be bound in. Your title and name are set on the one you choose.",
+      "howEyebrow": "How it works",
+      "howTitle": "Three steps, under ten minutes",
+      "steps": {
+        "upload": {
+          "title": "Upload and wait for review",
+          "body": "Every photograph passes a moderator before it appears on FRAME. A book is made only from published work, so nothing still under review can end up in one."
+        },
+        "choose": {
+          "title": "Choose frames, cover and paper",
+          "body": "Between {min} and {max} photographs, in the order you put them. Fifteen covers, three papers, and a one-line dedication inside the front board if you want one."
+        },
+        "share": {
+          "title": "Get the link for your bio",
+          "body": "Your book gets a short address of its own. Anyone who taps it from Instagram or LINE sees the whole book, on a phone or a desktop, without signing up."
+        }
+      },
+      "linkEyebrow": "Why a link",
+      "linkTitle": "One link that stands for the whole portfolio",
+      "linkBody": "A social bio gives you one link. Most people spend it on something with nothing to look at. Your book opens straight away in the browser — and everyone who opens it arrives here, already seeing what this place is for.",
+      "linkPoints": {
+        "noAccount": "Opens without an account, on any phone",
+        "counts": "Counts how many times it has been opened, so you can see whether the link works",
+        "everywhere": "Readable without WebGL — every page is still there, two up",
+        "rights": "Your photographs stay your copyright, and the book says so on its back cover"
+      }
     }
   },
   "moderation": {

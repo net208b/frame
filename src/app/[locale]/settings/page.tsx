@@ -3,6 +3,7 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 
 import { AvatarForm } from '@/components/account/AvatarForm';
 import { DeleteAccountForm } from '@/components/account/DeleteAccountForm';
+import { PhotobookForm } from '@/components/account/PhotobookForm';
 import { ProfileForm } from '@/components/account/ProfileForm';
 import { UsernameSection } from '@/components/account/UsernameSection';
 import { CapabilityNotice } from '@/components/system/CapabilityNotice';
@@ -12,7 +13,7 @@ import { withLocalePrefix } from '@/i18n/locales';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { getOwnSettings } from '@/lib/account';
 import { requireViewer } from '@/lib/auth';
-import { getPortfolio } from '@/lib/data/repository';
+import { getGearFacets, getPhotobookByOwner, getPortfolio } from '@/lib/data/repository';
 import { countryOptions } from '@/lib/geo/countries';
 import { isDemoMode } from '@/lib/config';
 import { buildMetadata } from '@/lib/seo';
@@ -92,9 +93,17 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
 
   // The frames a cover may be: this member's own published photographs, newest
   // first, which is the same read the profile page makes.
-  const coverCandidates = (await getPortfolio(viewer.id)).map((photograph) => ({
+  const [portfolio, photobook, gear] = await Promise.all([
+    getPortfolio(viewer.id),
+    getPhotobookByOwner(viewer.id),
+    getGearFacets(),
+  ]);
+  const coverCandidates = portfolio.map((photograph) => ({ id: photograph.id, title: photograph.title }));
+  // The book is made from the same published frames, with a thumbnail to pick by.
+  const bookCandidates = portfolio.map((photograph) => ({
     id: photograph.id,
     title: photograph.title,
+    thumbUrl: photograph.image.thumbUrl,
   }));
 
   const provider = isSignInProvider(settings.createdWith)
@@ -153,6 +162,32 @@ export default async function SettingsPage({ params }: { params: LocaleParams })
                 critique: settings.critique ?? '',
                 coverPhotographId: settings.coverPhotographId ?? '',
                 gear: settings.usualGear.join('\n'),
+              }}
+            />
+          </div>
+        </section>
+
+        <section aria-labelledby="settings-photobook" className={SECTION}>
+          <h2 id="settings-photobook" className="text-title">
+            {t('photobook.heading')}
+          </h2>
+          <p className="mt-2 text-body text-muted">{t('photobook.intro')}</p>
+          <div className="mt-8">
+            <PhotobookForm
+              candidates={bookCandidates}
+              existingSlug={photobook?.slug ?? null}
+              brands={gear.cameraBrands.map((brand) => brand.label)}
+              disabled={settings.isSuspended}
+              initial={{
+                title: photobook?.title ?? '',
+                dedication: photobook?.dedication ?? '',
+                cover: photobook?.cover ?? 'linen',
+                paper: photobook?.paper ?? 'lustre',
+                gearMode: photobook?.gearMode ?? 'none',
+                gearBrand: photobook?.gearBrand ?? settings.usualGear[0]?.split(' ')[0] ?? '',
+                gearModel: photobook?.gearModel ?? '',
+                visibility: photobook?.visibility ?? 'unlisted',
+                pages: photobook?.pages.map((page) => page.photograph.id) ?? [],
               }}
             />
           </div>
