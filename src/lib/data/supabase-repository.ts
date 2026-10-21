@@ -420,7 +420,7 @@ type PhotographColumns = Pick<
   | 'appreciation_count'
   | 'published_at'
   | 'created_at'
-  | 'captured_at'
+  | 'public_captured_at'
   | 'publish_captured_at'
   | 'editors_pick'
   | 'rights_confirmed_at'
@@ -538,7 +538,7 @@ const METADATA_FIELDS =
 
 const PHOTOGRAPH_OWN_FIELDS = `
   id, slug, title, alt_text, category, description, status, appreciation_count,
-  published_at, created_at, captured_at, publish_captured_at, editors_pick,
+  published_at, created_at, public_captured_at, publish_captured_at, editors_pick,
   rights_confirmed_at, image_width, image_height, blur_data_url
 `;
 
@@ -747,8 +747,10 @@ function mapPhotograph(
       notes: toText(metadata?.editing_notes),
     },
     // Capture dates are published only when the owner chose to publish them: a
-    // timestamp is itself information about where somebody was and when.
-    capturedAt: row.publish_captured_at === true ? toText(row.captured_at) : null,
+    // timestamp is itself information about where somebody was and when. The
+    // database decides that now (0028–0029): `public_captured_at` is null when
+    // the owner withheld it, and the raw column is not readable at all.
+    capturedAt: toText(row.public_captured_at),
     status: oneOf(PUBLICATION_STATUSES, row.status, 'published'),
     rightsConfirmedAt: toText(row.rights_confirmed_at),
   };
@@ -2356,7 +2358,7 @@ interface SuspiciousJoined {
   description: string | null;
   alt_text: string | null;
   category: string | null;
-  captured_at: string | null;
+  public_captured_at: string | null;
   publish_captured_at: boolean | null;
   created_at: string | null;
   image_width: number | null;
@@ -2393,7 +2395,7 @@ async function suspiciousUploads(
     await supabase
       .from('photographs')
       .select(
-        `id, title, description, alt_text, category, captured_at, publish_captured_at,
+        `id, title, description, alt_text, category, public_captured_at, publish_captured_at,
          created_at, image_width, image_height,
          profiles!owner_id(${PROFILE_SUMMARY_FIELDS}),
          photograph_images(${IMAGE_FIELDS}),
@@ -2573,7 +2575,7 @@ async function suspiciousUploads(
         aperture: toNumber(metadata?.aperture),
         shutterSpeed: toText(metadata?.shutter_speed),
         iso: toNumber(metadata?.iso),
-        capturedAt: row.publish_captured_at ? toText(row.captured_at) : null,
+        capturedAt: toText(row.public_captured_at),
         editingSoftware: toText(metadata?.editing_software),
         editingNotes: toText(metadata?.editing_notes),
         width,
