@@ -1966,6 +1966,103 @@ begin
   raise notice 'privilege ok no TRUNCATE, TRIGGER or REFERENCES for either public role, and anon writes nowhere';
 end $$;
 
+-- ---------------------------------- 0025: restoring a hidden comment
+-- The owner hides one; a moderator hides another. The owner may restore the
+-- first and not the second; the moderator may restore either.
+reset "app.current_user_id";
+insert into public.photograph_comments (id, photograph_id, author_id, body)
+values
+  ('c0c0c0c0-0000-4000-8000-000000000011', 'eeeeeeee-1111-4000-8000-000000000001',
+   'dddddddd-0000-4000-8000-000000000004', 'Hidden by the photographer.'),
+  ('c0c0c0c0-0000-4000-8000-000000000012', 'eeeeeeee-1111-4000-8000-000000000001',
+   'dddddddd-0000-4000-8000-000000000004', 'Hidden by a moderator.')
+on conflict (id) do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+select public.test_accepts('the photographer hiding a comment',
+  $$select public.hide_comment('c0c0c0c0-0000-4000-8000-000000000011', 'off topic')$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('a moderator hiding a comment',
+  $$select public.hide_comment('c0c0c0c0-0000-4000-8000-000000000012', 'Harassment.')$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('the author restoring their own hidden comment',
+  $$select public.unhide_comment('c0c0c0c0-0000-4000-8000-000000000011')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+select public.test_rejects('the photographer overruling a moderator''s hide',
+  $$select public.unhide_comment('c0c0c0c0-0000-4000-8000-000000000012')$$, '42501');
+select public.test_accepts('the photographer restoring a comment they hid',
+  $$select public.unhide_comment('c0c0c0c0-0000-4000-8000-000000000011')$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('a moderator restoring a comment',
+  $$select public.unhide_comment('c0c0c0c0-0000-4000-8000-000000000012')$$);
+commit;
+
+do $$
+declare v_hidden integer; v_logged integer;
+begin
+  select count(*) into v_hidden from public.photograph_comments
+   where id in ('c0c0c0c0-0000-4000-8000-000000000011', 'c0c0c0c0-0000-4000-8000-000000000012')
+     and (hidden_at is not null or hidden_by is not null or hidden_reason is not null);
+  if v_hidden <> 0 then raise exception 'UNHIDE GAP  % restored comments still carry hidden state', v_hidden; end if;
+
+  select count(*) into v_logged from public.moderation_actions
+   where subject_type = 'comment' and subject_id = 'c0c0c0c0-0000-4000-8000-000000000012'
+     and decision = 'approve';
+  if v_logged <> 1 then raise exception 'UNHIDE GAP  a moderator''s restore was not on the record'; end if;
+  raise notice 'unhide ok    restoring clears the hidden state, and a moderator''s restore is recorded';
+end $$;
+
+-- ----------------------------------- 0025: who may EXECUTE what
+do $$
+declare
+  v_fn   text;
+  v_gaps text := '';
+begin
+  -- Internal helpers: neither public role.
+  foreach v_fn in array array[
+    'public.record_notification(uuid, text, uuid, text, uuid, text, text)',
+    'public.check_rate_limit(text, integer, integer)']
+  loop
+    if has_function_privilege('anon', v_fn, 'EXECUTE') then v_gaps := v_gaps || ' anon:' || v_fn || ';'; end if;
+    if has_function_privilege('authenticated', v_fn, 'EXECUTE') then v_gaps := v_gaps || ' authenticated:' || v_fn || ';'; end if;
+  end loop;
+
+  -- Writes: signed-in members only.
+  foreach v_fn in array array[
+    'public.approve_location_submission(uuid, uuid)', 'public.set_member_role(text, text)',
+    'public.change_username(text)', 'public.delete_own_account(text)',
+    'public.toggle_appreciation(uuid)', 'public.toggle_follow(uuid)',
+    'public.delete_comment(uuid)', 'public.hide_comment(uuid, text)',
+    'public.unhide_comment(uuid)', 'public.mark_notifications_read(uuid[])']
+  loop
+    if has_function_privilege('anon', v_fn, 'EXECUTE') then v_gaps := v_gaps || ' anon:' || v_fn || ';'; end if;
+    if not has_function_privilege('authenticated', v_fn, 'EXECUTE') then
+      v_gaps := v_gaps || ' authenticated LOST ' || v_fn || ';';
+    end if;
+  end loop;
+
+  if length(v_gaps) > 0 then raise exception 'EXECUTE GAP %', v_gaps; end if;
+  raise notice 'execute ok   helpers are internal, writes need a session, members keep what they use';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

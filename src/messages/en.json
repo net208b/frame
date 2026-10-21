@@ -2865,8 +2865,10 @@
       "commentNotAllowed": "Comments are for published photographs.",
       "commentNotYours": "That comment is not yours to change.",
       "commentRateLimited": "That is a lot of comments at once. Try again in {seconds} seconds.",
-      "commentSuspended": "Your account cannot post comments at the moment."
-    }
+      "commentSuspended": "Your account cannot post comments at the moment.",
+      "commentRestored": "Comment restored."
+    },
+    "unhide": "Restore"
   },
   "feed": {
     "meta": {

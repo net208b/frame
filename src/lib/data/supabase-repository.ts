@@ -2903,7 +2903,7 @@ export async function countSeriesOpen(slug: string): Promise<void> {
 /* ------------------------------------------------------------------------ */
 
 const COMMENT_FIELDS =
-  'id, parent_id, author_id, body, created_at, edited_at, deleted_at, hidden_at, hidden_reason';
+  'id, parent_id, author_id, body, created_at, edited_at, deleted_at, hidden_at, hidden_by, hidden_reason';
 
 interface CommentJoined
   extends Pick<
@@ -2916,6 +2916,7 @@ interface CommentJoined
     | 'edited_at'
     | 'deleted_at'
     | 'hidden_at'
+    | 'hidden_by'
     | 'hidden_reason'
   > {
   profiles: ProfileColumns | ProfileColumns[] | null;
@@ -2948,6 +2949,7 @@ function mapComment(row: CommentJoined): PhotographComment | null {
     isDeleted,
     isHidden,
     hiddenReason: isHidden ? toText(row.hidden_reason) : null,
+    hiddenById: isHidden ? toText(row.hidden_by) : null,
     replies: [],
   };
 }

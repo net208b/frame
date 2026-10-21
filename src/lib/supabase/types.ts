@@ -787,6 +787,10 @@ export interface Database {
         Args: { p_id: string; p_reason: string | null };
         Returns: undefined;
       };
+      unhide_comment: {
+        Args: { p_id: string };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

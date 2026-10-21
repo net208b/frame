@@ -241,3 +241,36 @@ export async function hideComment(input: {
   revalidate(slug);
   return ok(undefined, 'Comment hidden.');
 }
+
+/**
+ * Restore a hidden comment. `unhide_comment` lets a moderator restore anything
+ * and the photographer restore only what they hid themselves — a moderator's
+ * decision is not theirs to reverse from their own page — and records a
+ * moderator's restore in the audit trail.
+ */
+export async function unhideComment(commentId: string): Promise<ActionResult> {
+  if (isDemoMode()) return fail(NOT_CONFIGURED_MESSAGE, 'not_configured');
+
+  const viewer = await getViewer();
+  if (!viewer) return fail('Sign in first.', 'unauthenticated');
+
+  const parsed = commentIdSchema.safeParse(commentId);
+  if (!parsed.success) return failFromZod(parsed.error);
+
+  const supabase = await createClient();
+  const slug = await slugForComment(supabase, parsed.data);
+  const { error } = await supabase.rpc('unhide_comment', { p_id: parsed.data });
+
+  if (error) {
+    if (RLS_OR_RULE.has(error.code ?? '')) {
+      return fail(
+        'Only a moderator, or the photographer who hid it, can restore this comment.',
+        'forbidden',
+      );
+    }
+    return fail('That comment could not be restored. Try again in a moment.', 'unknown');
+  }
+
+  revalidate(slug);
+  return ok(undefined, 'Comment restored.');
+}
