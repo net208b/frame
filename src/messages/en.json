@@ -1129,7 +1129,7 @@
     },
     "photobook": {
       "heading": "Photobook",
-      "intro": "Your published photographs, bound as a book that opens and turns, at an address you can paste into a bio. One book per member for now.",
+      "intro": "Your published frames, bound into books that open and turn their pages, each with a link for a bio. Up to twelve on the shelf.",
       "pages": "Pages",
       "pagesCount": "{count} of {max}",
       "pagesHint": "Tap a frame below to add it. Pages are shown in this order, two to a spread.",
@@ -1169,7 +1169,17 @@
       "open": "Open the book",
       "deleteHint": "Deleting the book removes its address. The photographs themselves stay published.",
       "delete": "Delete the book",
-      "deleting": "Deleting…"
+      "deleting": "Deleting…",
+      "shelfHeading": "Your shelf",
+      "shelfCount": "{count} of {max} books",
+      "shelfEmpty": "No books yet. Bind your first one below.",
+      "shelfNew": "New book",
+      "shelfEdit": "Edit",
+      "shelfFull": "The shelf is full at {max}. Delete a book to make room.",
+      "editing": "Editing “{title}”",
+      "creating": "A new book",
+      "unlisted": "Link only",
+      "public": "On your profile"
     },
     "username": {
       "heading": "Username",
@@ -1226,7 +1236,9 @@
       "deleteConfirmMismatchField": "Type {username} exactly.",
       "deleteFailed": "Your account couldn’t be deleted, and nothing was removed. Try again in a moment.",
       "deleteFilesFailed": "Not all of your image files could be removed, so your account wasn’t deleted. Some files may already be gone. Try again in a moment.",
-      "deleteRecordsFailed": "Your image files were removed, but the account itself couldn’t be deleted. Press Delete again to finish."
+      "deleteRecordsFailed": "Your image files were removed, but the account itself couldn’t be deleted. Press Delete again to finish.",
+      "bookLimit": "You already have {max} books. Delete one to bind another.",
+      "bookNotYours": "That book is not yours to change."
     }
   },
   "upload": {
@@ -1888,6 +1900,15 @@
         "everywhere": "Readable without WebGL — every page is still there, two up",
         "rights": "Your photographs stay your copyright, and the book says so on its back cover"
       }
+    },
+    "shelf": {
+      "eyebrow": "Photobooks",
+      "title": "On the shelf",
+      "count": "{count} books",
+      "unlistedNote": "Books marked “link only” are shown here to you alone.",
+      "open": "Open",
+      "edit": "Edit",
+      "unlisted": "Link only"
     }
   },
   "moderation": {

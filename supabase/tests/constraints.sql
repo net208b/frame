@@ -1398,9 +1398,33 @@ select public.test_accepts('a member making their one photobook',
     values ('abcdabcd-0000-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000004',
             'email-member-book', 'After Hours', 'linen', 'lustre', 'unlisted')$$);
 
-select public.test_rejects('a second photobook for the same member',
+-- 0019: the shelf. A second book is fine; a thirteenth is not.
+select public.test_accepts('a second photobook for the same member',
+  $$insert into public.photobooks (owner_id, slug, title, position)
+    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-book-two', 'Second', 2)$$);
+
+select public.test_rejects('a shelf position past the twelfth slot',
+  $$update public.photobooks set position = 13 where slug = 'email-member-book-two'$$, '23514');
+
+-- Fill the shelf to twelve through the same path the editor uses, then ask
+-- for one more.
+do $$
+declare i integer;
+begin
+  for i in 3..12 loop
+    insert into public.photobooks (owner_id, slug, title, position)
+    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-book-' || i, 'Book ' || i, i);
+  end loop;
+end $$;
+
+select public.test_rejects('a thirteenth photobook for the same member',
   $$insert into public.photobooks (owner_id, slug, title)
-    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-book-two', 'Second')$$, '23505');
+    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-book-13', 'Thirteen')$$, '23514');
+
+-- Back to one spare book so the page assertions below read as they always did.
+delete from public.photobooks
+ where owner_id = 'dddddddd-0000-4000-8000-000000000004'
+   and slug <> 'email-member-book' and slug <> 'email-member-book-two';
 
 select public.test_rejects('a photobook with a private visibility',
   $$update public.photobooks set visibility = 'private'

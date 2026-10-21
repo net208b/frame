@@ -386,6 +386,7 @@ const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsernam
     gearModel: 'X-Pro3',
     visibility: 'public',
     opens: 412,
+    position: 1,
     ownerUsername: 'kenjiwatanabe',
     updatedAt: '2026-10-12T09:00:00Z',
   },
@@ -404,8 +405,27 @@ const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsernam
     // book, and the lead is the one shown open beside the copy saying a book
     // needs four published frames. Maya has five; Kenji has three.
     opens: 512,
+    position: 1,
     ownerUsername: 'mayachen',
     updatedAt: '2026-10-14T20:30:00Z',
+  },
+  {
+    // Maya's second book: the one profile in the demo with more than one
+    // spine on the shelf, so the shelf has an order to show.
+    id: 'b00c0001-0000-4000-8000-000000000005',
+    slug: 'maya-everything-arriving',
+    title: 'Everything Arriving at Once',
+    dedication: null,
+    cover: 'signal',
+    paper: 'matte',
+    gearMode: 'none',
+    gearBrand: null,
+    gearModel: null,
+    visibility: 'public',
+    opens: 96,
+    position: 2,
+    ownerUsername: 'mayachen',
+    updatedAt: '2026-10-18T09:15:00Z',
   },
   {
     id: 'b00c0001-0000-4000-8000-000000000003',
@@ -419,6 +439,7 @@ const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsernam
     gearModel: 'M6',
     visibility: 'public',
     opens: 143,
+    position: 1,
     ownerUsername: 'marcosilva',
     updatedAt: '2026-10-15T06:10:00Z',
   },
@@ -436,6 +457,7 @@ const DEMO_PHOTOBOOKS: Array<Omit<Photobook, 'owner' | 'pages'> & { ownerUsernam
     gearModel: null,
     visibility: 'unlisted',
     opens: 31,
+    position: 1,
     ownerUsername: 'annakeller',
     updatedAt: '2026-10-16T11:45:00Z',
   },
@@ -467,10 +489,14 @@ export function demoPublicPhotobooks(limit: number): Photobook[] {
     .slice(0, limit);
 }
 
-export function demoPhotobookByOwner(ownerId: string): Photobook | null {
+/** The whole shelf, public and unlisted, in the owner's order. */
+export function demoPhotobooksByOwner(ownerId: string): Photobook[] {
   const owner = DEMO_PHOTOGRAPHERS.find((person) => person.id === ownerId);
-  const book = owner ? DEMO_PHOTOBOOKS.find((entry) => entry.ownerUsername === owner.username) : null;
-  return book ? demoAssemblePhotobook(book) : null;
+  if (!owner) return [];
+  return DEMO_PHOTOBOOKS.filter((entry) => entry.ownerUsername === owner.username)
+    .map(demoAssemblePhotobook)
+    .filter((book): book is Photobook => book !== null)
+    .sort((a, b) => a.position - b.position || a.updatedAt.localeCompare(b.updatedAt));
 }
 
 /* ------------------------------------------------------------------------ */

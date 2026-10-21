@@ -206,6 +206,7 @@ export interface PhotobookRow extends Timestamps {
   gear_model: string | null;
   visibility: 'public' | 'unlisted';
   opens: number;
+  position: number;
 }
 
 export interface PhotobookPageRow {
