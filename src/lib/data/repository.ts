@@ -186,6 +186,18 @@ export interface MapPinFrame {
 
 
 
+/**
+ * The approved places where this member has a published photograph, as ids.
+ *
+ * For the map's own-work ring: a member sees a glow on the pins they have
+ * contributed to, and nobody sees anybody else's. One small read, made only
+ * for a signed-in member, so a visitor costs nothing extra.
+ */
+export async function getOwnPhotographedLocationIds(ownerId: string): Promise<string[]> {
+  if (useLive()) return live.ownPhotographedLocationIds(ownerId);
+  return demo.demoOwnPhotographedLocationIds(ownerId);
+}
+
 export async function getMapPins(): Promise<MapPin[]> {
   if (useLive()) return live.mapPins();
   return demo.demoMapPins();

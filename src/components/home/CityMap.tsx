@@ -61,6 +61,7 @@ const NOTES: Note[] = [
 
 export async function CityMap({
   pins,
+  ownLocationIds,
   totalPinCount,
   place,
   signedIn,
@@ -69,6 +70,8 @@ export async function CityMap({
 }: {
   /** A sample for the band. The full set lives on /map. */
   pins: MapPin[];
+  /** Where the signed-in member has photographed; their pins get the lit ring. */
+  ownLocationIds?: readonly string[];
   totalPinCount: number;
   place: VisitorPlace;
   signedIn: boolean;
@@ -152,6 +155,7 @@ export async function CityMap({
         {mapReady ? (
           <CityMapCanvas
             pins={pins}
+            ownLocationIds={ownLocationIds}
             centre={place.centre}
             zoom={place.zoom}
             heightClassName="h-full"

@@ -245,6 +245,18 @@ function demoLatestFrame(locationId: string): MapPinFrame | null {
   };
 }
 
+/** Where a demo member has photographed. Nobody signs in to the demo, so this
+ *  is only ever asked for by a test harness; it answers truthfully anyway. */
+export function demoOwnPhotographedLocationIds(photographerId: string): string[] {
+  return [
+    ...new Set(
+      DEMO_PHOTOGRAPHS.filter(
+        (photo) => photo.photographer.id === photographerId && photo.location !== null,
+      ).map((photo) => photo.location!.id),
+    ),
+  ];
+}
+
 /** Pins for the map page: approved locations that have a publishable point. */
 export function demoMapPins() {
   return DEMO_LOCATIONS.filter((location) => location.coordinates).map((location) => ({
