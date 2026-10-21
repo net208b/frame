@@ -684,7 +684,8 @@
       "frames": "Frames",
       "photobook": "Photobook",
       "footprints": "Footprints",
-      "collections": "Collections"
+      "collections": "Collections",
+      "series": "Series"
     },
     "reportAccount": "Report this account",
     "role": {
@@ -1026,6 +1027,23 @@
       },
       "confirmUsername": {
         "required": "Type your username to confirm."
+      },
+      "seriesTitle": {
+        "required": "Give the series a title.",
+        "max": "Keep the title to 80 characters."
+      },
+      "seriesStandfirst": {
+        "max": "Keep the standfirst to 200 characters."
+      },
+      "seriesBody": {
+        "max": "Keep the text to 4,000 characters."
+      },
+      "seriesCaption": {
+        "max": "Keep each caption to 240 characters."
+      },
+      "seriesItems": {
+        "tooFew": "A series needs at least 3 frames.",
+        "tooMany": "A series holds at most 10 frames."
       }
     },
     "actions": {
@@ -1238,7 +1256,62 @@
       "deleteFilesFailed": "Not all of your image files could be removed, so your account wasn’t deleted. Some files may already be gone. Try again in a moment.",
       "deleteRecordsFailed": "Your image files were removed, but the account itself couldn’t be deleted. Press Delete again to finish.",
       "bookLimit": "You already have {max} books. Delete one to bind another.",
-      "bookNotYours": "That book is not yours to change."
+      "bookNotYours": "That book is not yours to change.",
+      "seriesSaved": "Series saved.",
+      "seriesDeleted": "Series deleted.",
+      "seriesFailed": "The series could not be saved. Try again in a moment.",
+      "seriesSlugTaken": "A series already uses that address. Change the title a little.",
+      "seriesItemsRefused": "One frame is no longer one of your published photographs. Remove it and save again.",
+      "seriesItemsFailed": "The series was saved but its frames were not. Please save again.",
+      "seriesLimit": "You already have {max} series. Delete one to write another.",
+      "seriesNotYours": "That series is not yours to change."
+    },
+    "series": {
+      "heading": "Photo series",
+      "intro": "Three to ten of your published frames, in order, with the words around them — read straight on the page. Up to twenty-four.",
+      "listHeading": "Your series",
+      "listCount": "{count} of {max}",
+      "listNew": "New series",
+      "listEdit": "Edit",
+      "listFull": "You have {max} series. Delete one to write another.",
+      "editing": "Editing “{title}”",
+      "creating": "A new series",
+      "public": "On your profile",
+      "unlisted": "Link only",
+      "items": "Frames",
+      "itemsCount": "{count} of {max}",
+      "itemsHint": "Tap a frame below to add it. They read in this order; each may carry a caption.",
+      "itemsNeedMore": "Add {count} more to make a series.",
+      "itemsFull": "That is the most a series holds. Remove one to add another.",
+      "candidates": "Your published frames",
+      "noCandidates": "A series is made from published frames. You have none published yet.",
+      "caption": "Caption",
+      "captionPlaceholder": "Optional, up to 240 characters",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "remove": "Remove from the series",
+      "add": "Add {title}",
+      "title": "Title",
+      "titleHint": "The address is made from your username and this title, once, when you save.",
+      "titleHintExisting": "The address stays /s/{slug} even if you rename the series — shared links keep working.",
+      "standfirst": "Standfirst",
+      "standfirstHint": "One or two lines under the title. Optional.",
+      "body": "The text",
+      "bodyHint": "Plain paragraphs, separated by a blank line. The frames are set between them in order. Up to 4,000 characters.",
+      "cover": "Cover frame",
+      "coverHint": "Stands for the series on your profile and when the link is shared. Defaults to the first frame.",
+      "coverFirst": "The first frame",
+      "visibility": "Who can read it",
+      "visibilityHint": "Unlisted answers to its link only; public also appears on your profile.",
+      "visibilityUnlisted": "Link only",
+      "visibilityPublic": "On my profile",
+      "submit": "Publish the series",
+      "submitUpdate": "Save changes",
+      "submitPending": "Saving…",
+      "open": "Read it",
+      "deleteHint": "Deleting a series removes only the series. The frames stay where they are.",
+      "delete": "Delete this series",
+      "deleting": "Deleting…"
     }
   },
   "upload": {
@@ -2680,6 +2753,33 @@
       "openMap": "Open the map",
       "home": "Back to the homepage",
       "searchHint": "If you were looking for something in particular, searching for the place or the photographer by name is usually quicker than guessing a URL. <link>Search FRAME</link>."
+    }
+  },
+  "series": {
+    "eyebrow": "Photo series",
+    "metaTitle": "{title} — a series by {name}",
+    "metaDescription": "{count} photographs by {name}, with the words around them.",
+    "itemCount": "{count} frames",
+    "opens": "{count} opens",
+    "byline": "A series by {name}",
+    "colophon": "Every photograph in this series is the work and copyright of {name}. It was written on FRAME from frames published here.",
+    "copy": "Copy link",
+    "copied": "Copied",
+    "profile": {
+      "eyebrow": "Series",
+      "title": "Photo series",
+      "count": "{count} series",
+      "read": "Read",
+      "edit": "Edit",
+      "unlisted": "Link only",
+      "unlistedNote": "Series marked “link only” are shown here to you alone."
+    },
+    "notFound": {
+      "metaTitle": "Series not found",
+      "metaDescription": "There is no series at this address.",
+      "heading": "There is no series at this address",
+      "body": "It may have been deleted, or the link was copied short.",
+      "discover": "Look at the photographs"
     }
   }
 }

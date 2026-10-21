@@ -4,6 +4,7 @@ import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/serve
 import { AvatarForm } from '@/components/account/AvatarForm';
 import { DeleteAccountForm } from '@/components/account/DeleteAccountForm';
 import { PhotobookForm } from '@/components/account/PhotobookForm';
+import { SeriesForm } from '@/components/account/SeriesForm';
 import { ProfileForm } from '@/components/account/ProfileForm';
 import { UsernameSection } from '@/components/account/UsernameSection';
 import { CapabilityNotice } from '@/components/system/CapabilityNotice';
@@ -16,7 +17,8 @@ import { requireViewer } from '@/lib/auth';
 import { BookCover } from '@/components/photobook/BookCover';
 import { Button } from '@/components/ui/Button';
 import { Link } from '@/i18n/navigation';
-import { getGearFacets, getPhotobooksByOwner, getPortfolio } from '@/lib/data/repository';
+import { getGearFacets, getPhotobooksByOwner, getPortfolio, getSeriesByOwner } from '@/lib/data/repository';
+import { SERIES_MAX_PER_MEMBER } from '@/types/domain';
 import { PHOTOBOOK_LIMITS } from '@/lib/validation/photobook';
 import { countryOptions } from '@/lib/geo/countries';
 import { isDemoMode } from '@/lib/config';
@@ -104,10 +106,11 @@ export default async function SettingsPage({
 
   // The frames a cover may be: this member's own published photographs, newest
   // first, which is the same read the profile page makes.
-  const [portfolio, photobooks, gear] = await Promise.all([
+  const [portfolio, photobooks, gear, allSeries] = await Promise.all([
     getPortfolio(viewer.id),
     getPhotobooksByOwner(viewer.id),
     getGearFacets(),
+    getSeriesByOwner(viewer.id),
   ]);
 
   /*
@@ -122,6 +125,15 @@ export default async function SettingsPage({
   const photobook = bookQuery ? (photobooks.find((book) => book.id === bookQuery) ?? null) : null;
   const creating = (bookQuery === 'new' && !shelfFull) || (photobooks.length === 0 && !bookQuery);
   const editorOpen = photobook !== null || creating;
+
+  // The same shape for series: `?series=<id>` edits one, `?series=new` starts
+  // one, and an empty list opens the editor for the first.
+  const seriesParamRaw = (await searchParams)?.series;
+  const seriesQuery = typeof seriesParamRaw === 'string' ? seriesParamRaw : null;
+  const seriesFull = allSeries.length >= SERIES_MAX_PER_MEMBER;
+  const currentSeries = seriesQuery ? (allSeries.find((entry) => entry.id === seriesQuery) ?? null) : null;
+  const creatingSeries = (seriesQuery === 'new' && !seriesFull) || (allSeries.length === 0 && !seriesQuery);
+  const seriesEditorOpen = currentSeries !== null || creatingSeries;
   const coverCandidates = portfolio.map((photograph) => ({ id: photograph.id, title: photograph.title }));
   // The book is made from the same published frames, with a thumbnail to pick by.
   const bookCandidates = portfolio.map((photograph) => ({
@@ -283,6 +295,85 @@ export default async function SettingsPage({
               }}
             />
           </div>
+          ) : null}
+        </section>
+
+        <section aria-labelledby="settings-series" className={SECTION}>
+          <h2 id="settings-series" className="text-title">
+            {t('series.heading')}
+          </h2>
+          <p className="mt-2 text-body text-muted">{t('series.intro')}</p>
+
+          {allSeries.length > 0 ? (
+            <div className="mt-8">
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h3 className="text-body font-bold">{t('series.listHeading')}</h3>
+                <p className="text-meta text-muted tabular-nums">
+                  {t('series.listCount', { count: allSeries.length, max: SERIES_MAX_PER_MEMBER })}
+                </p>
+              </div>
+              <ul className="mt-4 divide-y divide-line border-y border-line">
+                {allSeries.map((entry) => {
+                  const current = currentSeries?.id === entry.id;
+                  return (
+                    <li key={entry.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-caption font-bold">{entry.title}</p>
+                        <p className="text-meta text-muted">
+                          {entry.visibility === 'public' ? t('series.public') : t('series.unlisted')}
+                          {' · '}
+                          {entry.items.length}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1.5">
+                        <Button asChild size="sm" variant={current ? 'primary' : 'secondary'}>
+                          <Link href={`/settings?series=${entry.id}#settings-series`} scroll={false}>
+                            {t('series.listEdit')}
+                          </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="ghost">
+                          <Link href={`/series/${entry.slug}`}>{t('series.open')}</Link>
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="mt-5">
+                {seriesFull ? (
+                  <p className="text-caption text-muted">{t('series.listFull', { max: SERIES_MAX_PER_MEMBER })}</p>
+                ) : (
+                  <Button asChild variant={creatingSeries ? 'primary' : 'secondary'}>
+                    <Link href="/settings?series=new#settings-series" scroll={false}>
+                      {t('series.listNew')}
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {seriesEditorOpen ? (
+            <div className="mt-8 border-t border-line pt-8">
+              <h3 className="text-body font-bold">
+                {currentSeries ? t('series.editing', { title: currentSeries.title }) : t('series.creating')}
+              </h3>
+              <SeriesForm
+                key={currentSeries?.id ?? 'new'}
+                candidates={bookCandidates}
+                seriesId={currentSeries?.id ?? null}
+                existingSlug={currentSeries?.slug ?? null}
+                disabled={settings.isSuspended}
+                initial={{
+                  title: currentSeries?.title ?? '',
+                  standfirst: currentSeries?.standfirst ?? '',
+                  body: currentSeries?.body ?? '',
+                  cover: currentSeries?.cover?.id ?? null,
+                  visibility: currentSeries?.visibility ?? 'unlisted',
+                  items: currentSeries?.items.map((item) => ({ id: item.photograph.id, caption: item.caption ?? '' })) ?? [],
+                }}
+              />
+            </div>
           ) : null}
         </section>
 

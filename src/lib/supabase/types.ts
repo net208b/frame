@@ -215,6 +215,25 @@ export interface PhotobookPageRow {
   position: number;
 }
 
+export interface PhotoSeriesRow extends Timestamps {
+  id: string;
+  owner_id: string;
+  slug: string;
+  title: string;
+  standfirst: string | null;
+  body: string;
+  cover_photograph_id: string | null;
+  visibility: 'public' | 'unlisted';
+  opens: number;
+}
+
+export interface PhotoSeriesItemRow {
+  series_id: string;
+  photograph_id: string;
+  position: number;
+  caption: string | null;
+}
+
 export interface CollectionItemRow {
   id: string;
   collection_id: string;
@@ -480,6 +499,48 @@ export interface Database {
           },
         ];
       };
+      photo_series: {
+        Row: PhotoSeriesRow;
+        Insert: Insertable<PhotoSeriesRow, 'owner_id' | 'slug' | 'title'>;
+        Update: Updatable<PhotoSeriesRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photo_series_owner_id_fkey';
+            columns: ['owner_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'photo_series_cover_photograph_id_fkey';
+            columns: ['cover_photograph_id'];
+            isOneToOne: false;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      photo_series_items: {
+        Row: PhotoSeriesItemRow;
+        Insert: Insertable<PhotoSeriesItemRow, 'series_id' | 'photograph_id' | 'position'>;
+        Update: Partial<PhotoSeriesItemRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photo_series_items_series_id_fkey';
+            columns: ['series_id'];
+            isOneToOne: false;
+            referencedRelation: 'photo_series';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'photo_series_items_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: false;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       collections: {
         Row: CollectionRow;
         Insert: Insertable<CollectionRow, 'slug' | 'owner_id' | 'title'>;
@@ -549,6 +610,10 @@ export interface Database {
     Views: Record<string, never>;
     Functions: {
       bump_photobook_opens: {
+        Args: { p_slug: string };
+        Returns: undefined;
+      };
+      bump_series_opens: {
         Args: { p_slug: string };
         Returns: undefined;
       };

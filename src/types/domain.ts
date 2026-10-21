@@ -362,6 +362,39 @@ export interface Photobook {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Photo series                                                              */
+/* ------------------------------------------------------------------------ */
+
+/** A few frames and the words around them, read on the page. */
+export const SERIES_MIN_ITEMS = 3;
+export const SERIES_MAX_ITEMS = 10;
+export const SERIES_MAX_PER_MEMBER = 24;
+
+export interface PhotoSeriesItem {
+  position: number;
+  photograph: PhotographDetail;
+  caption: string | null;
+}
+
+export interface PhotoSeries {
+  id: string;
+  slug: string;
+  title: string;
+  /** The standfirst: one or two lines under the title. */
+  standfirst: string | null;
+  /** Plain paragraphs separated by blank lines. Never HTML. */
+  body: string;
+  /** The frame that stands for the series; one of its own items, or the first. */
+  cover: PhotographDetail | null;
+  visibility: PhotobookVisibility;
+  opens: number;
+  owner: PhotographerSummary;
+  /** In position order. An item whose photograph is no longer published is absent. */
+  items: PhotoSeriesItem[];
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
 /* Reports and moderation                                                    */
 /* ------------------------------------------------------------------------ */
 
