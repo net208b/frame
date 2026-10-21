@@ -53,6 +53,7 @@ export const UPLOAD_SIGNAL_MESSAGE_KEYS: Record<UploadSignal['kind'], string> = 
   'burst-upload': 'uploadSignal.burst-upload',
   'embedded-credit-mismatch': 'uploadSignal.embedded-credit-mismatch',
   'low-resolution': 'uploadSignal.low-resolution',
+  'film-declared': 'uploadSignal.film-declared',
 };
 
 const TONES: Record<Severity, string> = {

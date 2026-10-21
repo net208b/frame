@@ -1349,7 +1349,8 @@
       "filesDeletedRecordKept": "The image files were deleted but the photograph record could not be. Reload the page and try again.",
       "exifRejectedPhone": "FRAME publishes photographs from cameras only, and this file was made by a phone. It was not kept.",
       "exifRejectedMissing": "FRAME publishes photographs that carry a camera’s own record, and this file is missing: {fields}. It was not kept.",
-      "exifNotRecorded": "The camera record could not be saved, so the file was not processed. Try again in a moment."
+      "exifNotRecorded": "The camera record could not be saved, so the file was not processed. Try again in a moment.",
+      "exifRejectedHelp": "If it is a scanned negative, tick “scanned from film” in the gear step. If it came from a camera, export it again without removing metadata — and not through a chat app."
     },
     "meta": {
       "title": "Upload a photograph",
@@ -1545,7 +1546,9 @@
       "lensBrandPlaceholder": "Voigtländer",
       "lensModelLabel": "Lens model",
       "lensModelPlaceholder": "35mm f/1.4 Nokton",
-      "note": "If your camera is not one FRAME already lists, what you type is kept exactly as you wrote it. Nobody is asked to pretend they shot something else."
+      "note": "If your camera is not one FRAME already lists, what you type is kept exactly as you wrote it. Nobody is asked to pretend they shot something else.",
+      "filmLabel": "This is scanned from film",
+      "filmHint": "A scan carries no camera record, so name the camera above. A reviewer sees the claim beside the missing record. Phone photographs are refused either way."
     },
     "settings": {
       "heading": "Exposure and editing",
@@ -1760,11 +1763,11 @@
     },
     "exifGate": {
       "passTitle": "This file carries a camera record",
-      "passBody": "Make, model, exposure settings and the moment it was taken were all read from the file. The server reads the uploaded file again and decides for itself.",
+      "passBody": "Make, model, shutter speed, ISO and the moment it was taken were read from the file. The server reads the uploaded file again and decides for itself.",
       "failTitle": "This file will be refused",
       "failPhone": "It was made by a phone.",
       "failMissing": "It is missing: {fields}.",
-      "rule": "FRAME publishes photographs that carry a camera’s own record — make and model, aperture, shutter speed, ISO, focal length and the time taken. A scanned film negative, a manual lens, or an export that stripped its metadata will not pass.",
+      "rule": "FRAME publishes photographs that carry a camera’s own record — make and model, shutter speed, ISO and the time taken. Any lens will do, manual ones included. If this is a scanned negative, say so in the gear step and it goes to a reviewer. If it was exported from a camera file, export it again without removing metadata, and do not send it through a chat app first.",
       "fields": {
         "cameraBrand": "camera make",
         "cameraModel": "camera model",
@@ -1773,7 +1776,9 @@
         "iso": "ISO",
         "focalLengthMm": "focal length",
         "capturedAt": "date and time taken"
-      }
+      },
+      "filmTitle": "A scanned negative goes to a reviewer",
+      "filmBody": "You have marked this as film. It carries no camera record, so a person will look at it together with the camera you named."
     }
   },
   "collections": {
@@ -2084,7 +2089,8 @@
       "embedded-credit-mismatch": "Embedded credit differs",
       "low-resolution": "Below the minimum size",
       "content-flagged": "Content check held it",
-      "content-unchecked": "Not checked automatically"
+      "content-unchecked": "Not checked automatically",
+      "film-declared": "Declared film scan — no camera record"
     },
     "decision": {
       "approve": "Approve",

@@ -18,11 +18,13 @@ import type { ExifReadout } from './exif';
  * moderators' record keeps every field the file carried, serials included, so a
  * forged block is at least a forged block somebody can look at.
  *
- * WHAT IT COSTS, said plainly: a scanned film negative carries no camera EXIF
- * and is refused; a manual lens on a digital body writes no aperture and no
- * lens name, and the aperture is required; an export that stripped metadata is
- * refused however it was shot. Those are the trade-offs of the rule as asked
- * for, and they are listed in the sentence the member sees.
+ * WHO IT LETS THROUGH, and who not. A digital camera with any lens, manual
+ * included, passes on what the body always writes. A scanned negative has no
+ * camera record and is admitted when the member says it is film — flagged, to
+ * a person, as every upload already goes to a person. A phone is refused
+ * whatever was ticked. A digital export that stripped its metadata is refused
+ * and told how to export again, because the camera did write the record and
+ * the file simply no longer carries it.
  */
 
 export type RequiredExifField =
@@ -37,22 +39,32 @@ export type RequiredExifField =
 export type DeviceClass = 'camera' | 'phone' | 'unknown';
 
 export interface ExifVerdict {
-  /** `camera` passes. Anything else is refused. */
-  verdict: 'camera' | 'rejected';
+  /**
+   * `camera`: a camera's record, complete. `film`: no usable camera record,
+   * but the member declared a film scan and the file is not a phone's — it
+   * goes to a person, flagged. `rejected`: a phone, or a digital file missing
+   * what a camera always writes.
+   */
+  verdict: 'camera' | 'film' | 'rejected';
   deviceClass: DeviceClass;
-  /** Required fields the file did not carry, in policy order. Empty on a pass. */
+  /** Required fields the file did not carry, in policy order. Empty on `camera`. */
   missing: RequiredExifField[];
 }
 
 export const EXIF_GATE = {
-  /** Every one of these must be present and readable. Order is the order the member is told. */
+  /**
+   * What a digital camera ALWAYS writes, whatever lens is on it: who made it,
+   * which body, the shutter, the ISO and the moment. Aperture and focal
+   * length are deliberately not here — a manual or adapted lens leaves both
+   * blank, and a Leica M with a Voigtländer on the front is exactly the kind
+   * of camera this site is for. Both are still read, kept and shown.
+   * Order is the order the member is told.
+   */
   required: [
     'cameraBrand',
     'cameraModel',
-    'aperture',
     'shutterSpeed',
     'iso',
-    'focalLengthMm',
     'capturedAt',
   ] as const satisfies readonly RequiredExifField[],
 
@@ -137,10 +149,18 @@ export function missingRequired(readout: ExifReadout): RequiredExifField[] {
  * fails on the missing fields and is reported as such, because "we could not
  * tell what took this" is the honest sentence for a stripped export.
  */
-export function assessCameraEvidence(readout: ExifReadout): ExifVerdict {
+export function assessCameraEvidence(
+  readout: ExifReadout,
+  options: { filmDeclared?: boolean } = {},
+): ExifVerdict {
   const deviceClass = classifyDevice(readout);
   const missing = missingRequired(readout);
+  // A phone is a phone whatever box was ticked.
   if (deviceClass === 'phone') return { verdict: 'rejected', deviceClass, missing };
-  if (missing.length > 0) return { verdict: 'rejected', deviceClass, missing };
-  return { verdict: 'camera', deviceClass, missing: [] };
+  if (missing.length === 0) return { verdict: 'camera', deviceClass, missing: [] };
+  // No usable camera record. A declared film scan is admitted to review with
+  // its flag on, for a person to look at; anything else is refused and told
+  // what was missing.
+  if (options.filmDeclared) return { verdict: 'film', deviceClass, missing };
+  return { verdict: 'rejected', deviceClass, missing };
 }

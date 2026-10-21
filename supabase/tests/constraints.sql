@@ -938,8 +938,14 @@ select public.test_rejects('sending a photograph to review whose file was judged
 commit;
 
 reset "app.current_user_id";
+select public.test_rejects('an EXIF verdict outside the vocabulary',
+  $$update public.photograph_exif_checks set verdict = 'maybe'
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '23514');
+select public.test_accepts('a declared film scan as a verdict',
+  $$update public.photograph_exif_checks set verdict = 'film', film_declared = true
+     where photograph_id = 'eeeeeeee-1111-4000-8000-000000000001'$$);
 update public.photograph_exif_checks
-   set verdict = 'camera', device_class = 'camera', make = 'Fujifilm', model = 'X-Pro3',
+   set verdict = 'camera', device_class = 'camera', film_declared = false, make = 'Fujifilm', model = 'X-Pro3',
        aperture = 1.4, shutter_speed = '1/60', iso = 1600, focal_length_mm = 35, captured_at = now()
  where photograph_id = 'eeeeeeee-1111-4000-8000-000000000001';
 

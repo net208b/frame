@@ -4,7 +4,7 @@ import { FileDigit } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
-import { TextField } from '@/components/ui/Field';
+import { CheckboxField, TextField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
 
 import type { CaptureFields, UploadDraft } from './use-upload-draft';
@@ -127,6 +127,19 @@ export function StepGear({ draft }: { draft: UploadDraft }) {
             }
           />
         ))}
+      </div>
+
+      {/* The way in for a scanned negative. A film scan carries no camera
+          record, so the camera-only rule cannot read one; the member says so
+          here, names the camera above, and the upload goes to a person with
+          that claim beside the absence. A phone is still a phone. */}
+      <div className="mt-7 rounded-card border border-line bg-surface p-4">
+        <CheckboxField
+          label={t('gear.filmLabel')}
+          description={t('gear.filmHint')}
+          checked={state.filmDeclared}
+          onChange={(event) => draft.setFilmDeclared(event.target.checked)}
+        />
       </div>
 
       <p className="mt-6 max-w-prose text-meta leading-relaxed text-muted">{t('gear.note')}</p>

@@ -412,6 +412,8 @@ export async function createDraft(
 
 const attachInputSchema = z.object({
   photographId: discardDraftSchema.shape.photographId,
+  /** The member says this is a scanned negative — see lib/images/exif-gate. */
+  filmDeclared: z.boolean().optional().transform((value) => value === true),
 });
 
 /** A short wait between availability checks on a just-written object. */
@@ -615,13 +617,13 @@ export async function attachVariants(
   // file is removed from storage: it will not be published, and it may carry
   // a position the member never agreed to publish.
   const readout = await readExif(original.bytes.slice().buffer);
-  const verdict = assessCameraEvidence(readout);
-  const recorded = await recordExifCheck(photograph.id, readout, verdict);
+  const verdict = assessCameraEvidence(readout, { filmDeclared: parsed.data.filmDeclared });
+  const recorded = await recordExifCheck(photograph.id, readout, verdict, parsed.data.filmDeclared);
   if (!recorded) {
     await setStatus('draft');
     return fail(t('actions.exifNotRecorded'), 'unknown');
   }
-  if (verdict.verdict !== 'camera') {
+  if (verdict.verdict === 'rejected') {
     try {
       await driver.remove([keys.original]);
     } catch (error) {
@@ -864,6 +866,7 @@ async function recordExifCheck(
   photographId: string,
   readout: ExifReadout,
   verdict: ExifVerdict,
+  filmDeclared: boolean,
 ): Promise<boolean> {
   try {
     const admin = createAdminClient();
@@ -889,6 +892,7 @@ async function recordExifCheck(
         captured_at: readout.capturedAt,
         // A yes/no only. The coordinates stay out of this table by design.
         has_gps: readout.gps !== null,
+        film_declared: filmDeclared,
         checked_at: new Date().toISOString(),
       },
       { onConflict: 'photograph_id' },
@@ -908,12 +912,44 @@ async function recordExifCheck(
   }
 }
 
+/**
+ * The one signal the server adds from the EXIF verdict: a declared film scan.
+ * High severity, so `publishIfCleared` never publishes it on its own — the
+ * claim and the absent camera record are for a person to look at together.
+ */
+async function filmSignals(photographId: string): Promise<UploadSignal[]> {
+  try {
+    const { data } = await createAdminClient()
+      .from('photograph_exif_checks')
+      .select('verdict, film_declared')
+      .eq('photograph_id', photographId)
+      .maybeSingle();
+    const row = data as { verdict?: string; film_declared?: boolean } | null;
+    if (row?.verdict === 'film') {
+      return [
+        {
+          kind: 'film-declared',
+          severity: 'high',
+          message: 'The member declared a film scan: the file carries no camera record. Check the frame and the gear by eye.',
+        },
+      ];
+    }
+  } catch (error) {
+    console.error(
+      `FRAME upload: reading the EXIF verdict for ${photographId} failed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return [];
+}
+
 /** The refusal, in the reader's language, naming what was missing. */
 async function describeExifRefusal(verdict: ExifVerdict): Promise<string> {
   const t = await messages();
   if (verdict.deviceClass === 'phone') return t('actions.exifRejectedPhone');
   const fields = verdict.missing.map((field) => t(`exifGate.fields.${field}`)).join(', ');
-  return t('actions.exifRejectedMissing', { fields });
+  return `${t('actions.exifRejectedMissing', { fields })} ${t('actions.exifRejectedHelp')}`;
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1208,14 +1244,15 @@ export async function publishPhotograph(
   const width = displaySize?.width ?? photograph.imageWidth;
   const height = displaySize?.height ?? photograph.imageHeight;
 
-  const signals = reviewSignals({
+  const signals = await filmSignals(photograph.id);
+  signals.push(...reviewSignals({
     exif: payload.exif,
     capture: payload.capture,
     shareExifGps: payload.shareExifGps,
     location,
     width,
     height,
-  });
+  }));
 
   // The member's own write always lands as 'under_review' (0012 makes this a
   // database rule: an owner cannot set 'published'). Further down, the server

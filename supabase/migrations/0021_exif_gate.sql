@@ -2,8 +2,9 @@
 -- FRAME — 0021  The camera-only rule: a photograph needs a camera's EXIF
 -- =============================================================================
 -- FRAME publishes photographs that carry a camera's own record of how they were
--- made — make and model, aperture, shutter, ISO, focal length, the moment —
--- and refuses files from phones. The server reads the file that actually
+-- made — make and model, shutter, ISO, the moment — and refuses files from
+-- phones. A declared film scan, which has no camera record, is admitted to
+-- review with its flag on, for a person to look at. The server reads the file that actually
 -- arrived (lib/images/exif-gate.ts holds the policy) and writes its verdict
 -- here with the service role; the trigger below is what makes that verdict a
 -- rule rather than a courtesy.
@@ -30,7 +31,7 @@ set search_path = public, extensions;
 create table if not exists public.photograph_exif_checks (
   photograph_id    uuid primary key references public.photographs (id) on delete cascade,
   verdict          text not null
-                     constraint photograph_exif_checks_verdict_allowed check (verdict in ('camera', 'rejected')),
+                     constraint photograph_exif_checks_verdict_allowed check (verdict in ('camera', 'film', 'rejected')),
   device_class     text not null
                      constraint photograph_exif_checks_device_allowed check (device_class in ('camera', 'phone', 'unknown')),
   -- The required fields that were absent, in policy order; empty on a pass.
@@ -52,6 +53,9 @@ create table if not exists public.photograph_exif_checks (
   software         text,
   captured_at      timestamptz,
   has_gps          boolean not null default false,
+  -- The member said this is a scanned negative. Kept beside the verdict so a
+  -- reviewer sees the claim and the absence of a camera record together.
+  film_declared    boolean not null default false,
   checked_at       timestamptz not null default now()
 );
 
@@ -76,7 +80,7 @@ begin
   if new.status = 'under_review' and old.status is distinct from 'under_review'
      and not exists (
        select 1 from public.photograph_exif_checks c
-        where c.photograph_id = new.id and c.verdict = 'camera'
+        where c.photograph_id = new.id and c.verdict in ('camera', 'film')
      ) then
     raise exception 'FRAME publishes photographs from cameras only: this file has no camera record on file.'
       using errcode = '42501';

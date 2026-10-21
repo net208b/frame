@@ -515,7 +515,7 @@ export function StepSubmit({
 
     /* 4. Server-side verification and the derivatives. */
     setActive('process');
-    const processed = await attachVariants({ photographId });
+    const processed = await attachVariants({ photographId, filmDeclared: state.filmDeclared });
     if (!processed.ok) {
       stop('process', processed.error, processed.code, processed.fieldErrors);
       return;

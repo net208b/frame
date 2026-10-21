@@ -236,7 +236,7 @@ export interface PhotoSeriesItemRow {
 
 export interface PhotographExifCheckRow {
   photograph_id: string;
-  verdict: 'camera' | 'rejected';
+  verdict: 'camera' | 'film' | 'rejected';
   device_class: 'camera' | 'phone' | 'unknown';
   missing: string[];
   make: string | null;
@@ -254,6 +254,7 @@ export interface PhotographExifCheckRow {
   software: string | null;
   captured_at: string | null;
   has_gps: boolean;
+  film_declared: boolean;
   checked_at: string;
 }
 

@@ -549,7 +549,8 @@ export interface UploadSignal {
     | 'exif-conflict'
     | 'burst-upload'
     | 'embedded-credit-mismatch'
-    | 'low-resolution';
+    | 'low-resolution'
+    | 'film-declared';
   severity: 'info' | 'warn' | 'high';
   message: string;
   relatedLabel?: string;

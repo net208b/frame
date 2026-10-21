@@ -65,7 +65,10 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
   // The camera-only rule, run here on the browser's readout so the member
   // learns before uploading what the server will decide after, from the same
   // policy. The server's reading of the uploaded bytes is the one that counts.
-  const gate = state.exifStatus === 'read' && exif ? assessCameraEvidence(exif) : null;
+  const gate =
+    state.exifStatus === 'read' && exif
+      ? assessCameraEvidence(exif, { filmDeclared: state.filmDeclared })
+      : null;
   const gateMissing =
     gate && gate.missing.length > 0
       ? gate.missing.map((field) => t(`exifGate.fields.${field}`)).join(', ')
@@ -208,6 +211,10 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
             gate.verdict === 'camera' ? (
               <Notice tone="success" title={t('exifGate.passTitle')} className="mt-4">
                 <p>{t('exifGate.passBody')}</p>
+              </Notice>
+            ) : gate.verdict === 'film' ? (
+              <Notice tone="info" title={t('exifGate.filmTitle')} className="mt-4">
+                <p>{t('exifGate.filmBody')}</p>
               </Notice>
             ) : (
               <Notice tone="warning" title={t('exifGate.failTitle')} className="mt-4">
