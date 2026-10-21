@@ -9,7 +9,7 @@ import {
   serverEnv,
   UPLOAD_POLICY,
 } from '@/lib/config';
-import type { MapPin, ModerationQueues } from '@/lib/data/repository';
+import type { MapPin, MapPinFrame, ModerationQueues } from '@/lib/data/repository';
 import { boundingBoxAround, distanceMetres, publishableCoordinates } from '@/lib/geo';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
 import { trendingScore } from '@/lib/ranking';
@@ -1275,7 +1275,25 @@ export async function nearbyLocations(
 
 interface MapPinPhotograph {
   id: string | null;
+  slug: string | null;
+  title: string | null;
+  category: string | null;
+  appreciation_count: number | null;
   photograph_images: ImageColumns[] | null;
+  profiles: ProfileColumns | ProfileColumns[] | null;
+}
+
+/** The pin's card is drawn from the newest frame that actually has a thumbnail. */
+function mapPinFrame(photograph: MapPinPhotograph | undefined, withPhotographer: boolean): MapPinFrame | null {
+  const slug = toText(photograph?.slug);
+  if (!photograph || !slug) return null;
+  return {
+    slug,
+    title: toText(photograph.title) ?? 'Untitled',
+    category: isCategory(photograph.category) ? photograph.category : 'street',
+    appreciationCount: toNumber(photograph.appreciation_count) ?? 0,
+    photographer: withPhotographer ? mapPhotographerSummary(firstOf<ProfileColumns>(photograph.profiles)) : null,
+  };
 }
 
 interface MapPinJoined extends LocationSummaryColumns, LocationPointColumns {
@@ -1290,6 +1308,10 @@ interface PhotographerPinLocation extends LocationSummaryColumns, LocationPointC
 
 interface PhotographerPinRow {
   published_at: string | null;
+  slug: string | null;
+  title: string | null;
+  category: string | null;
+  appreciation_count: number | null;
   photograph_images: ImageColumns[] | null;
   location: PhotographerPinLocation | PhotographerPinLocation[] | null;
 }
@@ -1303,7 +1325,8 @@ export async function mapPins(): Promise<MapPin[]> {
       .from('locations')
       .select(
         `${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates, pin_precision,
-         categories, photographs(id, published_at, photograph_images(${IMAGE_FIELDS}))`,
+         categories, photographs(id, slug, title, category, appreciation_count, published_at,
+           photograph_images(${IMAGE_FIELDS}), profiles!owner_id(${PROFILE_SUMMARY_FIELDS}))`,
       )
       .eq('status', 'approved')
       .eq('withhold_coordinates', false)
@@ -1334,12 +1357,16 @@ export async function mapPins(): Promise<MapPin[]> {
     // photograph whose thumbnail is missing is skipped rather than held as a
     // null, so the stack never has a hole in it.
     const recentImageUrls: string[] = [];
+    let newest: MapPinPhotograph | undefined;
     for (const photograph of asArray<MapPinPhotograph>(row.photographs)) {
       const images = asArray<ImageColumns>(photograph?.photograph_images);
       const key =
         toText(images.find((image) => image.variant === 'thumb')?.storage_key) ??
         toText(images.find((image) => image.variant === 'grid')?.storage_key);
-      if (key) recentImageUrls.push(storagePublicUrl(key));
+      if (key) {
+        recentImageUrls.push(storagePublicUrl(key));
+        newest ??= photograph;
+      }
     }
 
     pins.push({
@@ -1350,6 +1377,7 @@ export async function mapPins(): Promise<MapPin[]> {
       isApproximate: point.isApproximate,
       previewImageUrl: recentImageUrls[0] ?? null,
       recentImageUrls,
+      latest: mapPinFrame(newest, true),
     });
   }
 
@@ -1381,7 +1409,7 @@ export async function photographerMapPins(ownerId: string): Promise<MapPin[]> {
     await supabase
       .from('photographs')
       .select(
-        `published_at,
+        `published_at, slug, title, category, appreciation_count,
          photograph_images(${IMAGE_FIELDS}),
          location:locations!inner(${LOCATION_SUMMARY_FIELDS}, latitude, longitude,
            is_sensitive, withhold_coordinates, categories, status)`,
@@ -1439,6 +1467,20 @@ export async function photographerMapPins(ownerId: string): Promise<MapPin[]> {
       isApproximate: point.isApproximate,
       previewImageUrl: null,
       recentImageUrls: url ? [url] : [],
+      latest: url
+        ? mapPinFrame(
+            {
+              id: null,
+              slug: toText(row.slug),
+              title: toText(row.title),
+              category: toText(row.category),
+              appreciation_count: toNumber(row.appreciation_count),
+              photograph_images: null,
+              profiles: null,
+            },
+            false,
+          )
+        : null,
     });
   }
 

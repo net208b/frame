@@ -648,7 +648,9 @@
       "approximate": "หมุดนี้จงใจระบุเป็นตำแหน่งโดยประมาณ แม่นยำในระดับประมาณ {precision} เพราะสถานที่นี้มีความอ่อนไหวด้านความเป็นส่วนตัว"
     },
     "pinCard": {
-      "photographs": "{count} ภาพ"
+      "photographs": "{count} ภาพ",
+      "byline": "โดย {name}",
+      "appreciations": "{count} ชื่นชม"
     },
     "static": {
       "title": "แผนที่แสดงตำแหน่ง {name}",

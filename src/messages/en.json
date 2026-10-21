@@ -648,7 +648,9 @@
       "approximate": "This pin is deliberately approximate, accurate to about {precision}, because the place is privacy-sensitive."
     },
     "pinCard": {
-      "photographs": "{count, plural, one {# photograph} other {# photographs}}"
+      "photographs": "{count, plural, one {# photograph} other {# photographs}}",
+      "byline": "by {name}",
+      "appreciations": "{count, plural, one {# appreciation} other {# appreciations}}"
     },
     "static": {
       "title": "Map showing {name}",
