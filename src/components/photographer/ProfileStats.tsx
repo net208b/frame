@@ -5,8 +5,8 @@ import { cn, formatCount } from '@/lib/utils';
 import type { PhotographerProfile } from '@/types/domain';
 
 /**
- * The three figures a profile is allowed to state, each one a count of
- * something the member actually published. The explanation under them is not
+ * The four figures a profile is allowed to state, each one a count of
+ * something that actually happened. The explanation under them is not
  * decoration: an appreciation total only means something if the reader knows
  * it counts members rather than clicks.
  *
@@ -41,6 +41,11 @@ export async function ProfileStats({
       label: t('stats.locationsAdded'),
       value: photographer.locationsContributed,
     },
+    {
+      id: 'followers',
+      label: t('stats.followers'),
+      value: photographer.followerCount,
+    },
   ];
 
   return (
@@ -49,7 +54,9 @@ export async function ProfileStats({
         <Eyebrow>{t('stats.eyebrow')}</Eyebrow>
       </h2>
 
-      <dl className="mt-4 grid grid-cols-3 divide-x divide-line border-y border-line">
+      {/* Two by two on a phone, four across once there is room: four figures
+          squeezed into one row leaves no space for the labels. */}
+      <dl className="mt-4 grid grid-cols-2 divide-line border-y border-line sm:grid-cols-4 sm:divide-x">
         {figures.map((figure) => (
           <div key={figure.id} className="px-5 py-5 first:pl-0">
             <dt className="text-eyebrow text-muted-soft uppercase">{figure.label}</dt>

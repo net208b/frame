@@ -18,6 +18,8 @@ import type { Tables } from '@/lib/supabase/types';
 import {
   COLLABORATION_STATUSES,
   CRITIQUE_PREFERENCES,
+  NOTIFICATION_KINDS,
+  type AppNotification,
   PHOTO_CATEGORIES,
   PHOTOBOOK_COVERS,
   PHOTOBOOK_GEAR_MODES,
@@ -443,6 +445,8 @@ type ProfileDetailColumns = Nullable<
     | 'role'
     | 'member_since'
     | 'created_at'
+    | 'follower_count'
+    | 'following_count'
   >
 > & {
   cover?: ProfileCoverColumns | ProfileCoverColumns[] | null;
@@ -520,7 +524,7 @@ const PROFILE_COVER_FIELDS = `cover:photographs!cover_photograph_id(
 
 const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, country_code,
   style_tags, collaboration_status, critique_preference, social_links, usual_gear, role,
-  member_since, created_at, ${PROFILE_COVER_FIELDS}`;
+  member_since, created_at, follower_count, following_count, ${PROFILE_COVER_FIELDS}`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
 const METADATA_FIELDS =
   'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes';
@@ -817,6 +821,8 @@ interface PhotographQuery {
   cameraModel?: string | null;
   lensBrand?: string | null;
   ownerId?: string | null;
+  /** Several owners at once, for the following feed. An empty array matches nothing. */
+  ownerIds?: readonly string[] | null;
   locationId?: string | null;
   excludeId?: string | null;
   editorsOnly?: boolean;
@@ -844,6 +850,7 @@ async function fetchPhotographRows(
 
   if (options.category) query = query.eq('category', options.category);
   if (options.ownerId) query = query.eq('owner_id', options.ownerId);
+  if (options.ownerIds) query = query.in('owner_id', [...options.ownerIds]);
   if (options.locationId) query = query.eq('location_id', options.locationId);
   if (options.excludeId) query = query.neq('id', options.excludeId);
   if (options.editorsOnly) query = query.eq('editors_pick', true);
@@ -1520,6 +1527,10 @@ async function buildProfiles(
       photographCount: photographCounts.get(summary.id) ?? 0,
       appreciationsReceived: appreciationTotals.get(summary.id) ?? 0,
       locationsContributed: locationCounts.get(summary.id) ?? 0,
+      // These two are columns rather than aggregates: a trigger recounts them
+      // from profile_follows, so reading a profile costs nothing extra.
+      followerCount: toNumber(row.follower_count) ?? 0,
+      followingCount: toNumber(row.following_count) ?? 0,
       memberSince: toText(row.member_since) ?? toText(row.created_at) ?? '',
       role: oneOf(['member', 'moderator', 'admin'] as const, row.role, 'member'),
     });
@@ -2998,4 +3009,196 @@ export async function photographThread(photographId: string): Promise<Photograph
   const comments = topLevel.filter(prune);
 
   return { comments, count };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Following, and the feed it feeds                                         */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Whether the viewer follows this member.
+ *
+ * `null` — not `false` — when nobody is signed in, so the control can send a
+ * visitor to sign in rather than showing an un-followed state it cannot know.
+ * The same distinction appreciation makes, for the same reason.
+ */
+export async function viewerFollows(profileId: string): Promise<boolean | null> {
+  const viewer = await getViewer();
+  if (!viewer) return null;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('profile_follows')
+    .select('followee_id')
+    .eq('follower_id', viewer.id)
+    .eq('followee_id', profileId)
+    .maybeSingle();
+
+  if (error) {
+    console.error(`FRAME follows: reading the viewer's follow failed — ${error.message}`);
+    return null;
+  }
+  return data !== null;
+}
+
+/** The ids this member follows. The feed's first query, and nothing else's. */
+async function followeeIds(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  followerId: string,
+): Promise<string[]> {
+  const rows = unwrapList<{ followee_id: string | null }>(
+    "the people a member follows",
+    await supabase.from('profile_follows').select('followee_id').eq('follower_id', followerId),
+  );
+  return rows.map((row) => toText(row.followee_id)).filter((id): id is string => id !== null);
+}
+
+/**
+ * Published photographs by the people this member follows, newest first.
+ *
+ * Two queries rather than an embedded filter: PostgREST can express "owner is
+ * one of these" far more plainly than a join through the follow table, and the
+ * first query is a handful of uuids. Following nobody short-circuits to an
+ * empty page without touching the photographs table at all — the page has a
+ * different thing to say in that case, and it needs to know which it is.
+ */
+export async function followingFeed(options: {
+  followerId: string;
+  page: number;
+  pageSize: number;
+}): Promise<Paginated<PhotographDetail> & { followsAnybody: boolean }> {
+  const supabase = await createClient();
+  const page = clampPage(options.page);
+  const pageSize = clampPageSize(options.pageSize);
+
+  const ids = await followeeIds(supabase, options.followerId);
+  if (ids.length === 0) {
+    return { items: [], page, pageSize, totalCount: null, hasMore: false, followsAnybody: false };
+  }
+
+  // One row beyond the page answers "is there a next page" without an exact
+  // count, the same way the discover feed does.
+  const rows = await fetchPhotographRows(supabase, {
+    operation: 'the following feed',
+    ownerIds: ids,
+    order: 'recent',
+    offset: (page - 1) * pageSize,
+    limit: pageSize + 1,
+  });
+
+  const hasMore = rows.length > pageSize;
+  const items = await mapPhotographRows(supabase, rows.slice(0, pageSize));
+
+  return { items, page, pageSize, totalCount: null, hasMore, followsAnybody: true };
+}
+
+/**
+ * The members following this one, newest first, for the profile's follower
+ * list. Bounded: a follower list is a glance, not an archive.
+ */
+export async function followersOf(profileId: string, limit = 24): Promise<PhotographerSummary[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<{ profiles: ProfileColumns | ProfileColumns[] | null }>(
+    'a profile\'s followers',
+    await supabase
+      .from('profile_follows')
+      .select(`profiles!follower_id(${PROFILE_SUMMARY_FIELDS})`)
+      .eq('followee_id', profileId)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  );
+
+  return rows
+    .map((row) => mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles)))
+    .filter((summary): summary is PhotographerSummary => summary !== null);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Notifications                                                            */
+/* ------------------------------------------------------------------------ */
+
+const NOTIFICATION_FIELDS =
+  'id, kind, actor_id, subject_type, subject_id, subject_label, subject_slug, read_at, created_at';
+
+interface NotificationJoined
+  extends Pick<
+    Tables<'notifications'>,
+    | 'id'
+    | 'kind'
+    | 'actor_id'
+    | 'subject_type'
+    | 'subject_id'
+    | 'subject_label'
+    | 'subject_slug'
+    | 'read_at'
+    | 'created_at'
+  > {
+  profiles: ProfileColumns | ProfileColumns[] | null;
+}
+
+/**
+ * This member's notifications, newest first.
+ *
+ * Row-level security scopes them to the caller, so there is no recipient
+ * filter here to forget. A row whose kind the application does not recognise
+ * is dropped rather than rendered as an empty sentence — the check constraint
+ * makes that unreachable today, and it stays correct if a later migration adds
+ * a kind this build has never heard of.
+ */
+export async function notificationsFor(limit = 40): Promise<AppNotification[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<NotificationJoined>(
+    'the notification list',
+    await supabase
+      .from('notifications')
+      .select(`${NOTIFICATION_FIELDS}, profiles!actor_id(${PROFILE_SUMMARY_FIELDS})`)
+      .order('created_at', { ascending: false })
+      .limit(limit),
+  );
+
+  const notifications: AppNotification[] = [];
+  for (const row of rows) {
+    const id = toText(row.id);
+    const kind = NOTIFICATION_KINDS.find((candidate) => candidate === row.kind);
+    const subjectId = toText(row.subject_id);
+    const subjectType = (['photograph', 'profile', 'comment'] as const).find(
+      (candidate) => candidate === row.subject_type,
+    );
+    if (!id || !kind || !subjectId || !subjectType) continue;
+
+    notifications.push({
+      id,
+      kind,
+      actor: mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles)),
+      subjectType,
+      subjectId,
+      subjectLabel: toText(row.subject_label) ?? '',
+      subjectSlug: toText(row.subject_slug),
+      readAt: toText(row.read_at),
+      createdAt: toText(row.created_at) ?? '',
+    });
+  }
+  return notifications;
+}
+
+/**
+ * How many are unread.
+ *
+ * A head count against the partial index, not a stored column: this number
+ * changes every time the member reads one, and a badge that has drifted is
+ * worse than a cheap query. Returns 0 rather than throwing — a header that
+ * cannot render is a worse failure than a missing badge.
+ */
+export async function unreadNotificationCount(): Promise<number> {
+  const supabase = await createClient();
+  const { count, error } = await supabase
+    .from('notifications')
+    .select('id', { count: 'exact', head: true })
+    .is('read_at', null);
+
+  if (error) {
+    console.error(`FRAME notifications: counting the unread failed — ${error.message}`);
+    return 0;
+  }
+  return count ?? 0;
 }

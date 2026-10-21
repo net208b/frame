@@ -5,6 +5,7 @@ import { BrandMark, BrandWordmark } from '@/components/layout/Brand';
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { NavLink } from '@/components/layout/NavLink';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { UserMenu, type MenuViewer } from '@/components/layout/UserMenu';
 import { ThemeToggle } from '@/components/system/ThemeToggle';
 import { Button } from '@/components/ui/Button';
@@ -79,7 +80,10 @@ export async function SiteHeader() {
           </Link>
 
           {menuViewer ? (
-            <UserMenu viewer={menuViewer} canModerate={canModerate} />
+            <>
+              <NotificationBell />
+              <UserMenu viewer={menuViewer} canModerate={canModerate} />
+            </>
           ) : (
             <>
               <Button asChild variant="secondary" className="hidden lg:inline-flex">

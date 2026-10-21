@@ -50,6 +50,30 @@ export interface ProfileRow extends Timestamps {
   is_suspended: boolean;
   suspended_reason: string | null;
   member_since: string | null;
+  /** Recounted from profile_follows by trigger (migration 0023). */
+  follower_count: number;
+  following_count: number;
+}
+
+/** A follow. The pair is the primary key (migration 0023). */
+export interface ProfileFollowRow {
+  follower_id: string;
+  followee_id: string;
+  created_at: string;
+}
+
+/** Written only by triggers; a member may change only read_at (migration 0023). */
+export interface NotificationRow {
+  id: string;
+  recipient_id: string;
+  kind: 'comment' | 'reply' | 'appreciation' | 'follow' | 'photograph_published';
+  actor_id: string | null;
+  subject_type: 'photograph' | 'profile' | 'comment';
+  subject_id: string;
+  subject_label: string;
+  subject_slug: string | null;
+  read_at: string | null;
+  created_at: string;
 }
 
 export interface BrandRow {
@@ -334,6 +358,48 @@ export interface Database {
         Insert: Insertable<ProfileRow, 'id' | 'username' | 'display_name'>;
         Update: Updatable<ProfileRow>;
         Relationships: [];
+      };
+      profile_follows: {
+        Row: ProfileFollowRow;
+        Insert: Insertable<ProfileFollowRow, 'follower_id' | 'followee_id'>;
+        Update: Updatable<ProfileFollowRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'profile_follows_follower_id_fkey';
+            columns: ['follower_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'profile_follows_followee_id_fkey';
+            columns: ['followee_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      notifications: {
+        Row: NotificationRow;
+        Insert: Insertable<NotificationRow, 'recipient_id' | 'kind' | 'subject_type' | 'subject_id' | 'subject_label'>;
+        Update: Updatable<NotificationRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_recipient_id_fkey';
+            columns: ['recipient_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_actor_id_fkey';
+            columns: ['actor_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       camera_brands: {
         Row: BrandRow;
@@ -708,6 +774,14 @@ export interface Database {
       delete_comment: {
         Args: { p_id: string };
         Returns: undefined;
+      };
+      toggle_follow: {
+        Args: { p_profile_id: string };
+        Returns: Array<{ following: boolean; follower_count: number }>;
+      };
+      mark_notifications_read: {
+        Args: { p_ids: string[] | null };
+        Returns: number;
       };
       hide_comment: {
         Args: { p_id: string; p_reason: string | null };

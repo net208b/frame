@@ -1,7 +1,7 @@
 'use client';
 
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
-import { Bookmark, ChevronDown, LogOut, Settings, ShieldCheck, Upload, User } from 'lucide-react';
+import { Bookmark, ChevronDown, LogOut, Rss, Settings, ShieldCheck, Upload, User } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRef, type ComponentType, type ReactNode } from 'react';
 
@@ -88,6 +88,9 @@ export function UserMenu({
 
           <MenuLink href="/upload" icon={Upload}>
             {t('upload')}
+          </MenuLink>
+          <MenuLink href="/feed" icon={Rss}>
+            {t('feed')}
           </MenuLink>
           <MenuLink href="/collections" icon={Bookmark}>
             {t('myCollections')}

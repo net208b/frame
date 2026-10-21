@@ -28,6 +28,7 @@ import {
   getPhotographerMapPins,
   getPortfolio,
   getSeriesByOwner,
+  getViewerFollows,
 } from '@/lib/data/repository';
 import { activeGearFacet, filterByGear, gearFacets, readGearKey } from '@/lib/gear-filter';
 import { buildMetadata } from '@/lib/seo';
@@ -155,6 +156,9 @@ export default async function PhotographerProfilePage({
   // client, and the session is read once per request and cached.
   const viewer = await getViewer();
   const isSelf = viewer !== null && viewer.id === photographer.id;
+  // Whether the reader already follows this member. Not asked at all when it
+  // is their own page, where there is no button to put it on.
+  const viewerFollows = isSelf ? null : await getViewerFollows(photographer.id);
 
   // The portfolio read is capped, so the count under the heading says what is
   // on the page rather than repeating the profile total as if it were shown.
@@ -229,7 +233,12 @@ export default async function PhotographerProfilePage({
 
   return (
     <div className="site-container pt-10 pb-20 lg:pt-14">
-      <ProfileHeader photographer={photographer} isSelf={isSelf} />
+      <ProfileHeader
+        photographer={photographer}
+        isSelf={isSelf}
+        signedIn={viewer !== null}
+        viewerFollows={viewerFollows}
+      />
 
       <div
         className={cn(

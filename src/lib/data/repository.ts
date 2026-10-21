@@ -8,8 +8,10 @@ import type {
   LocationSummary,
   ModerationAction,
   Paginated,
+  AppNotification,
   PhotographDetail,
   PhotographerProfile,
+  PhotographerSummary,
   PhotographThread,
   PlatformStats,
   Report,
@@ -319,4 +321,54 @@ export async function getModerationQueues(): Promise<ModerationQueues> {
     ...demo.demoModerationQueues(),
     possibleDuplicates: demo.demoPossibleDuplicateLocations(),
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Following, and being told about it                                        */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Whether the viewer follows this member. Null when nobody is signed in — and
+ * also in the demo deployment, where there is nobody to be.
+ */
+export async function getViewerFollows(profileId: string): Promise<boolean | null> {
+  if (useLive()) return live.viewerFollows(profileId);
+  return null;
+}
+
+/** The feed of the people a member follows. Empty where there is no database. */
+export async function getFollowingFeed(options: {
+  followerId: string;
+  page: number;
+  pageSize: number;
+}): Promise<Paginated<PhotographDetail> & { followsAnybody: boolean }> {
+  if (useLive()) return live.followingFeed(options);
+  return {
+    items: [],
+    page: options.page,
+    pageSize: options.pageSize,
+    totalCount: null,
+    hasMore: false,
+    followsAnybody: false,
+  };
+}
+
+/** Who follows this member, newest first. */
+export async function getFollowers(
+  profileId: string,
+  limit?: number,
+): Promise<PhotographerSummary[]> {
+  if (useLive()) return live.followersOf(profileId, limit);
+  return [];
+}
+
+/** This member's notifications. The demo deployment has nothing to tell anyone. */
+export async function getNotifications(limit?: number): Promise<AppNotification[]> {
+  if (useLive()) return live.notificationsFor(limit);
+  return [];
+}
+
+export async function getUnreadNotificationCount(): Promise<number> {
+  if (useLive()) return live.unreadNotificationCount();
+  return 0;
 }

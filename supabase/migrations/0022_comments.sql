@@ -233,8 +233,15 @@ alter table public.photograph_comments enable row level security;
 
 grant select on table public.photograph_comments to anon, authenticated;
 grant insert, update on table public.photograph_comments to authenticated;
--- No DELETE grant: a comment is deleted through delete_comment(), which clears
--- the body and keeps the thread's shape.
+-- A comment is deleted through delete_comment(), which clears the body and
+-- keeps the thread's shape.
+--
+-- These grants do NOT by themselves withhold anything else. This database
+-- grants ALL on every new table to anon and authenticated by default, so a
+-- grant is an addition to that rather than a statement of what a role may
+-- attempt — the mistake migration 0007 warned about. Migration 0023 revokes
+-- this table's privileges and grants them back deliberately; until it runs,
+-- only row-level security stands between a member and a DELETE here.
 
 -- Readable by everyone unless hidden; a hidden one by its author, the
 -- photograph's owner and moderators.
