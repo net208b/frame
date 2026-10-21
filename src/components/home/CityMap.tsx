@@ -91,112 +91,93 @@ export async function CityMap({
         className,
       )}
     >
-      <div className="relative grid">
-        {/*
-          The map and the text share one grid cell from `lg` up, which is what
-          puts the words over the map without a second copy of them in the
-          document. Below that they are two stacked rows: a headline over a map
-          is unreadable at phone width, and a scrim heavy enough to fix it would
-          hide the city the band exists to show. The map comes first in both, so
-          the first thing a reader meets is where they are.
-        */}
-        <div className={cn('relative lg:[grid-area:1/1]', BAND_HEIGHT)}>
-          {mapReady ? (
-            <CityMapCanvas
-              pins={pins}
-              centre={place.centre}
-              zoom={place.zoom}
-              heightClassName="h-full"
-            />
-          ) : (
-            /* Maps are switched off for this deployment. The band keeps its
-               shape and claims nothing it cannot show. */
-            <div aria-hidden className="h-full w-full bg-surface-sunken" />
-          )}
+      {/*
+        The words first, then the map, at every width.
 
-          {/*
-            Bottom-left, not top-left: the plate above fades from the paper
-            colour, and a chip under the opaque end of it would be invisible.
-            MapLibre keeps its attribution bottom-right, so the two do not meet.
-          */}
-          {mapReady ? (
-            <p
-              className={cn(
-                'pointer-events-none absolute bottom-4 left-4 z-10 inline-flex items-center gap-2',
-                'rounded-pill border border-line bg-surface px-3 py-1.5 text-meta text-ink-soft',
-                'shadow-popover',
-              )}
-            >
-              <span aria-hidden className="size-1.5 rounded-pill bg-accent-strong" />
-              {t('city.openedOn', values)}
-            </p>
-          ) : null}
+        They used to share one grid cell from `lg` up, with the headline laid
+        over the top of the map behind a fading plate of the paper colour. It
+        looked composed and it hid the city: the plate reached a third of the
+        way down the band, and the streets the band exists to show were under
+        a gradient. The site's owner asked for the map to be seen whole, so the
+        text now sits above it as its own row, and the map is uncovered.
+      */}
+      <div className="flex flex-col items-start px-6 pt-7 pb-6 lg:items-center lg:px-10 lg:pt-10 lg:text-center">
+        <Eyebrow>{t('city.eyebrow')}</Eyebrow>
 
-        </div>
-
-        <div
+        <h2
+          id="home-city-heading"
           className={cn(
-            'relative z-20 px-6 py-7 lg:[grid-area:1/1] lg:px-10 lg:py-10',
-            // The plate. A map is a busy ground and this is editorial type, so
-            // the paper colour is brought back up behind the words and faded out
-            // below them — in both themes, since both define `--color-paper`.
-            // Pointer events pass through so the map stays draggable; the
-            // buttons take them back.
-            'lg:pointer-events-none lg:bg-gradient-to-b lg:from-paper lg:via-paper/85 lg:to-transparent',
-            'flex flex-col items-start lg:items-center lg:text-center',
+            'mt-3 max-w-[22ch] text-section-fluid font-bold text-balance',
+            locale === 'th' && 'leading-[1.3]',
           )}
         >
-          <Eyebrow>{t('city.eyebrow')}</Eyebrow>
+          {t('city.heading', values)}
+        </h2>
 
-          <h2
-            id="home-city-heading"
+        <p className="mt-3 max-w-[58ch] text-caption leading-relaxed text-muted">
+          {t('city.lead', values)}
+        </p>
+
+        <div className="mt-6 flex flex-wrap items-center gap-2.5 lg:justify-center">
+          <Button asChild size="lg">
+            <Link href="/map">
+              {t('city.openMap')}
+              <ArrowUpRight aria-hidden className="size-4" />
+            </Link>
+          </Button>
+
+          <Button asChild variant="secondary" size="lg">
+            <Link href={signedIn ? '/upload' : '/join'}>{t('city.addPlace')}</Link>
+          </Button>
+        </div>
+
+        {totalPinCount === 0 ? (
+          /*
+            Under the buttons, in the order a reader expects: what this is,
+            where you are, what to do, and then that there is nothing here yet.
+          */
+          <div
             className={cn(
-              'mt-3 max-w-[22ch] text-section-fluid font-bold text-balance',
-              locale === 'th' && 'leading-[1.3]',
+              'mt-6 w-full max-w-[25rem] rounded-panel border border-line bg-surface p-5',
+              'shadow-popover lg:text-center',
             )}
           >
-            {t('city.heading', values)}
-          </h2>
-
-          <p className="mt-3 max-w-[58ch] text-caption leading-relaxed text-muted">
-            {t('city.lead', values)}
-          </p>
-
-          <div className="pointer-events-auto mt-6 flex flex-wrap items-center gap-2.5 lg:justify-center">
-            <Button asChild size="lg">
-              <Link href="/map">
-                {t('city.openMap')}
-                <ArrowUpRight aria-hidden className="size-4" />
-              </Link>
-            </Button>
-
-            <Button asChild variant="secondary" size="lg">
-              <Link href={signedIn ? '/upload' : '/join'}>{t('city.addPlace')}</Link>
-            </Button>
+            <p className="text-body font-semibold">{t('city.emptyTitle', values)}</p>
+            <p className="mt-1.5 text-meta leading-relaxed text-muted">{t('city.emptyBody')}</p>
           </div>
+        ) : null}
+      </div>
 
-          {totalPinCount === 0 ? (
-            /*
-              In the text column, under the buttons, rather than floating in the
-              middle of the map. Centred on the map was the first attempt and it
-              was wrong on the layout that matters most: the plate above is a box
-              as tall as its own contents, so on a short viewport it reaches past
-              the middle of the map, and the two overlapped — the card's
-              sentences read through the buttons on production. Here the order is
-              the one a reader would expect anyway: what this is, where you are,
-              what to do, and then that there is nothing here yet.
-            */
-            <div
-              className={cn(
-                'mt-6 w-full max-w-[25rem] rounded-panel border border-line bg-surface p-5',
-                'shadow-popover lg:text-center',
-              )}
-            >
-              <p className="text-body font-semibold">{t('city.emptyTitle', values)}</p>
-              <p className="mt-1.5 text-meta leading-relaxed text-muted">{t('city.emptyBody')}</p>
-            </div>
-          ) : null}
-        </div>
+      <div className={cn('relative', BAND_HEIGHT)}>
+        {mapReady ? (
+          <CityMapCanvas
+            pins={pins}
+            centre={place.centre}
+            zoom={place.zoom}
+            heightClassName="h-full"
+          />
+        ) : (
+          /* Maps are switched off for this deployment. The band keeps its
+             shape and claims nothing it cannot show. */
+          <div aria-hidden className="h-full w-full bg-surface-sunken" />
+        )}
+
+        {/*
+          Bottom-left. MapLibre keeps its attribution bottom-right, so the two
+          do not meet, and nothing sits over the top of the map any more.
+        */}
+        {mapReady ? (
+          <p
+            className={cn(
+              'pointer-events-none absolute bottom-4 left-4 z-10 inline-flex items-center gap-2',
+              'rounded-pill border border-line bg-surface px-3 py-1.5 text-meta text-ink-soft',
+              'shadow-popover',
+            )}
+          >
+            <span aria-hidden className="size-1.5 rounded-pill bg-accent-strong" />
+            {t('city.openedOn', values)}
+          </p>
+        ) : null}
       </div>
 
       {/*
