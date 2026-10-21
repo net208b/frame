@@ -870,7 +870,7 @@ begin
     raise exception 'STORAGE GAP  write policy with no owner check: %', v_missing;
   end if;
 
-  raise notice 'storage ok    the photographs bucket is public, capped at 25 MiB, and writable only inside the owner prefix';
+  raise notice 'storage ok    the photographs bucket is public, capped at 50 MiB, and writable only inside the owner prefix';
 end $$;
 
 -- --------------------------------------------------- review before publishing
@@ -2108,6 +2108,230 @@ begin
     raise exception 'PRIVILEGE GAP  a public role can still use rate_limit_hits_id_seq';
   end if;
   raise notice 'sequence ok  the rate-limit sequence is the owner''s alone';
+end $$;
+
+-- ---------------------------------------------------------- 0027: challenges
+-- Fixtures: two published photographs of the email member (dddddddd-…-0004),
+-- one made long ago and one made today; an open challenge with the new-work
+-- rule and an allowance of one; a closed challenge with one entry in it.
+reset "app.current_user_id";
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status,
+   published_at, rights_confirmed_at, image_width, image_height, captured_at)
+values
+  ('cafecafe-0000-4000-8000-000000000001', 'challenge-old', 'dddddddd-0000-4000-8000-000000000004',
+   'An old frame', 'A tram crossing an empty square under a low winter sun in the old town.',
+   'street', 'published', now(), now(), 1800, 1200, now() - interval '400 days'),
+  ('cafecafe-0000-4000-8000-000000000002', 'challenge-new', 'dddddddd-0000-4000-8000-000000000004',
+   'A new frame', 'Two cyclists passing a shuttered market stall in the early morning light.',
+   'street', 'published', now(), now(), 1800, 1200, now()),
+  ('cafecafe-0000-4000-8000-000000000003', 'challenge-draft', 'dddddddd-0000-4000-8000-000000000004',
+   'A draft frame', 'A woman reading on a bench while pigeons gather around her shoes.',
+   'street', 'draft', null, null, null, null, now())
+on conflict (id) do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('a member setting a challenge',
+  $$insert into public.challenges (slug, title_en, title_th, brief_en, brief_th, opens_at, closes_at)
+    values ('member-made', 'Member made', 'สมาชิกตั้งเอง', 'A challenge a member tried to set themselves.',
+            'หัวข้อที่สมาชิกพยายามตั้งขึ้นเองโดยไม่ใช่ทีมงาน', now(), now() + interval '20 days')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('staff setting an open challenge',
+  $$insert into public.challenges (id, slug, title_en, title_th, brief_en, brief_th,
+                                   opens_at, closes_at, max_entries, requires_new_work)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'night-light', 'Night light', 'แสงยามค่ำ',
+            'Streets after dark, lit by whatever the city leaves on.',
+            'ถนนหลังพระอาทิตย์ตก สว่างด้วยแสงที่เมืองทิ้งไว้',
+            now() - interval '1 day', now() + interval '20 days', 1, true)$$);
+select public.test_rejects('a second challenge overlapping the first',
+  $$insert into public.challenges (slug, title_en, title_th, brief_en, brief_th, opens_at, closes_at)
+    values ('overlap', 'Overlap', 'ซ้อนกัน', 'A window that runs into the open challenge.',
+            'ช่วงเวลาที่ทับซ้อนกับหัวข้อที่เปิดอยู่', now() + interval '10 days', now() + interval '30 days')$$, '23P01');
+select public.test_rejects('a challenge that closes before it opens',
+  $$insert into public.challenges (slug, title_en, title_th, brief_en, brief_th, opens_at, closes_at)
+    values ('backwards', 'Backwards', 'กลับด้าน', 'A window that ends before it begins at all.',
+            'ช่วงเวลาที่จบก่อนจะเริ่มต้นด้วยซ้ำ', now() + interval '90 days', now() + interval '80 days')$$, '23514');
+select public.test_rejects('changing the allowance of a challenge that has opened',
+  $$update public.challenges set max_entries = 5 where id = 'c4a11e00-0000-4000-8000-000000000001'$$, '42501');
+select public.test_accepts('correcting the copy of a challenge that has opened',
+  $$update public.challenges set title_en = 'Night lights' where id = 'c4a11e00-0000-4000-8000-000000000001'$$);
+select public.test_rejects('publishing results by writing the column',
+  $$update public.challenges set results_published_at = now() where id = 'c4a11e00-0000-4000-8000-000000000001'$$, '42501');
+commit;
+
+-- The closed challenge, and an entry in it, are history: written as fixtures
+-- past the triggers that would (correctly) refuse them today.
+begin;
+set local session_replication_role = replica;
+insert into public.challenges (id, slug, title_en, title_th, brief_en, brief_th, opens_at, closes_at)
+values ('c4a11e00-0000-4000-8000-000000000002', 'last-month', 'Last month', 'เดือนที่แล้ว',
+        'The challenge that closed a couple of days ago.', 'หัวข้อที่ปิดรับไปเมื่อสองสามวันก่อน',
+        now() - interval '30 days', now() - interval '2 days');
+insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+values ('c4a11e00-0000-4000-8000-000000000002', 'cafecafe-0000-4000-8000-000000000001',
+        'dddddddd-0000-4000-8000-000000000004');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('entering an old photograph into a new-work challenge',
+  $$insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000001',
+            'dddddddd-0000-4000-8000-000000000004')$$, '23514');
+select public.test_rejects('entering a draft',
+  $$insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000003',
+            'dddddddd-0000-4000-8000-000000000004')$$, '42501');
+select public.test_rejects('entering somebody else''s photograph',
+  $$insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'eeeeeeee-1111-4000-8000-000000000001',
+            'dddddddd-0000-4000-8000-000000000004')$$, '42501');
+select public.test_accepts('entering one''s own new published photograph',
+  $$insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000002',
+            'dddddddd-0000-4000-8000-000000000004')$$);
+select public.test_rejects('entering a closed challenge',
+  $$insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+    values ('c4a11e00-0000-4000-8000-000000000002', 'cafecafe-0000-4000-8000-000000000002',
+            'dddddddd-0000-4000-8000-000000000004')$$, '42501');
+select public.test_rejects('awarding as a member',
+  $$insert into public.challenge_awards (challenge_id, photograph_id, award, awarded_by)
+    values ('c4a11e00-0000-4000-8000-000000000002', 'cafecafe-0000-4000-8000-000000000001',
+            'winner', 'dddddddd-0000-4000-8000-000000000004')$$, '42501');
+-- Withdrawing from a closed challenge matches nothing rather than raising.
+delete from public.challenge_entries where challenge_id = 'c4a11e00-0000-4000-8000-000000000002';
+select public.test_accepts('withdrawing from the open challenge',
+  $$delete from public.challenge_entries
+     where challenge_id = 'c4a11e00-0000-4000-8000-000000000001'
+       and photograph_id = 'cafecafe-0000-4000-8000-000000000002'$$);
+select public.test_accepts('entering again after withdrawing',
+  $$insert into public.challenge_entries (challenge_id, photograph_id, entrant_id)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000002',
+            'dddddddd-0000-4000-8000-000000000004')$$);
+commit;
+
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.challenge_entries
+   where challenge_id = 'c4a11e00-0000-4000-8000-000000000002';
+  if v_count <> 1 then raise exception 'CHALLENGE GAP  an entry was withdrawn after the challenge closed'; end if;
+  raise notice 'challenge ok what was entered before the close is what gets judged';
+end $$;
+
+-- Judging: staff, after the close, within the numbers, invisible until published.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('awarding in a challenge that is still open',
+  $$insert into public.challenge_awards (challenge_id, photograph_id, award, awarded_by)
+    values ('c4a11e00-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000002',
+            'winner', '33333333-3333-4333-8333-333333333333')$$, '42501');
+select public.test_rejects('awarding a photograph that was never entered',
+  $$insert into public.challenge_awards (challenge_id, photograph_id, award, awarded_by)
+    values ('c4a11e00-0000-4000-8000-000000000002', 'eeeeeeee-1111-4000-8000-000000000001',
+            'winner', '33333333-3333-4333-8333-333333333333')$$, '23503');
+select public.test_rejects('publishing results with no winner',
+  $$select public.publish_challenge_results('c4a11e00-0000-4000-8000-000000000002')$$, '23514');
+select public.test_accepts('staff naming a winner after the close',
+  $$insert into public.challenge_awards (challenge_id, photograph_id, award, note, awarded_by)
+    values ('c4a11e00-0000-4000-8000-000000000002', 'cafecafe-0000-4000-8000-000000000001',
+            'winner', 'The light does all the work.', '33333333-3333-4333-8333-333333333333')$$);
+commit;
+
+begin;
+set local role anon;
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.challenge_awards;
+  if v_count <> 0 then raise exception 'CHALLENGE GAP  a visitor can read % unpublished awards', v_count; end if;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('a member publishing results',
+  $$select public.publish_challenge_results('c4a11e00-0000-4000-8000-000000000002')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('staff publishing the results',
+  $$select public.publish_challenge_results('c4a11e00-0000-4000-8000-000000000002')$$);
+select public.test_rejects('changing an award after publication',
+  $$update public.challenge_awards set award = 'runner_up'
+     where challenge_id = 'c4a11e00-0000-4000-8000-000000000002'$$, '42501');
+select public.test_rejects('publishing the same results twice',
+  $$select public.publish_challenge_results('c4a11e00-0000-4000-8000-000000000002')$$, '42501');
+commit;
+
+do $$
+declare v_visible integer; v_told integer;
+begin
+  set local role anon;
+  select count(*) into v_visible from public.challenge_awards
+   where challenge_id = 'c4a11e00-0000-4000-8000-000000000002';
+  reset role;
+  if v_visible <> 1 then raise exception 'CHALLENGE GAP  published awards are not public (% visible)', v_visible; end if;
+
+  select count(*) into v_told from public.notifications
+   where recipient_id = 'dddddddd-0000-4000-8000-000000000004' and kind = 'challenge_award'
+     and subject_type = 'challenge' and subject_slug = 'last-month';
+  if v_told <> 1 then raise exception 'CHALLENGE GAP  the winner was told % times', v_told; end if;
+  raise notice 'challenge ok results appear on publication and the winner is told once';
+end $$;
+
+-- A member reads their own capture times through the function, and nobody
+-- else's.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+do $$
+declare v_own integer; v_others integer;
+begin
+  select count(*) into v_own from public.own_photograph_capture_times(
+    array['cafecafe-0000-4000-8000-000000000002'::uuid]);
+  select count(*) into v_others from public.own_photograph_capture_times(
+    array['eeeeeeee-1111-4000-8000-000000000001'::uuid]);
+  if v_own <> 1 then raise exception 'CAPTURE GAP  a member cannot read their own capture time'; end if;
+  if v_others <> 0 then raise exception 'CAPTURE GAP  a member read somebody else''s capture time'; end if;
+  raise notice 'capture ok   own capture times only';
+end $$;
+commit;
+
+-- Deleting one's own awarded photograph still works: the award goes with it.
+select public.test_accepts('a member deleting their own awarded photograph',
+  $$delete from public.photographs where id = 'cafecafe-0000-4000-8000-000000000001'$$);
+
+do $$
+declare v_gaps text := '';
+begin
+  if has_table_privilege('anon', 'public.challenges', 'INSERT')
+     or has_table_privilege('anon', 'public.challenge_entries', 'INSERT')
+     or has_table_privilege('anon', 'public.challenge_awards', 'INSERT') then
+    v_gaps := v_gaps || ' anon can write;';
+  end if;
+  if has_table_privilege('authenticated', 'public.challenges', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'public.challenge_entries', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'public.challenge_awards', 'TRUNCATE')
+     or has_table_privilege('authenticated', 'public.challenge_entries', 'UPDATE') then
+    v_gaps := v_gaps || ' authenticated holds TRUNCATE or entry UPDATE;';
+  end if;
+  if has_function_privilege('anon', 'public.publish_challenge_results(uuid)', 'EXECUTE') then
+    v_gaps := v_gaps || ' anon can publish;';
+  end if;
+  if length(v_gaps) > 0 then raise exception 'PRIVILEGE GAP %', v_gaps; end if;
+  raise notice 'challenge ok privileges were revoked first and granted back on purpose';
 end $$;
 
 -- ------------------------------------------------------------------ summary

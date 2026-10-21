@@ -1,6 +1,7 @@
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
+import { ChallengeDesk } from '@/components/challenges/ChallengeDesk';
 import { DuplicateLocationQueue } from '@/components/moderation/DuplicateLocationQueue';
 import {
   ADMIN_ONLY_QUEUES,
@@ -18,7 +19,13 @@ import { CapabilityNotice } from '@/components/system/CapabilityNotice';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { getViewer, isAdmin, isModerator, requireModerator } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
-import { getMapPins, getModerationQueues, getStaffMembers } from '@/lib/data/repository';
+import {
+  getChallenge,
+  getChallenges,
+  getMapPins,
+  getModerationQueues,
+  getStaffMembers,
+} from '@/lib/data/repository';
 
 /**
  * The moderation dashboard.
@@ -65,12 +72,13 @@ export default async function ModerationPage({
   // returns location ids alongside their slugs, and a duplicate signal or a
   // reported place arrives carrying an id. Without it every such reference
   // degrades to a search, which is a worse link to hand a moderator.
-  const [t, resolved, queues, viewer, pins] = await Promise.all([
+  const [t, resolved, queues, viewer, pins, challenges] = await Promise.all([
     getTranslations({ locale, namespace: 'moderation' }),
     searchParams,
     getModerationQueues(),
     getViewer(),
     getMapPins(),
+    getChallenges(),
   ]);
 
   // Places that withhold their coordinates have no pin, so they are absent
@@ -86,9 +94,20 @@ export default async function ModerationPage({
     isQueueKey(requested) && (admin || !ADMIN_ONLY_QUEUES.has(requested)) ? requested : DEFAULT_QUEUE;
   const staff = active === 'team' ? await getStaffMembers() : [];
 
+  // A closed challenge with no published results is the one challenge item
+  // that waits on a decision; its full detail is read only on its own tab.
+  const awaitingResults = challenges.filter((challenge) => challenge.phase === 'judging');
+  const judging =
+    active === 'challenges'
+      ? (await Promise.all(awaitingResults.map((challenge) => getChallenge(challenge.slug)))).filter(
+          (challenge): challenge is NonNullable<typeof challenge> => challenge !== null,
+        )
+      : [];
+
   const counts: Record<QueueKey, number> = {
     submissions: queues.submissions.length,
     reports: queues.reports.length,
+    challenges: awaitingResults.length,
     uploads: queues.suspiciousUploads.length,
     duplicates: queues.possibleDuplicates.length,
     actions: queues.recentActions.length,
@@ -161,6 +180,9 @@ export default async function ModerationPage({
         )}
         {active === 'duplicates' && (
           <DuplicateLocationQueue locale={locale} pairs={queues.possibleDuplicates} />
+        )}
+        {active === 'challenges' && (
+          <ChallengeDesk locale={locale} challenges={challenges} judging={judging} />
         )}
         {active === 'actions' && <RecentActions locale={locale} actions={queues.recentActions} />}
         {active === 'team' && admin && (

@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
  * works, and nothing waits for JavaScript to be revealed.
  */
 
-export const COMMUNITY_VIEWS = ['photographers', 'photobooks'] as const;
+export const COMMUNITY_VIEWS = ['photographers', 'photobooks', 'challenges'] as const;
 
 export type CommunityView = (typeof COMMUNITY_VIEWS)[number];
 

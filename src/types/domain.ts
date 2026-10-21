@@ -416,6 +416,7 @@ export const NOTIFICATION_KINDS = [
   'appreciation',
   'follow',
   'photograph_published',
+  'challenge_award',
 ] as const;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
@@ -433,13 +434,68 @@ export interface AppNotification {
   id: string;
   kind: NotificationKind;
   actor: PhotographerSummary | null;
-  subjectType: 'photograph' | 'profile' | 'comment';
+  subjectType: 'photograph' | 'profile' | 'comment' | 'challenge';
   subjectId: string;
   subjectLabel: string;
   /** The photograph's slug or the member's username, for the link. */
   subjectSlug: string | null;
   readAt: string | null;
   createdAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Challenges                                                                */
+/* ------------------------------------------------------------------------ */
+
+/** Kept in step with challenge_awards_award_allowed (migration 0027). */
+export const CHALLENGE_AWARDS = ['winner', 'runner_up', 'honourable_mention'] as const;
+
+export type ChallengeAward = (typeof CHALLENGE_AWARDS)[number];
+
+/**
+ * Where a challenge is in its life. Derived from its dates and from whether the
+ * results are out — never stored, so it cannot disagree with the clock.
+ */
+export type ChallengePhase = 'upcoming' | 'open' | 'judging' | 'closed';
+
+export interface ChallengeSummary {
+  id: string;
+  slug: string;
+  /** Editorial copy, written by staff in both languages. */
+  title: { en: string; th: string };
+  brief: { en: string; th: string };
+  opensAt: string;
+  closesAt: string;
+  maxEntries: number;
+  /** Only photographs made after the challenge opened, by the file's EXIF. */
+  requiresNewWork: boolean;
+  resultsPublishedAt: string | null;
+  phase: ChallengePhase;
+  /** Entries whose photograph is still published. */
+  entryCount: number;
+  /** The winning photograph, once results are published. */
+  winner: PhotographDetail | null;
+}
+
+export interface ChallengeEntry {
+  photograph: PhotographDetail;
+  enteredAt: string;
+  /** Null until awarded — and, for the public, until the results are published. */
+  award: ChallengeAward | null;
+  note: string | null;
+}
+
+export interface ChallengeDetail extends ChallengeSummary {
+  /** Awarded entries first, in award order; then the rest, newest first. */
+  entries: ChallengeEntry[];
+}
+
+/** One of the viewer's own photographs, as the entry panel offers it. */
+export interface ChallengeCandidate {
+  photograph: PhotographDetail;
+  entered: boolean;
+  /** False when the new-work rule refuses it; the database refuses it too. */
+  eligible: boolean;
 }
 
 /* ------------------------------------------------------------------------ */

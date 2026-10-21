@@ -9,6 +9,9 @@ import type {
   ModerationAction,
   Paginated,
   AppNotification,
+  ChallengeCandidate,
+  ChallengeDetail,
+  ChallengeSummary,
   PhotographDetail,
   PhotographerProfile,
   PhotographerSummary,
@@ -371,4 +374,27 @@ export async function getNotifications(limit?: number): Promise<AppNotification[
 export async function getUnreadNotificationCount(): Promise<number> {
   if (useLive()) return live.unreadNotificationCount();
   return 0;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Challenges                                                                */
+/* ------------------------------------------------------------------------ */
+
+/** Every challenge, newest first. The demo deployment has none to show. */
+export async function getChallenges(limit?: number): Promise<ChallengeSummary[]> {
+  if (useLive()) return live.challengeList(limit);
+  return [];
+}
+
+export async function getChallenge(slug: string): Promise<ChallengeDetail | null> {
+  if (useLive()) return live.challengeBySlug(slug);
+  return null;
+}
+
+export async function getChallengeCandidates(
+  challenge: Pick<ChallengeSummary, 'id' | 'opensAt' | 'requiresNewWork'>,
+  viewerId: string,
+): Promise<ChallengeCandidate[]> {
+  if (useLive()) return live.challengeCandidates(challenge, viewerId);
+  return [];
 }

@@ -18,8 +18,15 @@ import type { Tables } from '@/lib/supabase/types';
 import {
   COLLABORATION_STATUSES,
   CRITIQUE_PREFERENCES,
+  CHALLENGE_AWARDS,
   NOTIFICATION_KINDS,
   type AppNotification,
+  type ChallengeAward,
+  type ChallengeCandidate,
+  type ChallengeDetail,
+  type ChallengeEntry,
+  type ChallengePhase,
+  type ChallengeSummary,
   PHOTO_CATEGORIES,
   PHOTOBOOK_COVERS,
   PHOTOBOOK_GEAR_MODES,
@@ -3163,7 +3170,7 @@ export async function notificationsFor(limit = 40): Promise<AppNotification[]> {
     const id = toText(row.id);
     const kind = NOTIFICATION_KINDS.find((candidate) => candidate === row.kind);
     const subjectId = toText(row.subject_id);
-    const subjectType = (['photograph', 'profile', 'comment'] as const).find(
+    const subjectType = (['photograph', 'profile', 'comment', 'challenge'] as const).find(
       (candidate) => candidate === row.subject_type,
     );
     if (!id || !kind || !subjectId || !subjectType) continue;
@@ -3203,4 +3210,292 @@ export async function unreadNotificationCount(): Promise<number> {
     return 0;
   }
   return count ?? 0;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Challenges                                                               */
+/* ------------------------------------------------------------------------ */
+
+const CHALLENGE_FIELDS =
+  'id, slug, title_en, title_th, brief_en, brief_th, opens_at, closes_at, max_entries, requires_new_work, results_published_at';
+
+type ChallengeColumns = Nullable<
+  Pick<
+    Tables<'challenges'>,
+    | 'id'
+    | 'slug'
+    | 'title_en'
+    | 'title_th'
+    | 'brief_en'
+    | 'brief_th'
+    | 'opens_at'
+    | 'closes_at'
+    | 'max_entries'
+    | 'requires_new_work'
+    | 'results_published_at'
+  >
+>;
+
+/** Where a challenge is, from its dates and its results — never from a stored flag. */
+function challengePhase(
+  opensAt: string,
+  closesAt: string,
+  resultsPublishedAt: string | null,
+  now: number = Date.now(),
+): ChallengePhase {
+  if (resultsPublishedAt) return 'closed';
+  if (now < Date.parse(opensAt)) return 'upcoming';
+  if (now < Date.parse(closesAt)) return 'open';
+  return 'judging';
+}
+
+function mapChallenge(row: ChallengeColumns): Omit<ChallengeSummary, 'entryCount' | 'winner'> | null {
+  const id = toText(row.id);
+  const slug = toText(row.slug);
+  const opensAt = toText(row.opens_at);
+  const closesAt = toText(row.closes_at);
+  if (!id || !slug || !opensAt || !closesAt) return null;
+
+  const resultsPublishedAt = toText(row.results_published_at);
+  return {
+    id,
+    slug,
+    title: { en: toText(row.title_en) ?? '', th: toText(row.title_th) ?? '' },
+    brief: { en: toText(row.brief_en) ?? '', th: toText(row.brief_th) ?? '' },
+    opensAt,
+    closesAt,
+    maxEntries: toNumber(row.max_entries) ?? 3,
+    requiresNewWork: row.requires_new_work === true,
+    resultsPublishedAt,
+    phase: challengePhase(opensAt, closesAt, resultsPublishedAt),
+  };
+}
+
+/**
+ * Published photographs by id, keyed for lookup. A challenge never shows an
+ * entry whose photograph has since been taken down, so the status filter is
+ * here rather than trusted to the caller.
+ */
+async function publishedPhotographsById(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  ids: readonly string[],
+): Promise<Map<string, PhotographDetail>> {
+  if (ids.length === 0) return new Map();
+  const rows = unwrapList<PhotographJoined>(
+    'challenge photographs',
+    await supabase
+      .from('photographs')
+      .select(photographSelect())
+      .in('id', [...ids])
+      .eq('status', 'published'),
+  );
+  const photos = await mapPhotographRows(supabase, rows);
+  return new Map(photos.map((photo) => [photo.id, photo]));
+}
+
+const AWARD_ORDER: Record<ChallengeAward, number> = {
+  winner: 0,
+  runner_up: 1,
+  honourable_mention: 2,
+};
+
+/**
+ * Every challenge, newest window first, with its entry count and — once the
+ * results are out — its winner. Bounded: a list of themes, not an archive.
+ */
+export async function challengeList(limit = 24): Promise<ChallengeSummary[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<ChallengeColumns>(
+    'the challenge list',
+    await supabase
+      .from('challenges')
+      .select(CHALLENGE_FIELDS)
+      .order('opens_at', { ascending: false })
+      .limit(limit),
+  );
+
+  const challenges = rows
+    .map(mapChallenge)
+    .filter((challenge): challenge is NonNullable<typeof challenge> => challenge !== null);
+  if (challenges.length === 0) return [];
+
+  const ids = challenges.map((challenge) => challenge.id);
+  const entries = unwrapList<{ challenge_id: string | null; photograph_id: string | null }>(
+    'challenge entry counts',
+    await supabase.from('challenge_entries').select('challenge_id, photograph_id').in('challenge_id', ids),
+  );
+  // Row-level security already limits these to entries whose photograph is
+  // still published (or the viewer's own), which is what the count should be.
+  const counts = new Map<string, number>();
+  for (const entry of entries) {
+    const challengeId = toText(entry.challenge_id);
+    if (challengeId) counts.set(challengeId, (counts.get(challengeId) ?? 0) + 1);
+  }
+
+  // Awards are only readable once published, so this is the winners of the
+  // closed challenges and nothing else.
+  const winners = unwrapList<{ challenge_id: string | null; photograph_id: string | null }>(
+    'challenge winners',
+    await supabase
+      .from('challenge_awards')
+      .select('challenge_id, photograph_id')
+      .in('challenge_id', ids)
+      .eq('award', 'winner'),
+  );
+  const winnerIdByChallenge = new Map<string, string>();
+  for (const row of winners) {
+    const challengeId = toText(row.challenge_id);
+    const photographId = toText(row.photograph_id);
+    if (challengeId && photographId) winnerIdByChallenge.set(challengeId, photographId);
+  }
+  const winnerPhotos = await publishedPhotographsById(supabase, [...winnerIdByChallenge.values()]);
+
+  return challenges.map((challenge) => {
+    const winnerId = winnerIdByChallenge.get(challenge.id);
+    return {
+      ...challenge,
+      entryCount: counts.get(challenge.id) ?? 0,
+      winner: challenge.phase === 'closed' && winnerId ? (winnerPhotos.get(winnerId) ?? null) : null,
+    };
+  });
+}
+
+/**
+ * One challenge with everything entered into it. Awards come through only
+ * where row-level security lets them — the public sees them once published,
+ * staff see them while judging — so the same read serves both.
+ */
+export async function challengeBySlug(slug: string): Promise<ChallengeDetail | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('challenges')
+    .select(CHALLENGE_FIELDS)
+    .eq('slug', slug)
+    .maybeSingle();
+  if (error) throw new Error(`FRAME challenges: reading "${slug}" failed — ${error.message}`);
+  if (!data) return null;
+
+  const challenge = mapChallenge(data as ChallengeColumns);
+  if (!challenge) return null;
+
+  const [entryRows, awardRows] = await Promise.all([
+    supabase
+      .from('challenge_entries')
+      .select('photograph_id, created_at')
+      .eq('challenge_id', challenge.id)
+      .order('created_at', { ascending: false })
+      .limit(300),
+    supabase.from('challenge_awards').select('photograph_id, award, note').eq('challenge_id', challenge.id),
+  ]);
+
+  const entries = unwrapList<{ photograph_id: string | null; created_at: string | null }>(
+    'challenge entries',
+    entryRows,
+  );
+  const awards = unwrapList<{ photograph_id: string | null; award: string | null; note: string | null }>(
+    'challenge awards',
+    awardRows,
+  );
+
+  const awardByPhotograph = new Map<string, { award: ChallengeAward; note: string | null }>();
+  for (const row of awards) {
+    const photographId = toText(row.photograph_id);
+    const award = CHALLENGE_AWARDS.find((candidate) => candidate === row.award);
+    if (photographId && award) awardByPhotograph.set(photographId, { award, note: toText(row.note) });
+  }
+
+  const photos = await publishedPhotographsById(
+    supabase,
+    entries.map((entry) => toText(entry.photograph_id)).filter((id): id is string => id !== null),
+  );
+
+  const mapped: ChallengeEntry[] = [];
+  for (const entry of entries) {
+    const photographId = toText(entry.photograph_id);
+    const photograph = photographId ? photos.get(photographId) : undefined;
+    if (!photograph) continue;
+    const award = awardByPhotograph.get(photograph.id);
+    mapped.push({
+      photograph,
+      enteredAt: toText(entry.created_at) ?? '',
+      award: award?.award ?? null,
+      note: award?.note ?? null,
+    });
+  }
+
+  // Awarded first, in award order, then everything else newest first — the
+  // order the entries already arrived in.
+  mapped.sort((a, b) => {
+    if (a.award && b.award) return AWARD_ORDER[a.award] - AWARD_ORDER[b.award];
+    if (a.award) return -1;
+    if (b.award) return 1;
+    return 0;
+  });
+
+  const winner = mapped.find((entry) => entry.award === 'winner')?.photograph ?? null;
+  return {
+    ...challenge,
+    entryCount: mapped.length,
+    winner: challenge.phase === 'closed' ? winner : null,
+    entries: mapped,
+  };
+}
+
+/**
+ * The viewer's own published photographs, as the entry panel offers them:
+ * which are already entered, and which a new-work challenge would refuse.
+ * Capture times come through own_photograph_capture_times(), which answers
+ * only for the caller's own photographs. The database makes the same check on
+ * entry; this is so the panel can say so before the member tries.
+ */
+export async function challengeCandidates(
+  challenge: Pick<ChallengeSummary, 'id' | 'opensAt' | 'requiresNewWork'>,
+  viewerId: string,
+): Promise<ChallengeCandidate[]> {
+  const supabase = await createClient();
+  const rows = await fetchPhotographRows(supabase, {
+    operation: "a member's photographs for a challenge",
+    ownerId: viewerId,
+    order: 'recent',
+    limit: 60,
+  });
+  const photos = await mapPhotographRows(supabase, rows);
+  if (photos.length === 0) return [];
+
+  const ids = photos.map((photo) => photo.id);
+  const [entered, captures] = await Promise.all([
+    supabase
+      .from('challenge_entries')
+      .select('photograph_id')
+      .eq('challenge_id', challenge.id)
+      .eq('entrant_id', viewerId),
+    challenge.requiresNewWork
+      ? supabase.rpc('own_photograph_capture_times', { p_ids: ids })
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  const enteredIds = new Set(
+    unwrapList<{ photograph_id: string | null }>('the viewer\'s entries', entered)
+      .map((row) => toText(row.photograph_id))
+      .filter((id): id is string => id !== null),
+  );
+
+  if (captures.error) {
+    throw new Error(`FRAME challenges: reading capture times failed — ${captures.error.message}`);
+  }
+  const capturedById = new Map<string, string | null>();
+  for (const row of (captures.data ?? []) as Array<{ photograph_id: string; captured_at: string | null }>) {
+    capturedById.set(row.photograph_id, row.captured_at);
+  }
+  const opensAt = Date.parse(challenge.opensAt);
+
+  return photos.map((photograph) => {
+    const captured = capturedById.get(photograph.id) ?? null;
+    return {
+      photograph,
+      entered: enteredIds.has(photograph.id),
+      eligible:
+        !challenge.requiresNewWork || (captured !== null && Date.parse(captured) >= opensAt),
+    };
+  });
 }
