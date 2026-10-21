@@ -16,6 +16,7 @@ import type {
   StaffMember,
   SuspiciousUpload,
   Photobook,
+  PhotoSeries,
 } from '@/types/domain';
 
 import * as demo from './demo-repository';
@@ -224,6 +225,23 @@ export async function getPublicPhotobooks(limit: number): Promise<Photobook[]> {
 export async function getPhotobooksByOwner(ownerId: string): Promise<Photobook[]> {
   if (useLive()) return live.photobooksByOwner(ownerId);
   return demo.demoPhotobooksByOwner(ownerId);
+}
+
+/** A series by its address — public or unlisted, as the policy allows. */
+export async function getSeries(slug: string): Promise<PhotoSeries | null> {
+  if (useLive()) return live.seriesBySlug(slug);
+  return demo.demoSeries(slug);
+}
+
+/** A member's series, newest first, public and unlisted alike. */
+export async function getSeriesByOwner(ownerId: string): Promise<PhotoSeries[]> {
+  if (useLive()) return live.seriesByOwner(ownerId);
+  return demo.demoSeriesByOwner(ownerId);
+}
+
+/** Demo mode counts nothing: there is no series to count against. */
+export async function countSeriesOpen(slug: string): Promise<void> {
+  if (useLive()) return live.countSeriesOpen(slug);
 }
 
 /** Demo mode counts nothing: there is no book to count against. */

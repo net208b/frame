@@ -17,6 +17,8 @@ import type {
   Report,
   SuspiciousUpload,
   Photobook,
+  PhotoSeries,
+  PhotoSeriesItem,
 } from '@/types/domain';
 
 import { DEMO_COLLECTIONS } from './demo/collections';
@@ -497,6 +499,86 @@ export function demoPhotobooksByOwner(ownerId: string): Photobook[] {
     .map(demoAssemblePhotobook)
     .filter((book): book is Photobook => book !== null)
     .sort((a, b) => a.position - b.position || a.updatedAt.localeCompare(b.updatedAt));
+}
+
+/* ------------------------------------------------------------------------ */
+/* Photo series                                                              */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Two demo series: one public, one unlisted — the unlisted one is there so the
+ * profile tab can be checked for never showing it to a visitor.
+ */
+const DEMO_SERIES: Array<
+  Omit<PhotoSeries, 'owner' | 'items' | 'cover'> & {
+    ownerUsername: string;
+    photographNumbers: number[];
+    captions: Array<string | null>;
+    coverNumber: number | null;
+  }
+> = [
+  {
+    id: '5e71e5e5-0000-4000-8000-000000000001',
+    slug: 'maya-the-last-service-home',
+    title: 'The Last Service Home',
+    standfirst: 'Five frames from the night bus, between the depot and the river.',
+    body:
+      'The last service leaves at ten past midnight and nobody on it is going anywhere they want to be. I rode it for a month before I took a single frame, because the bus is small and a camera is loud.\n\nWhat I found was not the passengers, in the end, but the windows: the city arriving in reflection a second before it arrived in fact.\n\nThese five are in the order the route runs. The last one is the stop where I get off.',
+    visibility: 'public',
+    opens: 188,
+    ownerUsername: 'mayachen',
+    photographNumbers: [5, 6, 7, 8, 20],
+    captions: ['Looking up, because everybody else was looking down.', null, 'The island at the end of the day.', 'Everything arriving at once.', null],
+    coverNumber: 8,
+    updatedAt: '2026-10-17T22:10:00Z',
+  },
+  {
+    id: '5e71e5e5-0000-4000-8000-000000000002',
+    slug: 'kenji-three-corners',
+    title: 'Three Corners',
+    standfirst: null,
+    body: 'Kept for myself, for now.',
+    visibility: 'unlisted',
+    opens: 4,
+    ownerUsername: 'kenjiwatanabe',
+    photographNumbers: [1, 2, 3],
+    captions: [null, null, null],
+    coverNumber: null,
+    updatedAt: '2026-10-19T08:00:00Z',
+  },
+];
+
+const demoPhotoId = (n: number) => `c3e7a200-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+function demoAssembleSeries(entry: (typeof DEMO_SERIES)[number]): PhotoSeries | null {
+  const owner = DEMO_PHOTOGRAPHERS.find((person) => person.username === entry.ownerUsername);
+  if (!owner) return null;
+  const { ownerUsername: _o, photographNumbers, captions, coverNumber, ...rest } = entry;
+  const items = photographNumbers
+    .map((n, index) => {
+      const photograph = DEMO_PHOTOGRAPHS.find((photo) => photo.id === demoPhotoId(n) && photo.status === 'published');
+      return photograph ? { position: index + 1, photograph, caption: captions[index] ?? null } : null;
+    })
+    .filter((item): item is PhotoSeriesItem => item !== null);
+  const cover =
+    (coverNumber !== null && items.find((item) => item.photograph.id === demoPhotoId(coverNumber))?.photograph) ||
+    items[0]?.photograph ||
+    null;
+  return { ...rest, owner, items, cover };
+}
+
+export function demoSeries(slug: string): PhotoSeries | null {
+  const entry = DEMO_SERIES.find((candidate) => candidate.slug === slug);
+  return entry ? demoAssembleSeries(entry) : null;
+}
+
+export function demoSeriesByOwner(ownerId: string): PhotoSeries[] {
+  const owner = DEMO_PHOTOGRAPHERS.find((person) => person.id === ownerId);
+  if (!owner) return [];
+  return DEMO_SERIES.filter((entry) => entry.ownerUsername === owner.username)
+    .map(demoAssembleSeries)
+    .filter((series): series is PhotoSeries => series !== null)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 /* ------------------------------------------------------------------------ */

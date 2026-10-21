@@ -69,6 +69,7 @@ const SHORT_PROFILE = /^(?:\/(en|th))?\/@([A-Za-z0-9_]{3,24})\/?$/;
  * look like one is left alone to 404.
  */
 const SHORT_BOOK = /^(?:\/(en|th))?\/b\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
+const SHORT_SERIES = /^(?:\/(en|th))?\/s\/([a-z0-9]+(?:-[a-z0-9]+)*)\/?$/;
 
 /**
  * Route handlers are endpoints, not pages: they have no `[locale]` segment and
@@ -136,6 +137,18 @@ export default async function middleware(request: NextRequest): Promise<NextResp
     const target = request.nextUrl.clone();
     const book = `/books/${slug}`;
     target.pathname = locale ? `/${locale}${book}` : book;
+    const redirect = NextResponse.redirect(target);
+    for (const cookie of sessionResponse.cookies.getAll()) redirect.cookies.set(cookie);
+    return redirect;
+  }
+
+  // `/s/<slug>` — a series' short address, the same doorway a book has.
+  const shortSeries = SHORT_SERIES.exec(request.nextUrl.pathname);
+  if (shortSeries) {
+    const [, locale, slug] = shortSeries;
+    const target = request.nextUrl.clone();
+    const series = `/series/${slug}`;
+    target.pathname = locale ? `/${locale}${series}` : series;
     const redirect = NextResponse.redirect(target);
     for (const cookie of sessionResponse.cookies.getAll()) redirect.cookies.set(cookie);
     return redirect;

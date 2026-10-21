@@ -22,6 +22,7 @@ import {
   PHOTOBOOK_COVERS,
   PHOTOBOOK_GEAR_MODES,
   PHOTOBOOK_MAX_PAGES,
+  SERIES_MAX_ITEMS,
   PHOTOBOOK_PAPERS,
   PHOTOGRAPHY_STYLES,
   REPORT_REASONS,
@@ -37,6 +38,8 @@ import {
   type LocationSummary,
   type Photobook,
   type PhotobookPage,
+  type PhotoSeries,
+  type PhotoSeriesItem,
   type PhotographyStyle,
   type ProfileCover,
   type ModerationAction,
@@ -2725,4 +2728,159 @@ export async function moderationQueues(): Promise<ModerationQueues> {
     recentActions: actions,
     possibleDuplicates: duplicates,
   };
+}
+
+/* ------------------------------------------------------------------------ */
+/* Photo series                                                              */
+/* ------------------------------------------------------------------------ */
+
+type SeriesColumns = Nullable<
+  Pick<
+    Tables<'photo_series'>,
+    | 'id' | 'owner_id' | 'slug' | 'title' | 'standfirst' | 'body' | 'cover_photograph_id'
+    | 'visibility' | 'opens' | 'updated_at'
+  >
+>;
+
+interface SeriesJoined extends SeriesColumns {
+  profiles: ProfileColumns | ProfileColumns[] | null;
+}
+
+/**
+ * The owner is named by column. `photo_series` joins `profiles` one way only,
+ * but `photographs` two ways (the cover, and through the items), and the rule
+ * in this file is that every embed says which — see the 0017 post-mortem.
+ */
+const SERIES_SELECT = `
+  id, owner_id, slug, title, standfirst, body, cover_photograph_id, visibility, opens,
+  updated_at, profiles!owner_id(${PROFILE_SUMMARY_FIELDS})
+`;
+
+/**
+ * Many series in three queries: the series, every item of those series, then
+ * every photograph the items name — the same shape as the photobook shelf. An
+ * item whose photograph is no longer published is left out, never shown as a
+ * hole; a cover that has gone falls back to the first item.
+ */
+async function assembleSeries(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: readonly SeriesJoined[],
+  what: string,
+): Promise<PhotoSeries[]> {
+  if (rows.length === 0) return [];
+
+  const seriesIds = rows
+    .map((row) => toText(row.id))
+    .filter((value): value is string => value !== null);
+  if (seriesIds.length === 0) return [];
+
+  const itemRows = unwrapList<{
+    series_id: string | null;
+    photograph_id: string | null;
+    position: number | null;
+    caption: string | null;
+  }>(
+    `reading the items of ${what}`,
+    await supabase
+      .from('photo_series_items')
+      .select('series_id, photograph_id, position, caption')
+      .in('series_id', seriesIds)
+      .order('position', { ascending: true })
+      .limit(seriesIds.length * SERIES_MAX_ITEMS),
+  );
+
+  const photographIds = [
+    ...new Set(
+      itemRows
+        .map((item) => toText(item.photograph_id))
+        .filter((value): value is string => value !== null),
+    ),
+  ];
+
+  const photographs =
+    photographIds.length > 0
+      ? await mapPhotographRows(
+          supabase,
+          unwrapList<PhotographJoined>(
+            `reading the photographs of ${what}`,
+            await supabase
+              .from('photographs')
+              .select(photographSelect())
+              .in('id', photographIds)
+              .eq('status', 'published'),
+          ),
+        )
+      : [];
+  const byId = new Map(photographs.map((photo) => [photo.id, photo]));
+
+  const itemsBySeries = new Map<string, PhotoSeriesItem[]>();
+  for (const item of itemRows) {
+    const seriesId = toText(item.series_id);
+    const position = toNumber(item.position);
+    const photograph = byId.get(toText(item.photograph_id) ?? '');
+    if (!seriesId || position === null || !photograph) continue;
+    const entry = { position, photograph, caption: toText(item.caption) };
+    const list = itemsBySeries.get(seriesId);
+    if (list) list.push(entry);
+    else itemsBySeries.set(seriesId, [entry]);
+  }
+
+  const result: PhotoSeries[] = [];
+  for (const row of rows) {
+    const id = toText(row.id);
+    const slug = toText(row.slug);
+    const title = toText(row.title);
+    const owner = mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles));
+    if (!id || !slug || !title || !owner) continue;
+    const items = itemsBySeries.get(id) ?? [];
+    const coverId = toText(row.cover_photograph_id);
+    const cover = (coverId && byId.get(coverId)) || items[0]?.photograph || null;
+    result.push({
+      id,
+      slug,
+      title,
+      standfirst: toText(row.standfirst),
+      body: toText(row.body) ?? '',
+      cover,
+      visibility: row.visibility === 'public' ? 'public' : 'unlisted',
+      opens: toNumber(row.opens) ?? 0,
+      owner,
+      items,
+      updatedAt: toText(row.updated_at) ?? '',
+    });
+  }
+  return result;
+}
+
+/** Public or unlisted both answer by address; the policy already says so. */
+export async function seriesBySlug(slug: string): Promise<PhotoSeries | null> {
+  const supabase = await createClient();
+  const row = unwrap<SeriesJoined>(
+    `reading series "${slug}"`,
+    await supabase.from('photo_series').select(SERIES_SELECT).eq('slug', slug).maybeSingle(),
+  );
+  if (!row) return null;
+  const [series] = await assembleSeries(supabase, [row], `series "${slug}"`);
+  return series ?? null;
+}
+
+/** A member's series, newest first, public and unlisted alike. */
+export async function seriesByOwner(ownerId: string): Promise<PhotoSeries[]> {
+  const supabase = await createClient();
+  const rows = unwrapList<SeriesJoined>(
+    "reading a member's series",
+    await supabase
+      .from('photo_series')
+      .select(SERIES_SELECT)
+      .eq('owner_id', ownerId)
+      .order('updated_at', { ascending: false }),
+  );
+  return assembleSeries(supabase, rows, "a member's series");
+}
+
+/** Counts an open. Fire-and-forget from the page; a failure is logged, never shown. */
+export async function countSeriesOpen(slug: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('bump_series_opens', { p_slug: slug });
+  if (error) console.error(`FRAME series: counting an open of "${slug}" failed — ${error.message}`);
 }

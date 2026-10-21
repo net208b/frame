@@ -9,6 +9,7 @@ import { GearChips } from '@/components/photographer/GearChips';
 import { gearBrandIndex, GearList } from '@/components/photographer/GearList';
 import { ProfileCollections } from '@/components/photographer/ProfileCollections';
 import { ProfileFootprints } from '@/components/photographer/ProfileFootprints';
+import { ProfileSeries } from '@/components/photographer/ProfileSeries';
 import { ProfileShelf } from '@/components/photographer/ProfileShelf';
 import { ProfileHeader } from '@/components/photographer/ProfileHeader';
 import { ProfileStats } from '@/components/photographer/ProfileStats';
@@ -26,6 +27,7 @@ import {
   getPhotobooksByOwner,
   getPhotographerMapPins,
   getPortfolio,
+  getSeriesByOwner,
 } from '@/lib/data/repository';
 import { activeGearFacet, filterByGear, gearFacets, readGearKey } from '@/lib/gear-filter';
 import { buildMetadata } from '@/lib/seo';
@@ -50,7 +52,7 @@ const loadProfile = cache(async (username: string) => {
   const photographer = await getPhotographer(username);
   if (!photographer) return null;
 
-  const [portfolio, collections, footprints, photobooks] = await Promise.all([
+  const [portfolio, collections, footprints, photobooks, series] = await Promise.all([
     getPortfolio(photographer.id),
     // No `includePrivate`, so a private collection is never even read here.
     getCollections({ ownerId: photographer.id }),
@@ -59,9 +61,10 @@ const loadProfile = cache(async (username: string) => {
     // and so all the reads overlap instead of queueing.
     getPhotographerMapPins(photographer.id),
     getPhotobooksByOwner(photographer.id),
+    getSeriesByOwner(photographer.id),
   ]);
 
-  return { photographer, portfolio, collections, footprints, photobooks };
+  return { photographer, portfolio, collections, footprints, photobooks, series };
 });
 
 /**
@@ -145,7 +148,7 @@ export default async function PhotographerProfilePage({
   const loaded = await loadProfile(username);
   if (!loaded) notFound();
 
-  const { photographer, portfolio, collections, footprints, photobooks } = loaded;
+  const { photographer, portfolio, collections, footprints, photobooks, series } = loaded;
 
   // Reading the member looking at the page costs nothing here: this route is
   // `force-dynamic` and every read already goes through the cookie-bound
@@ -191,10 +194,15 @@ export default async function PhotographerProfilePage({
   // The owner sees their whole shelf, unlisted books marked as such.
   const shelf = isSelf ? photobooks : photobooks.filter((book) => book.visibility === 'public');
   const showsBook = shelf.length > 0;
+  // Series follow the same rule as the shelf: public ones for a visitor, all
+  // of them for the owner.
+  const visibleSeries = isSelf ? series : series.filter((entry) => entry.visibility === 'public');
+  const showsSeries = visibleSeries.length > 0;
 
   const views: ProfileView[] = [
     'frames',
     ...(showsBook ? (['photobook'] as const) : []),
+    ...(showsSeries ? (['series'] as const) : []),
     ...(footprints.length > 0 || isSelf ? (['footprints'] as const) : []),
     ...(publicCollections > 0 ? (['collections'] as const) : []),
   ];
@@ -280,6 +288,10 @@ export default async function PhotographerProfilePage({
 
       {view === 'photobook' && showsBook ? (
         <ProfileShelf books={shelf} isSelf={isSelf} className="mt-10" />
+      ) : null}
+
+      {view === 'series' && showsSeries ? (
+        <ProfileSeries series={visibleSeries} isSelf={isSelf} className="mt-10" />
       ) : null}
 
       {view === 'footprints' ? (

@@ -1477,6 +1477,92 @@ select public.test_rejects('a visitor editing a photobook',
   $$update public.photobooks set title = 'Defaced' where slug = 'email-member-book'$$, '42501');
 commit;
 
+-- ---------------------------------------------------------- 0020: photo series
+-- The same member, the same two fixtures (one published, one draft), through
+-- the path the editor uses.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_accepts('a member starting a series',
+  $$insert into public.photo_series (id, owner_id, slug, title, standfirst, body, visibility)
+    values ('5e71e5e5-0000-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000004',
+            'email-member-series', 'After the Rain', 'Three corners, one evening.', 'It rained until six.', 'unlisted')$$);
+
+select public.test_rejects('a series with a private visibility',
+  $$update public.photo_series set visibility = 'private' where id = '5e71e5e5-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('a series title past 80 characters',
+  $$update public.photo_series set title = repeat('x', 81) where id = '5e71e5e5-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('a series owned by somebody else',
+  $$insert into public.photo_series (owner_id, slug, title)
+    values ('dddddddd-0000-4000-8000-000000000001', 'not-my-series', 'Not mine')$$, '42501');
+
+select public.test_accepts('an item that is the member''s own published photograph',
+  $$insert into public.photo_series_items (series_id, photograph_id, position, caption)
+    values ('5e71e5e5-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000001', 1, 'The first corner.')$$);
+
+select public.test_rejects('an item that is the member''s own draft',
+  $$insert into public.photo_series_items (series_id, photograph_id, position)
+    values ('5e71e5e5-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000002', 2)$$, '42501');
+
+select public.test_rejects('an item that is somebody else''s photograph',
+  $$insert into public.photo_series_items (series_id, photograph_id, position)
+    values ('5e71e5e5-0000-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001', 2)$$, '42501');
+
+select public.test_rejects('the same photograph twice in a series',
+  $$insert into public.photo_series_items (series_id, photograph_id, position)
+    values ('5e71e5e5-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000001', 2)$$, '23505');
+
+select public.test_rejects('an eleventh position',
+  $$insert into public.photo_series_items (series_id, photograph_id, position)
+    values ('5e71e5e5-0000-4000-8000-000000000001', 'eeeeeeee-3333-4000-8000-000000000001', 11)$$, '23514');
+
+select public.test_rejects('a caption past 240 characters',
+  $$update public.photo_series_items set caption = repeat('c', 241)
+     where series_id = '5e71e5e5-0000-4000-8000-000000000001' and position = 1$$, '23514');
+
+select public.test_accepts('a cover that is one of the series'' own frames',
+  $$update public.photo_series set cover_photograph_id = 'eeeeeeee-3333-4000-8000-000000000001'
+     where id = '5e71e5e5-0000-4000-8000-000000000001'$$);
+
+select public.test_rejects('a cover that is not one of the series'' frames',
+  $$update public.photo_series set cover_photograph_id = 'eeeeeeee-0000-4000-8000-000000000001'
+     where id = '5e71e5e5-0000-4000-8000-000000000001'$$, '23514');
+
+-- Fill to twenty-four, ask for one more.
+do $$
+declare i integer;
+begin
+  for i in 2..24 loop
+    insert into public.photo_series (owner_id, slug, title)
+    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-series-' || i, 'Series ' || i);
+  end loop;
+end $$;
+select public.test_rejects('a twenty-fifth series for the same member',
+  $$insert into public.photo_series (owner_id, slug, title)
+    values ('dddddddd-0000-4000-8000-000000000004', 'email-member-series-25', 'Twenty-five')$$, '23514');
+delete from public.photo_series
+ where owner_id = 'dddddddd-0000-4000-8000-000000000004' and slug <> 'email-member-series';
+commit;
+
+begin;
+set local role anon;
+do $$
+declare v_count integer; v_opens integer;
+begin
+  select count(*) into v_count from public.photo_series where slug = 'email-member-series';
+  if v_count <> 1 then raise exception 'SERIES GAP  an unlisted series is not readable by its address'; end if;
+  perform public.bump_series_opens('email-member-series');
+  select opens into v_opens from public.photo_series where slug = 'email-member-series';
+  if v_opens <> 1 then raise exception 'SERIES GAP  bump_series_opens did not count (opens = %)', v_opens; end if;
+  raise notice 'series ok     a visitor reads an unlisted series by its address and leaves one count';
+end $$;
+select public.test_rejects('a visitor editing a series',
+  $$update public.photo_series set title = 'Defaced' where slug = 'email-member-series'$$, '42501');
+commit;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
