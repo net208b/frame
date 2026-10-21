@@ -448,15 +448,14 @@ async function fetchStoredOriginal(
   driver: StorageDriver,
   key: string,
 ): Promise<{ ok: true; bytes: Uint8Array } | { ok: false; reason: string }> {
-  const base = driver.publicUrl(key);
-  const url = `${base}${base.includes('?') ? '&' : '?'}read=${Date.now()}`;
-
+  // Through the driver, from the private originals bucket (0031) — never
+  // through a public address, which an original no longer has.
   for (let attempt = 0; attempt < 3; attempt += 1) {
     if (attempt > 0) await wait(500);
 
-    let response: Response;
+    let bytes: Uint8Array | null;
     try {
-      response = await fetch(url, { cache: 'no-store' });
+      bytes = await driver.readOriginal(key);
     } catch (error) {
       console.error(
         `FRAME upload: reading ${key} back from storage failed — ${
@@ -466,18 +465,10 @@ async function fetchStoredOriginal(
       continue;
     }
 
-    if (!response.ok) continue;
+    if (bytes === null) continue;
 
-    // Refuse before reading the body when the provider states the size.
-    const declared = Number(response.headers.get('content-length') ?? Number.NaN);
-    if (Number.isFinite(declared) && declared > UPLOAD_POLICY.maxFileBytes) {
-      return {
-        ok: false,
-        reason: 'The stored file is larger than the upload limit, so it was not processed.',
-      };
-    }
-
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    // The bucket's own file_size_limit caps this already; checked again
+    // because the number that matters is the one this code believes.
     if (bytes.byteLength > UPLOAD_POLICY.maxFileBytes) {
       return {
         ok: false,
@@ -595,10 +586,10 @@ export async function attachVariants(
   // Marked as being worked on, and reset below if anything fails, so a failed
   // attempt does not strand the draft in a state it cannot leave.
   // Every way out of processing that is not success takes the original with
-  // it. It sits in a public-read bucket and still carries the file's EXIF, a
-  // GPS position included, so a failed attempt must not leave it behind — and
-  // nothing is lost by deleting it: a retry from the wizard uploads the file
-  // again before it calls this action.
+  // it. It lives in the private originals bucket (0031), but it still carries
+  // the file's EXIF, a GPS position included, and FRAME keeps nothing it does
+  // not need — and nothing is lost by deleting it: a retry from the wizard
+  // uploads the file again before it calls this action.
   const discardOriginal = async (): Promise<void> => {
     try {
       await driver.remove([keys.original]);
@@ -771,10 +762,10 @@ export async function attachVariants(
   const displayBytes = built.find((variant) => variant.name === 'display')?.bytes ?? null;
   await recordContentCheck(photograph.id, displayBytes);
 
-  // The original has done its job. It sits in a public-read bucket at a key
-  // anyone can derive from a derivative's URL, and it still carries the file's
-  // EXIF — including a GPS position the member may have chosen not to publish.
-  // Every size FRAME serves now exists, so it goes. A failure is logged and
+  // The original has done its job. It is in the private originals bucket
+  // (0031), with no public address, but it still carries the file's EXIF —
+  // including a GPS position the member may have chosen not to publish — and
+  // every size FRAME serves now exists, so it goes. A failure is logged and
   // does not fail the upload: the member has done nothing wrong.
   try {
     await driver.remove([keys.original]);

@@ -56,6 +56,12 @@ public = true
 file_size_limit = "50MiB"
 allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/avif"]
 
+# Upload originals, EXIF and GPS included. Private: never served (0031).
+[storage.buckets.photograph-originals]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/avif"]
+
 [auth]
 enabled = true
 site_url = "http://localhost:3000"

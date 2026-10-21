@@ -134,6 +134,8 @@ export interface ServerEnv {
   supabaseServiceRoleKey: string | null;
   storageProvider: 'supabase' | 'r2';
   storageBucket: string;
+  /** Private bucket for upload originals (0031). Never public, never served. */
+  originalsBucket: string;
   r2: {
     accountId: string | null;
     accessKeyId: string | null;
@@ -163,6 +165,7 @@ export function serverEnv(): ServerEnv {
       process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY ?? null,
     storageProvider: provider,
     storageBucket: process.env.STORAGE_BUCKET ?? 'photographs',
+    originalsBucket: process.env.STORAGE_ORIGINALS_BUCKET ?? 'photograph-originals',
     r2: {
       accountId: process.env.R2_ACCOUNT_ID ?? null,
       accessKeyId: process.env.R2_ACCESS_KEY_ID ?? null,

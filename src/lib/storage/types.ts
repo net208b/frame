@@ -44,6 +44,13 @@ export interface StorageDriver {
    * moderator does not own them.
    */
   remove(keys: string[], options?: { asService?: boolean }): Promise<void>;
+  /**
+   * Read an upload's original back for processing. Originals live apart from
+   * everything served — a private bucket — and have no public address, so
+   * this is the only way to read one. Null when it is not there (yet); the
+   * caller retries.
+   */
+  readOriginal(key: string): Promise<Uint8Array | null>;
 }
 
 /** Thrown when the selected provider is missing a variable it cannot work without. */
@@ -97,7 +104,7 @@ const KEY_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
  * Anything else under that folder is not a key this app writes, and the driver
  * refuses to sign or delete it.
  */
-const AVATAR_FOLDER = 'avatars';
+export const AVATAR_FOLDER = 'avatars';
 const AVATAR_LEAF = `avatar.${AVATAR_VARIANT.format}`;
 
 /**
@@ -125,6 +132,14 @@ export interface ParsedStorageKey {
  * been through this function must never reach a provider: a stray `..` or a
  * fourth segment is how one member's upload ends up overwriting another's.
  */
+/**
+ * Whether a key is an upload's original. Originals live in their own private
+ * bucket (0031) and are never served, so the drivers route on this.
+ */
+export function isOriginalKey(key: string): boolean {
+  return parseStorageKey(key)?.leaf === 'original';
+}
+
 export function parseStorageKey(key: string): ParsedStorageKey | null {
   const segments = key.split('/');
   if (segments.length !== 3) return null;

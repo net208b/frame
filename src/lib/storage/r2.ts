@@ -5,11 +5,12 @@ import { serverEnv } from '@/lib/config';
 import {
   assertSignableUpload,
   encodeKeyPath,
+  isOriginalKey,
   parseStorageKey,
   SIGNED_UPLOAD_TTL_SECONDS,
   StorageConfigurationError,
-  StorageRequestError,
   type StorageDriver,
+  StorageRequestError,
 } from './types';
 
 /**
@@ -198,8 +199,12 @@ export function r2StorageDriver(): StorageDriver {
   const env = serverEnv();
   const credentials = r2Credentials();
   const bucket = env.storageBucket;
+  // Originals go to a second bucket with no public domain bound to it (0031's
+  // rule, the same on either provider): STORAGE_ORIGINALS_BUCKET.
+  const originalsBucket = env.originalsBucket;
   const host = `${credentials.accountId}.r2.cloudflarestorage.com`;
-  const canonicalPathFor = (key: string) => `/${encodeKeyPath(bucket)}/${encodeKeyPath(key)}`;
+  const canonicalPathFor = (key: string) =>
+    `/${encodeKeyPath(isOriginalKey(key) ? originalsBucket : bucket)}/${encodeKeyPath(key)}`;
 
   return {
     name: 'r2',
@@ -225,7 +230,27 @@ export function r2StorageDriver(): StorageDriver {
     },
 
     publicUrl(key) {
+      if (isOriginalKey(key)) {
+        throw new StorageRequestError(`Refusing a public address for ${key}: an original is never served.`);
+      }
       return `${credentials.publicHost}/${encodeKeyPath(key)}`;
+    },
+
+    async readOriginal(key) {
+      if (!isOriginalKey(key)) {
+        throw new StorageRequestError(`Refusing to read ${key} as an original.`);
+      }
+      const url = presignR2Request({
+        method: 'GET',
+        host,
+        canonicalPath: canonicalPathFor(key),
+        expiresInSeconds: 60,
+        accessKeyId: credentials.accessKeyId,
+        secretAccessKey: credentials.secretAccessKey,
+      });
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) return null;
+      return new Uint8Array(await response.arrayBuffer());
     },
 
     // Every R2 request is signed with the application's own credentials, so
