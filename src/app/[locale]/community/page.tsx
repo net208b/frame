@@ -7,6 +7,7 @@ import {
   readCommunityView,
   type CommunityView,
 } from '@/components/community/CommunityTabs';
+import { ChallengesOverview } from '@/components/challenges/ChallengesOverview';
 import { PhotobookShowcase, SHELF_LIMIT } from '@/components/community/PhotobookShowcase';
 import { PhotographerCard } from '@/components/photographer/PhotographerCard';
 import { CapabilityNotice } from '@/components/system/CapabilityNotice';
@@ -16,7 +17,12 @@ import { EmptyState } from '@/components/ui/states';
 import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
-import { getFeaturedPhotographers, getPlatformStats, getPublicPhotobooks } from '@/lib/data/repository';
+import {
+  getChallenges,
+  getFeaturedPhotographers,
+  getPlatformStats,
+  getPublicPhotobooks,
+} from '@/lib/data/repository';
 import { buildMetadata } from '@/lib/seo';
 import { formatCount } from '@/lib/utils';
 import type { PlatformStats } from '@/types/domain';
@@ -34,13 +40,22 @@ export async function generateMetadata({
   const view = readCommunityView(resolved.view);
   const t = await getTranslations({ locale, namespace: 'community' });
   const books = view === 'photobooks';
+  const challenges = view === 'challenges';
 
   // Each view gets its own title and its own canonical address, because each
   // one is a different page to anybody arriving from a search or a share.
   return buildMetadata({
-    title: books ? t('views.photobooksMetaTitle') : t('metaTitle'),
-    description: books ? t('views.photobooksMetaDescription') : t('metaDescription'),
-    path: books ? '/community?view=photobooks' : '/community',
+    title: books
+      ? t('views.photobooksMetaTitle')
+      : challenges
+        ? t('views.challengesMetaTitle')
+        : t('metaTitle'),
+    description: books
+      ? t('views.photobooksMetaDescription')
+      : challenges
+        ? t('views.challengesMetaDescription')
+        : t('metaDescription'),
+    path: books ? '/community?view=photobooks' : challenges ? '/community?view=challenges' : '/community',
     locale,
   });
 }
@@ -109,10 +124,11 @@ export default async function CommunityPage({ params, searchParams }: CommunityP
 
   // The shelf is only read for the view that shows it; the photographers view
   // pays nothing for a feature it does not display.
-  const [featured, stats, books] = await Promise.all([
+  const [featured, stats, books, challenges] = await Promise.all([
     getFeaturedPhotographers(FEATURED_LIMIT),
     getPlatformStats(),
     view === 'photobooks' ? getPublicPhotobooks(SHELF_LIMIT) : Promise.resolve([]),
+    view === 'challenges' ? getChallenges() : Promise.resolve([]),
   ]);
 
   return (
@@ -145,6 +161,8 @@ export default async function CommunityPage({ params, searchParams }: CommunityP
 
       {view === 'photobooks' ? (
         <PhotobookShowcase books={books} />
+      ) : view === 'challenges' ? (
+        <ChallengesOverview challenges={challenges} locale={locale} />
       ) : (
         <PhotographersView featured={featured} locale={locale} />
       )}

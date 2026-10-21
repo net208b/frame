@@ -55,6 +55,38 @@ export interface ProfileRow extends Timestamps {
   following_count: number;
 }
 
+/** A theme for a window of time (migration 0027). */
+export interface ChallengeRow extends Timestamps {
+  id: string;
+  slug: string;
+  title_en: string;
+  title_th: string;
+  brief_en: string;
+  brief_th: string;
+  opens_at: string;
+  closes_at: string;
+  max_entries: number;
+  requires_new_work: boolean;
+  results_published_at: string | null;
+  created_by: string | null;
+}
+
+export interface ChallengeEntryRow {
+  challenge_id: string;
+  photograph_id: string;
+  entrant_id: string;
+  created_at: string;
+}
+
+export interface ChallengeAwardRow {
+  challenge_id: string;
+  photograph_id: string;
+  award: 'winner' | 'runner_up' | 'honourable_mention';
+  note: string | null;
+  awarded_by: string | null;
+  created_at: string;
+}
+
 /** A follow. The pair is the primary key (migration 0023). */
 export interface ProfileFollowRow {
   follower_id: string;
@@ -66,9 +98,9 @@ export interface ProfileFollowRow {
 export interface NotificationRow {
   id: string;
   recipient_id: string;
-  kind: 'comment' | 'reply' | 'appreciation' | 'follow' | 'photograph_published';
+  kind: 'comment' | 'reply' | 'appreciation' | 'follow' | 'photograph_published' | 'challenge_award';
   actor_id: string | null;
-  subject_type: 'photograph' | 'profile' | 'comment';
+  subject_type: 'photograph' | 'profile' | 'comment' | 'challenge';
   subject_id: string;
   subject_label: string;
   subject_slug: string | null;
@@ -357,6 +389,42 @@ export interface Database {
         Row: ProfileRow;
         Insert: Insertable<ProfileRow, 'id' | 'username' | 'display_name'>;
         Update: Updatable<ProfileRow>;
+        Relationships: [];
+      };
+      challenges: {
+        Row: ChallengeRow;
+        Insert: Insertable<
+          ChallengeRow,
+          'slug' | 'title_en' | 'title_th' | 'brief_en' | 'brief_th' | 'opens_at' | 'closes_at'
+        >;
+        Update: Updatable<ChallengeRow>;
+        Relationships: [];
+      };
+      challenge_entries: {
+        Row: ChallengeEntryRow;
+        Insert: Insertable<ChallengeEntryRow, 'challenge_id' | 'photograph_id' | 'entrant_id'>;
+        Update: Updatable<ChallengeEntryRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'challenge_entries_challenge_id_fkey';
+            columns: ['challenge_id'];
+            isOneToOne: false;
+            referencedRelation: 'challenges';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'challenge_entries_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: false;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      challenge_awards: {
+        Row: ChallengeAwardRow;
+        Insert: Insertable<ChallengeAwardRow, 'challenge_id' | 'photograph_id' | 'award'>;
+        Update: Updatable<ChallengeAwardRow>;
         Relationships: [];
       };
       profile_follows: {
@@ -790,6 +858,14 @@ export interface Database {
       unhide_comment: {
         Args: { p_id: string };
         Returns: undefined;
+      };
+      publish_challenge_results: {
+        Args: { p_challenge_id: string };
+        Returns: string;
+      };
+      own_photograph_capture_times: {
+        Args: { p_ids: string[] };
+        Returns: Array<{ photograph_id: string; captured_at: string | null }>;
       };
     };
     Enums: Record<string, never>;

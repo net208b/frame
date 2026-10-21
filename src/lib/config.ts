@@ -256,6 +256,11 @@ export const FOLLOW_POLICY = {
   maxPerHour: 300,
 } as const;
 
+/** How often one account may enter a challenge. The allowance itself is per challenge, in the database. */
+export const CHALLENGE_POLICY = {
+  maxPerMinute: 10,
+} as const;
+
 /** How many notifications one page of /notifications holds. */
 export const NOTIFICATION_PAGE_SIZE = 40;
 
