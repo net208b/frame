@@ -159,7 +159,10 @@ export function LocationLiveActions({
           <p className="text-meta leading-relaxed text-ink-soft">
             {mode === 'delete' ? t('deletePlaceEffect') : t('takeDownPlaceEffect')}
           </p>
-          <TextAreaField label={t('reasonLabel', { title: name })} hideLabel placeholder={t('reasonPlaceholder')}
+          <TextAreaField label={t('reasonLabel', { title: name })} hideLabel
+            // A takedown's reason reaches the member; a deletion's is for the
+            // record alone, and saying otherwise would be a promise nobody keeps.
+            placeholder={mode === 'delete' ? t('deleteReasonPlaceholder') : t('reasonPlaceholder')}
             value={reason} rows={2} maxLength={1000} onChange={(event) => setReason(event.target.value)} wrapperClassName="mt-2" />
           <div className="mt-2 flex gap-2">
             <Button size="sm" variant="danger" loading={pending} disabled={reason.trim().length === 0}
