@@ -68,7 +68,14 @@ export async function LiveList({
                     {place.city}, {place.country} · {t('photographCount', { count: place.photographCount })}
                   </p>
                 </div>
-                <LocationLiveActions locationId={place.id} name={place.name} pinPrecision={place.pinPrecision} />
+                <LocationLiveActions
+                  locationId={place.id}
+                  name={place.name}
+                  pinPrecision={place.pinPrecision}
+                  // The console redirects anybody who is not an admin before
+                  // it renders, so everybody who sees this list is one.
+                  canDelete
+                />
               </li>
             ))}
           </ol>

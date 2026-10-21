@@ -2134,7 +2134,8 @@
       "remove_content": "Remove the content",
       "suspend_account": "Suspend the account",
       "dismiss": "Dismiss the report",
-      "change_role": "Change the role"
+      "change_role": "Change the role",
+      "delete": "Delete the place"
     },
     "reportReason": {
       "copyright": "Copyright infringement",
@@ -3186,7 +3187,10 @@
       "reasonLabel": "Reason, about {title}",
       "reasonPlaceholder": "Why — the member will read this",
       "cancel": "Cancel",
-      "done": "Done."
+      "done": "Done.",
+      "deletePlace": "Delete this place",
+      "deletePlaceEffect": "Deletes the place and its pin for good. This cannot be undone. Any photograph taken there stays on the site and simply has no place on the map. A place that still holds a photograph anyone can see cannot be deleted — take it down instead.",
+      "deleteConfirm": "Delete for good"
     }
   },
   "translation": {
