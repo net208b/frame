@@ -45,7 +45,14 @@ export function UserMenu({
   const signOutFormId = useId();
 
   return (
-    <DropdownMenu.Root>
+    <>
+      {/* The form lives OUTSIDE the dropdown, not in its portal. The portal is
+          unmounted the moment the item is clicked, and a submit button that
+          refers to a form by id needs that form in the DOM at submit time. Kept
+          here, as a sibling that never unmounts, the POST always fires. */}
+      <form id={signOutFormId} action="/auth/signout" method="post" className="hidden" />
+
+      <DropdownMenu.Root>
       <DropdownMenu.Trigger
         className={cn(
           'flex items-center gap-1.5 rounded-pill p-0.5 text-muted transition-colors hover:text-ink',
@@ -103,11 +110,10 @@ export function UserMenu({
               {t('signOut')}
             </button>
           </DropdownMenu.Item>
-
-          <form id={signOutFormId} action="/auth/signout" method="post" className="hidden" />
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
-    </DropdownMenu.Root>
+      </DropdownMenu.Root>
+    </>
   );
 }
 

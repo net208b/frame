@@ -1854,6 +1854,8 @@
       "coversTitle": "{count} covers, three papers",
       "coversDescription": "Each one is drawn by FRAME rather than being a stock cover image, and your title and name are set on it to fit. If you want to say what you shot it on, a camera line can go on the back.",
       "coversCaption": "The {count} covers a book can be bound in. Your title and name are set on the one you choose.",
+      "sampleBadge": "Sample",
+      "sampleCaption": "A sample of the book, on the real 3D engine. The pages are plain plates, not anyone’s photographs — it shows the format, nothing more.",
       "howEyebrow": "How it works",
       "howTitle": "Three steps, under ten minutes",
       "steps": {

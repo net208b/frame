@@ -2,6 +2,8 @@ import { ArrowUpRight, BookOpen, Link2 } from 'lucide-react';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 
+import { CoverGallery } from '@/components/community/CoverGallery';
+import { SampleBook } from '@/components/community/SampleBook';
 import { BookViewer } from '@/components/photobook/BookViewer';
 import { coverPreset, gearText, PHOTOBOOK_COVER_PRESETS } from '@/components/photobook/covers';
 import { Button } from '@/components/ui/Button';
@@ -53,7 +55,12 @@ export async function PhotobookShowcase({ books }: { books: readonly Photobook[]
             <h2 className="mt-4 text-display-fluid">
               {t.rich('showcase.heading', {
                 break: () => <br />,
-                accent: (chunks) => <span className="font-serif font-normal italic">{chunks}</span>,
+                // `tracking-normal` undoes the display heading's tight negative
+                // letter-spacing, which on serif italic pulls the words into
+                // one another — "bound as a book" became "boundasabook".
+                accent: (chunks) => (
+                  <span className="font-serif font-normal tracking-normal italic">{chunks}</span>
+                ),
               })}
             </h2>
             <p className="mt-6 max-w-[52ch] text-lead leading-relaxed text-ink-soft">
@@ -92,14 +99,13 @@ export async function PhotobookShowcase({ books }: { books: readonly Photobook[]
               </p>
             </div>
           ) : (
-            /* No book to open yet, so the covers stand in: they are FRAME's
-               own drawings and need no photographs, which makes them the one
-               honest thing to show on a page with nothing bound yet. */
+            /* No real book yet, so a sample of the format stands in: the same
+               3D engine, a designed cover, plain plates for pages, and a badge
+               that says it is a sample. It demonstrates the book without
+               standing in for anybody's photographs. */
             <div>
-              <CoverWall />
-              <p className="mt-3 text-meta text-muted">
-                {t('showcase.coversCaption', { count: PHOTOBOOK_COVER_PRESETS.length })}
-              </p>
+              <SampleBook cover="linen" />
+              <p className="mt-3 text-meta text-muted">{t('showcase.sampleCaption')}</p>
             </div>
           )}
         </div>
@@ -146,16 +152,14 @@ export async function PhotobookShowcase({ books }: { books: readonly Photobook[]
       </section>
 
       {/* --------------------------------------------------------- covers */}
-      {lead ? (
-        <section>
-          <SectionHead
-            eyebrow={t('showcase.coversEyebrow')}
-            title={t('showcase.coversTitle', { count: PHOTOBOOK_COVER_PRESETS.length })}
-            description={t('showcase.coversDescription')}
-          />
-          <CoverWall />
-        </section>
-      ) : null}
+      <section>
+        <SectionHead
+          eyebrow={t('showcase.coversEyebrow')}
+          title={t('showcase.coversTitle', { count: PHOTOBOOK_COVER_PRESETS.length })}
+          description={t('showcase.coversDescription')}
+        />
+        <CoverGallery />
+      </section>
 
       {/* ---------------------------------------------------------- steps */}
       <section>
@@ -209,36 +213,6 @@ export async function PhotobookShowcase({ books }: { books: readonly Photobook[]
         </div>
       </section>
     </div>
-  );
-}
-
-/**
- * The fifteen covers as the colours and type they are actually drawn with.
- *
- * Facsimiles, not the real canvases: `drawCoverFace` needs a DOM, and fifteen
- * canvases would be fifteen reasons for this page to need JavaScript. The chip
- * and ink of each preset are plain data, so the swatch is honest about the
- * palette without pretending to be the finished cover.
- */
-async function CoverWall() {
-  const locale = await getLocale();
-  const t = await getTranslations({ locale, namespace: 'common' });
-
-  return (
-    <ul className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-      {PHOTOBOOK_COVER_PRESETS.map((preset) => (
-        <li key={preset.id}>
-          <div
-            className="flex aspect-[5/7] flex-col justify-end rounded-[4px] p-2.5 shadow-popover"
-            style={{ background: preset.chip, color: preset.ink }}
-          >
-            <p className="text-[10px] leading-tight font-bold">
-              {t(`photobookCovers.${preset.id}`)}
-            </p>
-          </div>
-        </li>
-      ))}
-    </ul>
   );
 }
 

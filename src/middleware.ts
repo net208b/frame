@@ -80,12 +80,36 @@ function isLocalisedPath(pathname: string): boolean {
   return !pathname.startsWith('/api') && !pathname.startsWith('/auth');
 }
 
+/**
+ * The one path whose session must NOT be refreshed here.
+ *
+ * Sign-out is the request that ends the session, and the route handler clears
+ * the auth cookies itself. If `updateSession` runs first it calls `getUser()`,
+ * which rotates the still-valid token and writes a FRESH session cookie onto
+ * the response — and that refreshed cookie rides back alongside the handler's
+ * deletion, where it can win. The member presses "sign out" and stays signed
+ * in. So this request skips the refresh entirely and lets the handler own the
+ * response: there is nothing worth refreshing on the way to throwing it away.
+ *
+ * It is the exact endpoint path, never locale-prefixed (`/auth/*` has no
+ * `[locale]` segment), so a bare equality check is right.
+ */
+function isSignOutPath(pathname: string): boolean {
+  return pathname === '/auth/signout';
+}
+
 /** Next's own plumbing. Copying these across would break the locale rewrite. */
 function isInternalHeader(name: string): boolean {
   return name === 'set-cookie' || name.startsWith('x-middleware-');
 }
 
 export default async function middleware(request: NextRequest): Promise<NextResponse> {
+  // Sign-out owns its own response and clears the cookies itself; refreshing
+  // the session here would re-issue the token the handler is about to delete.
+  if (isSignOutPath(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   // In demo mode this returns an untouched pass-through, as it always has.
   const sessionResponse = await updateSession(request);
 
