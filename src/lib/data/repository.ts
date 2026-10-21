@@ -10,6 +10,7 @@ import type {
   Paginated,
   PhotographDetail,
   PhotographerProfile,
+  PhotographThread,
   PlatformStats,
   Report,
   LocationSubmission,
@@ -71,6 +72,15 @@ export async function getGearFacets(): Promise<GearFacets> {
 export async function getPhotograph(slug: string): Promise<PhotographDetail | null> {
   if (useLive()) return live.photographBySlug(slug);
   return demo.demoPhotograph(slug);
+}
+
+/**
+ * The comment thread under a photograph. The bundled demo dataset has no
+ * conversations, so it answers with an empty thread rather than inventing one.
+ */
+export async function getPhotographThread(photographId: string): Promise<PhotographThread> {
+  if (useLive()) return live.photographThread(photographId);
+  return { comments: [], count: 0 };
 }
 
 export async function getPhotographsAtSameLocation(

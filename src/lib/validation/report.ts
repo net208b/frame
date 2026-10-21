@@ -23,6 +23,7 @@ export const REPORT_SUBJECT_LABELS: Record<ReportSubjectType, string> = {
   location: 'location',
   profile: 'profile',
   collection: 'collection',
+  comment: 'comment',
 };
 
 export const REPORT_SUBJECT_TYPES = Object.keys(REPORT_SUBJECT_LABELS) as [

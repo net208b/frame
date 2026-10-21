@@ -103,10 +103,12 @@ export type CollaborationStatus = (typeof COLLABORATION_STATUSES)[number];
 /**
  * How a member wants their frames talked about.
  *
- * It is a sentence to other members, not a permission. FRAME has no comments,
- * so there is nothing here for the application to enforce, and the Settings
- * form says so where it is set. Presenting it as a control would be the kind of
- * promise this project does not make.
+ * It is a sentence to other members, not a permission. The comment thread
+ * shows it above the box so the next person reads it before they write, but
+ * nothing here is enforced: a member who asks for no critique still receives
+ * whatever is said, and the Settings form says as much where it is set.
+ * Presenting it as a control would be the kind of promise this project does
+ * not make.
  *
  * Kept in step with profiles_critique_preference_allowed (migration 0016).
  */
@@ -395,10 +397,51 @@ export interface PhotoSeries {
 }
 
 /* ------------------------------------------------------------------------ */
+/* Comments                                                                  */
+/* ------------------------------------------------------------------------ */
+
+/** Up to this many characters in a single comment. */
+export const COMMENT_MAX_LENGTH = 1_000;
+
+/**
+ * One thing said under a photograph.
+ *
+ * A deleted comment keeps its place in the thread with an empty body, so a
+ * reply does not lose the remark it was answering; the page shows "this comment
+ * was deleted" rather than a gap. A hidden comment only ever reaches this shape
+ * for its author, the photograph's owner and moderators — row-level security
+ * decides that, not the page — and `hiddenReason` is what the owner or the
+ * moderator wrote when they hid it.
+ */
+export interface PhotographComment {
+  id: string;
+  /** Null for a top-level comment; the parent's id for a reply. */
+  parentId: string | null;
+  author: PhotographerSummary;
+  /** Empty when the comment was deleted. */
+  body: string;
+  createdAt: string;
+  /** Set once the author has changed their words. */
+  editedAt: string | null;
+  isDeleted: boolean;
+  isHidden: boolean;
+  hiddenReason: string | null;
+  /** Replies to this comment, oldest first. Only a top-level comment has any. */
+  replies: PhotographComment[];
+}
+
+/** A photograph's whole conversation, with the number a card would show. */
+export interface PhotographThread {
+  comments: PhotographComment[];
+  /** Live comments only — a deleted or hidden one is not part of the count. */
+  count: number;
+}
+
+/* ------------------------------------------------------------------------ */
 /* Reports and moderation                                                    */
 /* ------------------------------------------------------------------------ */
 
-export type ReportSubjectType = 'photograph' | 'location' | 'profile' | 'collection';
+export type ReportSubjectType = 'photograph' | 'location' | 'profile' | 'collection' | 'comment';
 
 export const REPORT_REASONS = [
   'copyright',

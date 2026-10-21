@@ -230,6 +230,21 @@ export const APPRECIATION_POLICY = {
 } as const;
 
 /**
+ * How often one account may post a comment.
+ *
+ * Lower than appreciation on purpose: a comment is a sentence somebody else
+ * reads, and a burst of them is the shape every flood takes. Editing one's own
+ * words shares the same bucket, so correcting a typo three times is free but a
+ * script cannot edit its way around the limit. Enforced per account, never per
+ * address — an address is shared behind a carrier NAT.
+ */
+export const COMMENT_POLICY = {
+  maxLength: 1_000,
+  maxPerMinute: 8,
+  maxPerHour: 80,
+} as const;
+
+/**
  * How many of a place's photographs a map pin carries, newest first.
  *
  * Three, because the card on the map shows the newest frame with two edges

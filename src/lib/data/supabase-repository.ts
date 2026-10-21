@@ -48,8 +48,10 @@ import {
   type PhotoCategory,
   type PhotoImage,
   type PhotographDetail,
+  type PhotographComment,
   type PhotographerProfile,
   type PhotographerSummary,
+  type PhotographThread,
   type PlatformStats,
   type PublicationStatus,
   type Report,
@@ -2883,4 +2885,117 @@ export async function countSeriesOpen(slug: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc('bump_series_opens', { p_slug: slug });
   if (error) console.error(`FRAME series: counting an open of "${slug}" failed — ${error.message}`);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Comments                                                                 */
+/* ------------------------------------------------------------------------ */
+
+const COMMENT_FIELDS =
+  'id, parent_id, author_id, body, created_at, edited_at, deleted_at, hidden_at, hidden_reason';
+
+interface CommentJoined
+  extends Pick<
+    Tables<'photograph_comments'>,
+    | 'id'
+    | 'parent_id'
+    | 'author_id'
+    | 'body'
+    | 'created_at'
+    | 'edited_at'
+    | 'deleted_at'
+    | 'hidden_at'
+    | 'hidden_reason'
+  > {
+  profiles: ProfileColumns | ProfileColumns[] | null;
+}
+
+/**
+ * A comment row becomes a node with no replies yet; the thread is assembled
+ * from the nodes afterwards. A comment whose author row is missing is dropped,
+ * for the same reason an uncredited photograph is: there is nobody to attribute
+ * it to.
+ */
+function mapComment(row: CommentJoined): PhotographComment | null {
+  const id = toText(row.id);
+  if (!id) return null;
+  const author = mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles));
+  if (!author) return null;
+
+  const isDeleted = toText(row.deleted_at) !== null;
+  const isHidden = toText(row.hidden_at) !== null;
+
+  return {
+    id,
+    parentId: toText(row.parent_id),
+    author,
+    // A deleted comment carries an empty body from the database already; this
+    // keeps the shape honest even if a row is read mid-delete.
+    body: isDeleted ? '' : (toText(row.body) ?? ''),
+    createdAt: toText(row.created_at) ?? '',
+    editedAt: toText(row.edited_at),
+    isDeleted,
+    isHidden,
+    hiddenReason: isHidden ? toText(row.hidden_reason) : null,
+    replies: [],
+  };
+}
+
+/**
+ * The whole conversation under a photograph, as the viewer is allowed to see
+ * it.
+ *
+ * Row-level security does the hiding: a comment hidden by the owner or a
+ * moderator simply is not in the rows unless the reader is its author, the
+ * photograph's owner or a moderator, so this function never has to decide who
+ * sees what. Ordered oldest-first, which is also parent-before-reply, so one
+ * pass can attach every reply to a parent that is already in the map.
+ *
+ * A deleted comment is kept when it has at least one reply that is still
+ * standing — the thread needs the remark those replies were answering, even as
+ * "this comment was deleted" — and dropped when it is a dead leaf, so a thread
+ * does not fill up with tombstones.
+ */
+export async function photographThread(photographId: string): Promise<PhotographThread> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('photograph_comments')
+    .select(`${COMMENT_FIELDS}, profiles!author_id(${PROFILE_SUMMARY_FIELDS})`)
+    .eq('photograph_id', photographId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    throw new Error(`FRAME comments: reading the thread failed — ${error.message}`);
+  }
+
+  const rows = asArray<CommentJoined>(data as CommentJoined[] | null);
+  const byId = new Map<string, PhotographComment>();
+  const topLevel: PhotographComment[] = [];
+
+  for (const row of rows) {
+    const node = mapComment(row);
+    if (!node) continue;
+    byId.set(node.id, node);
+    if (node.parentId === null) {
+      topLevel.push(node);
+    } else {
+      const parent = byId.get(node.parentId);
+      // A reply whose parent the reader cannot see (hidden, and not theirs) has
+      // no home in the tree; it is left out rather than promoted to the top.
+      if (parent) parent.replies.push(node);
+    }
+  }
+
+  // The number a card shows: live comments the reader can see, counting a
+  // deleted comment's surviving replies but not the tombstone itself.
+  let count = 0;
+  const prune = (node: PhotographComment): boolean => {
+    node.replies = node.replies.filter(prune);
+    const alive = !node.isDeleted && !node.isHidden;
+    if (alive) count += 1;
+    return alive || node.replies.length > 0;
+  };
+  const comments = topLevel.filter(prune);
+
+  return { comments, count };
 }
