@@ -82,7 +82,7 @@ export function supabaseStorageDriver(): StorageDriver {
       return `${origin}/storage/v1/object/public/${bucket}/${encodeKeyPath(key)}`;
     },
 
-    async remove(keys) {
+    async remove(keys, options = {}) {
       if (keys.length === 0) return;
 
       for (const key of keys) {
@@ -93,7 +93,8 @@ export function supabaseStorageDriver(): StorageDriver {
         }
       }
 
-      const supabase = await createClient();
+      // As the member unless the caller says otherwise; see StorageDriver.remove.
+      const supabase = options.asService ? createAdminClient() : await createClient();
       const { error } = await supabase.storage.from(bucket).remove([...keys]);
       if (error !== null) {
         throw new StorageRequestError('Supabase Storage refused to delete those objects.', {

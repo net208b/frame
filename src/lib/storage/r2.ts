@@ -228,6 +228,8 @@ export function r2StorageDriver(): StorageDriver {
       return `${credentials.publicHost}/${encodeKeyPath(key)}`;
     },
 
+    // Every R2 request is signed with the application's own credentials, so
+    // `asService` has nothing to change here; the key check below is the guard.
     async remove(keys) {
       for (const key of keys) {
         if (parseStorageKey(key) === null) {
