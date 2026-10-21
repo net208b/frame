@@ -2631,6 +2631,63 @@ do $$ begin
   raise notice 'storage ok   originals live in a private bucket: invisible to visitors, a member sees and writes only their own';
 end $$;
 
+-- -------------------------------------- 0032: a word from the admin
+-- A notice reaches the member it is about, from staff only; and only an
+-- admin's address can ask the console for a code.
+reset "app.current_user_id";
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('a member sending an admin notice',
+  $$select public.send_admin_notice('cafecafe-0000-4000-8000-000000000002', 'Please fix the title.')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000003';
+select public.test_rejects('an admin sending an empty notice',
+  $$select public.send_admin_notice('cafecafe-0000-4000-8000-000000000002', '   ')$$, '22023');
+select public.test_accepts('an admin asking a member to fix their upload',
+  $$select public.send_admin_notice('cafecafe-0000-4000-8000-000000000002', 'The title names a street that is not in the frame. Reply to admin@example.test.')$$);
+commit;
+
+-- The update policy lets only the recipient touch their notifications, and the
+-- guard then pins everything but read_at — so it is the recipient, not the
+-- admin, who could try to rewrite the words, and is refused.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('the recipient changing what a notice said',
+  $$update public.notifications set message = 'something else' where kind = 'admin_notice'$$, '42501');
+commit;
+
+do $$
+declare v_count integer; v_message text;
+begin
+  select count(*), max(message) into v_count, v_message from public.notifications
+   where recipient_id = 'dddddddd-0000-4000-8000-000000000004' and kind = 'admin_notice'
+     and subject_type = 'photograph' and subject_id = 'cafecafe-0000-4000-8000-000000000002'
+     and actor_id = 'eeeeeeee-0000-4000-8000-000000000003';
+  if v_count <> 1 or v_message not like 'The title names%' then
+    raise exception 'NOTICE GAP  the notice did not reach the member with its message (% rows)', v_count;
+  end if;
+
+  if not public.admin_email_is_staff('CHIEF@example.test') then
+    raise exception 'NOTICE GAP  the admin''s address is not recognised as staff';
+  end if;
+  if public.admin_email_is_staff('mod@example.test') then
+    raise exception 'NOTICE GAP  a moderator''s address can ask the console for a code';
+  end if;
+  if public.admin_email_is_staff('nobody@example.test') then
+    raise exception 'NOTICE GAP  an unknown address is recognised';
+  end if;
+  if has_function_privilege('anon', 'public.admin_email_is_staff(text)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'public.admin_email_is_staff(text)', 'EXECUTE') then
+    raise exception 'NOTICE GAP  a public role can look up who is staff by email';
+  end if;
+  raise notice 'notice ok    a notice reaches its member unchanged, and only an admin''s address gets a code';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, Bell, Heart, ImageUp, MessageSquare, Newspaper, Reply, Star, UserPlus } from 'lucide-react';
+import { Award, Bell, Heart, ImageUp, MessageSquare, Newspaper, Reply, ShieldCheck, Star, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTransition, type ComponentType } from 'react';
 
@@ -35,6 +35,7 @@ const ICONS: Record<NotificationKind, ComponentType<{ className?: string }>> = {
   challenge_award: Award,
   editors_pick: Star,
   featured: Newspaper,
+  admin_notice: ShieldCheck,
 };
 
 /**
@@ -123,6 +124,11 @@ export function NotificationList({ notifications }: { notifications: AppNotifica
 
               <div className="min-w-0 flex-1">
                 <p className="text-body leading-relaxed text-ink">{sentence}</p>
+                {notification.message ? (
+                  <p className="mt-2 rounded-card border border-line bg-surface-sunken px-3 py-2 text-body leading-relaxed whitespace-pre-line text-ink-soft">
+                    {notification.message}
+                  </p>
+                ) : null}
                 <p className="mt-1 flex items-center gap-1.5 text-caption text-muted">
                   <Icon className="size-3.5" aria-hidden />
                   {formatRelative(notification.createdAt, new Date(), intlLocale)}

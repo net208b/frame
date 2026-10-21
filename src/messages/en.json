@@ -2926,7 +2926,8 @@
       "photograph_published": "“{subject}” is now published",
       "challenge_award": "“{subject}” received an award in a challenge",
       "editors_pick": "“{subject}” was chosen as an editor’s pick",
-      "featured": "Your work appears in “{subject}”, a feature by FRAME’s editors"
+      "featured": "Your work appears in “{subject}”, a feature by FRAME’s editors",
+      "admin_notice": "The admin left you a note about “{subject}”"
     }
   },
   "challenges": {
@@ -3069,6 +3070,79 @@
       "publish": "Publish",
       "needsThree": "A feature needs at least {count} published photographs to go up.",
       "none": "No feature has been started yet."
+    }
+  },
+  "admin": {
+    "title": "FRAME console",
+    "nav": {
+      "inbox": "Inbox",
+      "fullDesk": "Full moderation desk",
+      "site": "Site",
+      "signOut": "Sign out"
+    },
+    "kinds": {
+      "upload": "Upload",
+      "place": "New place",
+      "report": "Report",
+      "challenge": "Challenge",
+      "feature": "Feature draft"
+    },
+    "login": {
+      "eyebrow": "Admin",
+      "title": "Sign in to the console",
+      "description": "A one-time code is sent to the administrator’s email address. No password.",
+      "emailLabel": "Email address",
+      "send": "Send me a code",
+      "sent": "If {email} belongs to an admin, a six-digit code is on its way. Enter it below, or open the link in the email.",
+      "codeLabel": "Six-digit code",
+      "verify": "Sign in",
+      "startOver": "Use a different address",
+      "signedIn": "Signed in."
+    },
+    "inbox": {
+      "title": "{count, plural, =0 {Nothing waiting} one {# item waiting} other {# items waiting}}",
+      "lead": "Everything that needs a decision, newest first. Open an item to see all of it and decide.",
+      "emptyTitle": "All clear",
+      "emptyDescription": "Nothing is waiting on you right now.",
+      "signals": "{count, plural, one {# signal} other {# signals}}",
+      "by": "from {name}",
+      "byStaff": "from the editors",
+      "open": "Open"
+    },
+    "review": {
+      "title": "Review",
+      "back": "Back to the inbox",
+      "description": "Description",
+      "altText": "Alt text",
+      "category": "Category",
+      "place": "Place",
+      "camera": "Camera",
+      "exposure": "Exposure",
+      "capturedAt": "Captured",
+      "editing": "Editing",
+      "city": "City",
+      "coordinates": "Coordinates",
+      "note": "Note",
+      "openMap": "Open on a map",
+      "anonymousReport": "from a visitor",
+      "reportedWhat": "Reported",
+      "reportReason": "Reason",
+      "reportDetails": "Details",
+      "reportFullDesk": "To look at the reported item itself, use the"
+    },
+    "decisions": {
+      "approve": "Approve",
+      "reject": "Refuse",
+      "askToFix": "Ask to fix and contact me",
+      "dismiss": "Dismiss",
+      "removeReported": "Remove the reported content",
+      "approveUploadEffect": "Publishes the photograph. The member is told.",
+      "askToFixEffect": "Keeps it unpublished and sends the member your message, with your contact address, as a notification.",
+      "rejectUploadEffect": "Removes it for good. The member can read your reason. Cannot be undone.",
+      "approvePlaceEffect": "Creates the place and puts its pin on the map.",
+      "rejectPlaceEffect": "Closes the proposal for good. The member can read your reason.",
+      "dismissEffect": "Closes the report with no change to what was reported.",
+      "removeReportedEffect": "Takes the reported content down. The owner can read your reason. Cannot be undone."
     }
   }
 }

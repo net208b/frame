@@ -136,6 +136,12 @@ export interface ServerEnv {
   storageBucket: string;
   /** Private bucket for upload originals (0031). Never public, never served. */
   originalsBucket: string;
+  /**
+   * Where a member is told to reply when the admin asks them to fix an upload.
+   * Set in the environment: the repository is public, and an address written
+   * into it is published.
+   */
+  adminContactEmail: string | null;
   r2: {
     accountId: string | null;
     accessKeyId: string | null;
@@ -166,6 +172,7 @@ export function serverEnv(): ServerEnv {
     storageProvider: provider,
     storageBucket: process.env.STORAGE_BUCKET ?? 'photographs',
     originalsBucket: process.env.STORAGE_ORIGINALS_BUCKET ?? 'photograph-originals',
+    adminContactEmail: process.env.ADMIN_CONTACT_EMAIL?.trim() || null,
     r2: {
       accountId: process.env.R2_ACCOUNT_ID ?? null,
       accessKeyId: process.env.R2_ACCESS_KEY_ID ?? null,
