@@ -138,6 +138,7 @@ export interface TextAreaFieldProps
   label: string;
   hint?: ReactNode;
   error?: string | null;
+  hideLabel?: boolean;
   wrapperClassName?: string;
 }
 
@@ -145,13 +146,21 @@ export function TextAreaField({
   label,
   hint,
   error,
+  hideLabel,
   wrapperClassName,
   className,
   required,
   ...props
 }: TextAreaFieldProps) {
   return (
-    <Field label={label} hint={hint} error={error} required={required} className={wrapperClassName}>
+    <Field
+      label={label}
+      hint={hint}
+      error={error}
+      required={required}
+      hideLabel={hideLabel}
+      className={wrapperClassName}
+    >
       {({ controlId, describedBy, invalid }) => (
         <textarea
           id={controlId}

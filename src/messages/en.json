@@ -1044,6 +1044,10 @@
       "seriesItems": {
         "tooFew": "A series needs at least 3 frames.",
         "tooMany": "A series holds at most 10 frames."
+      },
+      "commentBody": {
+        "required": "Write something first.",
+        "max": "Keep a comment to 1,000 characters."
       }
     },
     "actions": {
@@ -2806,6 +2810,49 @@
       "heading": "There is no series at this address",
       "body": "It may have been deleted, or the link was copied short.",
       "discover": "Look at the photographs"
+    }
+  },
+  "comments": {
+    "heading": "Comments",
+    "count": "{count, plural, =0 {No comments yet} one {# comment} other {# comments}}",
+    "empty": "Nothing has been said about this photograph yet.",
+    "critique": {
+      "any": "{name} welcomes any kind of critique.",
+      "technical": "{name} welcomes technical critique — exposure, framing, timing.",
+      "none": "{name} asked for no critique on their work; say what you see, kindly."
+    },
+    "signInToComment": "Sign in to join the conversation.",
+    "placeholder": "Say something about this photograph",
+    "replyPlaceholder": "Reply to {name}",
+    "post": "Post",
+    "posting": "Posting…",
+    "reply": "Reply",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "hide": "Hide",
+    "report": "Report",
+    "edited": "edited",
+    "deleted": "This comment was deleted.",
+    "hidden": "This comment is hidden — only you, the photographer and moderators can see it.",
+    "hiddenByYou": "Hidden by you",
+    "hideReason": "Why hide it? (optional, shown to the author)",
+    "confirmDelete": "Delete this comment? The words are removed; the place in the thread stays.",
+    "reportSubject": "A comment by {name} under “{title}”",
+    "limit": "Up to {max} characters",
+    "owner": "Photographer",
+    "moderator": "Moderator",
+    "actions": {
+      "commentPosted": "Comment posted.",
+      "commentSaved": "Comment saved.",
+      "commentDeleted": "Comment deleted.",
+      "commentHidden": "Comment hidden.",
+      "commentFailed": "That could not be saved. Try again in a moment.",
+      "commentNotAllowed": "Comments are for published photographs.",
+      "commentNotYours": "That comment is not yours to change.",
+      "commentRateLimited": "That is a lot of comments at once. Try again in {seconds} seconds.",
+      "commentSuspended": "Your account cannot post comments at the moment."
     }
   }
 }

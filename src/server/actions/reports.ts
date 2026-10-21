@@ -112,6 +112,18 @@ const SUBJECT_SOURCES: Record<ReportSubjectType, SubjectSource> = {
     columns: 'title',
     describe: (row) => text(row.title),
   },
+  comment: {
+    table: 'photograph_comments',
+    columns: 'body',
+    // A comment has no title, so the queue carries a short snippet of what was
+    // said. A deleted or hidden comment comes back with an empty body and falls
+    // through to the "Untitled comment" label, which is enough to find it by.
+    describe: (row) => {
+      const body = text(row.body);
+      if (!body) return null;
+      return body.length > 80 ? `${body.slice(0, 80)}…` : body;
+    },
+  },
 };
 
 type SubjectLookup = { exists: false } | { exists: true; label: string };

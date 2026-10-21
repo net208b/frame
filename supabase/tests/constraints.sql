@@ -1603,6 +1603,119 @@ select public.test_rejects('a visitor editing a series',
   $$update public.photo_series set title = 'Defaced' where slug = 'email-member-series'$$, '42501');
 commit;
 
+-- ------------------------------------------------------------- 0022: comments
+-- The email member comments on the owner's published photograph; the owner
+-- hides what they do not want under their frame; a moderator's hide is on
+-- the record. Fixture ids: owner eeeeeeee-0000-...-0001 owns the published
+-- photograph eeeeeeee-1111-...-0001; the email member is dddddddd-...-0004.
+reset "app.current_user_id";
+update public.photographs set status = 'published', published_at = now()
+ where id = 'eeeeeeee-1111-4000-8000-000000000001' and status <> 'published';
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_accepts('a member commenting on a published photograph',
+  $$insert into public.photograph_comments (id, photograph_id, author_id, body)
+    values ('c0c0c0c0-0000-4000-8000-000000000001', 'eeeeeeee-1111-4000-8000-000000000001',
+            'dddddddd-0000-4000-8000-000000000004', 'The light on the far kerb is the whole picture.')$$);
+
+select public.test_rejects('a comment written as somebody else',
+  $$insert into public.photograph_comments (photograph_id, author_id, body)
+    values ('eeeeeeee-1111-4000-8000-000000000001', 'eeeeeeee-0000-4000-8000-000000000001', 'Not me.')$$, '42501');
+
+select public.test_rejects('a comment on a draft',
+  $$insert into public.photograph_comments (photograph_id, author_id, body)
+    values ('eeeeeeee-3333-4000-8000-000000000002', 'dddddddd-0000-4000-8000-000000000004', 'Too early.')$$, '42501');
+
+select public.test_rejects('an empty comment',
+  $$insert into public.photograph_comments (photograph_id, author_id, body)
+    values ('eeeeeeee-1111-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000004', '   ')$$, '23514');
+
+select public.test_rejects('a comment past 1000 characters',
+  $$insert into public.photograph_comments (photograph_id, author_id, body)
+    values ('eeeeeeee-1111-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000004', repeat('x', 1001))$$, '23514');
+
+select public.test_accepts('a reply to a top-level comment',
+  $$insert into public.photograph_comments (id, photograph_id, author_id, parent_id, body)
+    values ('c0c0c0c0-0000-4000-8000-000000000002', 'eeeeeeee-1111-4000-8000-000000000001',
+            'dddddddd-0000-4000-8000-000000000004', 'c0c0c0c0-0000-4000-8000-000000000001', 'And the shadow under it.')$$);
+
+select public.test_rejects('a reply to a reply',
+  $$insert into public.photograph_comments (photograph_id, author_id, parent_id, body)
+    values ('eeeeeeee-1111-4000-8000-000000000001', 'dddddddd-0000-4000-8000-000000000004',
+            'c0c0c0c0-0000-4000-8000-000000000002', 'Too deep.')$$, '23514');
+
+select public.test_accepts('the author editing their own words',
+  $$update public.photograph_comments set body = 'The light on the far kerb is the picture.'
+     where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$);
+
+select public.test_rejects('the author moving their comment to another photograph',
+  $$update public.photograph_comments set photograph_id = 'eeeeeeee-3333-4000-8000-000000000001'
+     where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$, '42501');
+
+select public.test_rejects('the author hiding their own comment through the table',
+  $$update public.photograph_comments set hidden_at = now()
+     where id = 'c0c0c0c0-0000-4000-8000-000000000001'$$, '42501');
+
+select public.test_rejects('a member hiding a comment under somebody else''s photograph',
+  $$select public.hide_comment('c0c0c0c0-0000-4000-8000-000000000002', 'nope')$$, '42501');
+
+select public.test_accepts('the author deleting their own comment',
+  $$select public.delete_comment('c0c0c0c0-0000-4000-8000-000000000002')$$);
+commit;
+
+do $$
+declare v_body text; v_count integer; v_edited timestamptz;
+begin
+  select body into v_body from public.photograph_comments where id = 'c0c0c0c0-0000-4000-8000-000000000002';
+  if v_body <> '' then raise exception 'COMMENT GAP  a deleted comment kept its body'; end if;
+  select edited_at into v_edited from public.photograph_comments where id = 'c0c0c0c0-0000-4000-8000-000000000001';
+  if v_edited is null then raise exception 'COMMENT GAP  an edit was not marked as edited'; end if;
+  select comment_count into v_count from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000001';
+  if v_count <> 1 then raise exception 'COMMENT GAP  comment_count is % after one live comment and one deleted', v_count; end if;
+  raise notice 'comment ok    a delete clears the body, an edit is marked, and the count follows the rows';
+end $$;
+
+-- The owner hides; a moderator hides on the record; a visitor cannot read a hidden one.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+select public.test_accepts('the photograph''s owner hiding a comment under their frame',
+  $$select public.hide_comment('c0c0c0c0-0000-4000-8000-000000000001', 'off topic')$$);
+commit;
+
+begin;
+set local role anon;
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.photograph_comments where id = 'c0c0c0c0-0000-4000-8000-000000000001';
+  if v_count <> 0 then raise exception 'COMMENT GAP  a visitor can read a hidden comment'; end if;
+  raise notice 'comment ok    a hidden comment is invisible to a visitor';
+end $$;
+commit;
+
+reset "app.current_user_id";
+insert into public.photograph_comments (id, photograph_id, author_id, body)
+values ('c0c0c0c0-0000-4000-8000-000000000003', 'eeeeeeee-1111-4000-8000-000000000001',
+        'dddddddd-0000-4000-8000-000000000004', 'For a moderator to look at.');
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('a moderator hiding a comment, with a reason',
+  $$select public.hide_comment('c0c0c0c0-0000-4000-8000-000000000003', 'Personal attack.')$$);
+commit;
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.moderation_actions
+   where subject_type = 'comment' and subject_id = 'c0c0c0c0-0000-4000-8000-000000000003' and decision = 'remove_content';
+  if v_count <> 1 then raise exception 'COMMENT GAP  a moderator''s hide was not written to the trail'; end if;
+  raise notice 'comment ok    a moderator''s hide is on the record with its reason';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

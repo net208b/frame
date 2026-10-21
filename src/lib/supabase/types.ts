@@ -130,6 +130,7 @@ export interface PhotographRow extends Timestamps {
   status: 'draft' | 'processing' | 'published' | 'under_review' | 'removed';
   editors_pick: boolean;
   appreciation_count: number;
+  comment_count: number;
   published_at: string | null;
   captured_at: string | null;
   publish_captured_at: boolean;
@@ -180,6 +181,19 @@ export interface PhotographAppreciationRow {
   photograph_id: string;
   profile_id: string;
   created_at: string;
+}
+
+export interface PhotographCommentRow extends Timestamps {
+  id: string;
+  photograph_id: string;
+  author_id: string;
+  parent_id: string | null;
+  body: string;
+  edited_at: string | null;
+  deleted_at: string | null;
+  hidden_at: string | null;
+  hidden_by: string | null;
+  hidden_reason: string | null;
 }
 
 export interface CollectionRow extends Timestamps {
@@ -269,7 +283,7 @@ export interface CollectionItemRow {
 
 export interface ReportRow extends Timestamps {
   id: string;
-  subject_type: 'photograph' | 'location' | 'profile' | 'collection';
+  subject_type: 'photograph' | 'location' | 'profile' | 'collection' | 'comment';
   subject_id: string;
   subject_label: string;
   reason: string;
@@ -488,6 +502,34 @@ export interface Database {
           },
         ];
       };
+      photograph_comments: {
+        Row: PhotographCommentRow;
+        Insert: Insertable<PhotographCommentRow, 'photograph_id' | 'author_id' | 'body'>;
+        Update: Updatable<PhotographCommentRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photograph_comments_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: false;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'photograph_comments_author_id_fkey';
+            columns: ['author_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'photograph_comments_parent_id_fkey';
+            columns: ['parent_id'];
+            isOneToOne: false;
+            referencedRelation: 'photograph_comments';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       photobooks: {
         Row: PhotobookRow;
         Insert: Insertable<PhotobookRow, 'owner_id' | 'slug' | 'title'>;
@@ -662,6 +704,14 @@ export interface Database {
       check_rate_limit: {
         Args: { p_bucket: string; p_limit: number; p_window_seconds: number };
         Returns: Array<{ allowed: boolean; remaining: number; retry_after_seconds: number }>;
+      };
+      delete_comment: {
+        Args: { p_id: string };
+        Returns: undefined;
+      };
+      hide_comment: {
+        Args: { p_id: string; p_reason: string | null };
+        Returns: undefined;
       };
     };
     Enums: Record<string, never>;

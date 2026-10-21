@@ -5,6 +5,7 @@ import { cache } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CaptureSpecs } from '@/components/photo-detail/CaptureSpecs';
+import { CommentThread } from '@/components/photo-detail/CommentThread';
 import { DeletePhotograph } from '@/components/photo-detail/DeletePhotograph';
 import { EditingNotes } from '@/components/photo-detail/EditingNotes';
 import { LocationPanel } from '@/components/photo-detail/LocationPanel';
@@ -22,6 +23,7 @@ import {
   getPhotograph,
   getPhotographer,
   getPhotographsAtSameLocation,
+  getPhotographThread,
 } from '@/lib/data/repository';
 import { buildMetadata, photographJsonLd } from '@/lib/seo';
 import { truncate } from '@/lib/utils';
@@ -149,12 +151,18 @@ export default async function PhotographPage({ params }: PageProps) {
   const isOwner = viewer !== null && viewer.id === photo.photographer.id;
   if (photo.status !== 'published' && !isOwner && !isModerator(viewer)) notFound();
 
-  const [sameLocation, byPhotographer, locationDetail, photographerProfile] = await Promise.all([
-    getPhotographsAtSameLocation(photo.location?.id ?? null, photo.id),
-    getMoreByPhotographer(photo.photographer.id, photo.id),
-    photo.location ? getLocation(photo.location.slug) : Promise.resolve(null),
-    getPhotographer(photo.photographer.username),
-  ]);
+  const [sameLocation, byPhotographer, locationDetail, photographerProfile, thread] =
+    await Promise.all([
+      getPhotographsAtSameLocation(photo.location?.id ?? null, photo.id),
+      getMoreByPhotographer(photo.photographer.id, photo.id),
+      photo.location ? getLocation(photo.location.slug) : Promise.resolve(null),
+      getPhotographer(photo.photographer.username),
+      // Comments live only under a published photograph; a draft or a removed
+      // frame has none, so there is nothing to read for one.
+      photo.status === 'published'
+        ? getPhotographThread(photo.id)
+        : Promise.resolve({ comments: [], count: 0 }),
+    ]);
 
   const statusKey = STATUS_NOTE_KEY[photo.status];
   const place = photo.location
@@ -245,6 +253,24 @@ export default async function PhotographPage({ params }: PageProps) {
           )}
         </div>
       </article>
+
+      {photo.status === 'published' ? (
+        <CommentThread
+          photographId={photo.id}
+          slug={photo.slug}
+          photographTitle={photo.title}
+          thread={thread}
+          viewer={
+            viewer
+              ? { id: viewer.id, displayName: viewer.displayName, avatarUrl: viewer.avatarUrl }
+              : null
+          }
+          isOwner={isOwner}
+          isModerator={isModerator(viewer)}
+          ownerCritique={photographerProfile?.critique ?? null}
+          ownerName={photo.photographer.displayName}
+        />
+      ) : null}
 
       <RelatedStrip
         sameLocation={sameLocation}
