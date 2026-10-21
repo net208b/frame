@@ -1716,6 +1716,161 @@ begin
   raise notice 'comment ok    a moderator''s hide is on the record with its reason';
 end $$;
 
+-- ------------------------------- 0023: following, and being told about it
+-- Fixture ids as above: the owner eeeeeeee-…-0001, the email member
+-- dddddddd-…-0004, the moderator 33333333-…, and the owner's published
+-- photograph eeeeeeee-1111-…-0001.
+reset "app.current_user_id";
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_rejects('following oneself',
+  $$insert into public.profile_follows (follower_id, followee_id)
+    values ('dddddddd-0000-4000-8000-000000000004', 'dddddddd-0000-4000-8000-000000000004')$$, '23514');
+
+select public.test_rejects('following as somebody else',
+  $$insert into public.profile_follows (follower_id, followee_id)
+    values ('eeeeeeee-0000-4000-8000-000000000001', '33333333-3333-4333-8333-333333333333')$$, '42501');
+
+select public.test_accepts('a member following a photographer',
+  $$insert into public.profile_follows (follower_id, followee_id)
+    values ('dddddddd-0000-4000-8000-000000000004', 'eeeeeeee-0000-4000-8000-000000000001')$$);
+
+select public.test_rejects('following the same photographer twice',
+  $$insert into public.profile_follows (follower_id, followee_id)
+    values ('dddddddd-0000-4000-8000-000000000004', 'eeeeeeee-0000-4000-8000-000000000001')$$, '23505');
+
+select public.test_rejects('editing a follow',
+  $$update public.profile_follows set followee_id = '33333333-3333-4333-8333-333333333333'
+     where follower_id = 'dddddddd-0000-4000-8000-000000000004'$$, '42501');
+
+commit;
+
+-- Somebody else's follow is not the member's to undo. A delete the policy
+-- filters out does not raise — it matches nothing — so the check is that the
+-- row is still standing afterwards.
+reset "app.current_user_id";
+insert into public.profile_follows (follower_id, followee_id)
+values ('eeeeeeee-0000-4000-8000-000000000001', '33333333-3333-4333-8333-333333333333')
+on conflict do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+delete from public.profile_follows
+ where follower_id = 'eeeeeeee-0000-4000-8000-000000000001';
+commit;
+
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.profile_follows
+   where follower_id = 'eeeeeeee-0000-4000-8000-000000000001'
+     and followee_id = '33333333-3333-4333-8333-333333333333';
+  if v_count <> 1 then raise exception 'FOLLOW GAP  a member undid somebody else''s follow'; end if;
+  raise notice 'follow ok    one member cannot undo another member''s follow';
+end $$;
+
+do $$
+declare v_followers integer; v_following integer; v_notified integer;
+begin
+  select follower_count into v_followers from public.profiles where id = 'eeeeeeee-0000-4000-8000-000000000001';
+  select following_count into v_following from public.profiles where id = 'dddddddd-0000-4000-8000-000000000004';
+  if v_followers <> 1 then raise exception 'FOLLOW GAP  follower_count is % after one follow', v_followers; end if;
+  if v_following <> 1 then raise exception 'FOLLOW GAP  following_count is % after one follow', v_following; end if;
+
+  select count(*) into v_notified from public.notifications
+   where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001' and kind = 'follow'
+     and actor_id = 'dddddddd-0000-4000-8000-000000000004';
+  if v_notified <> 1 then raise exception 'NOTIFY GAP  a new follower produced % notifications', v_notified; end if;
+  raise notice 'follow ok    both counts follow the rows, and the photographer was told';
+end $$;
+
+-- The counts come back down, and nobody is told about their own doing.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_accepts('unfollowing one''s own follow',
+  $$delete from public.profile_follows
+     where follower_id = 'dddddddd-0000-4000-8000-000000000004'
+       and followee_id = 'eeeeeeee-0000-4000-8000-000000000001'$$);
+commit;
+
+do $$
+declare v_followers integer;
+begin
+  select follower_count into v_followers from public.profiles where id = 'eeeeeeee-0000-4000-8000-000000000001';
+  if v_followers <> 0 then raise exception 'FOLLOW GAP  follower_count is % after unfollowing', v_followers; end if;
+  raise notice 'follow ok    unfollowing puts the count back';
+end $$;
+
+-- The comment and reply written in the 0022 block above should have told the
+-- photographer once, and told nobody about their own reply.
+do $$
+declare v_comment integer; v_self integer;
+begin
+  select count(*) into v_comment from public.notifications
+   where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001' and kind = 'comment';
+  if v_comment < 1 then raise exception 'NOTIFY GAP  a comment told the photographer % times', v_comment; end if;
+
+  select count(*) into v_self from public.notifications where recipient_id = actor_id;
+  if v_self <> 0 then raise exception 'NOTIFY GAP  % members were told about their own action', v_self; end if;
+  raise notice 'notify ok    a comment reaches the photographer, and nobody hears about themselves';
+end $$;
+
+-- A member may not write a notification, for anybody, including themselves.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+
+select public.test_rejects('a member inventing a notification for somebody else',
+  $$insert into public.notifications (recipient_id, kind, actor_id, subject_type, subject_id, subject_label)
+    values ('eeeeeeee-0000-4000-8000-000000000001', 'follow', 'dddddddd-0000-4000-8000-000000000004',
+            'profile', 'dddddddd-0000-4000-8000-000000000004', 'Not real')$$, '42501');
+
+select public.test_rejects('a member inventing a notification for themselves',
+  $$insert into public.notifications (recipient_id, kind, subject_type, subject_id, subject_label)
+    values ('dddddddd-0000-4000-8000-000000000004', 'photograph_published',
+            'photograph', 'eeeeeeee-1111-4000-8000-000000000001', 'Not real')$$, '42501');
+commit;
+
+-- A recipient reads only their own, and may change only read_at.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.notifications
+   where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001';
+  if v_count <> 0 then raise exception 'NOTIFY GAP  a member can read % of somebody else''s notifications', v_count; end if;
+  raise notice 'notify ok    a notification is readable only by the member it is about';
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+
+select public.test_rejects('rewriting what a notification said',
+  $$update public.notifications set subject_label = 'something else'
+     where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001'$$, '42501');
+
+select public.test_accepts('marking one''s own notifications read',
+  $$select public.mark_notifications_read()$$);
+commit;
+
+do $$
+declare v_unread integer;
+begin
+  select count(*) into v_unread from public.notifications
+   where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001' and read_at is null;
+  if v_unread <> 0 then raise exception 'NOTIFY GAP  % notifications stayed unread after marking all read', v_unread; end if;
+  raise notice 'notify ok    marking read clears the badge and changes nothing else';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

@@ -3,6 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 
 import { Avatar } from '@/components/photographer/Avatar';
+import { FollowButton } from '@/components/photographer/FollowButton';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { Link } from '@/i18n/navigation';
@@ -63,6 +64,8 @@ function paragraphs(biography: string): string[] {
 export async function ProfileHeader({
   photographer,
   isSelf = false,
+  signedIn = false,
+  viewerFollows = null,
   className,
 }: {
   photographer: PhotographerProfile;
@@ -72,6 +75,9 @@ export async function ProfileHeader({
    * photograph and collection pages already use for their own report buttons.
    */
   isSelf?: boolean;
+  signedIn?: boolean;
+  /** Null when nobody is signed in: an unknown state, not an un-followed one. */
+  viewerFollows?: boolean | null;
   className?: string;
 }) {
   const locale = await getLocale();
@@ -294,14 +300,23 @@ export async function ProfileHeader({
                 is a nonsense the other two report buttons already avoid, and
                 the one on a profile was the only one left asking. */}
             {isSelf ? null : (
-              <ReportDialog
-                subjectType="profile"
-                subjectId={photographer.id}
-                subjectLabel={`@${photographer.username}`}
-                triggerLabel={t('reportAccount')}
-                triggerVariant="ghost"
-                className="md:ml-auto"
-              />
+              <div className="flex flex-wrap items-center gap-3 md:ml-auto">
+                <FollowButton
+                  profileId={photographer.id}
+                  username={photographer.username}
+                  displayName={photographer.displayName}
+                  initialFollowerCount={photographer.followerCount}
+                  initialFollowing={viewerFollows}
+                  signedIn={signedIn}
+                />
+                <ReportDialog
+                  subjectType="profile"
+                  subjectId={photographer.id}
+                  subjectLabel={`@${photographer.username}`}
+                  triggerLabel={t('reportAccount')}
+                  triggerVariant="ghost"
+                />
+              </div>
             )}
           </div>
         </div>

@@ -189,6 +189,7 @@ function AccountSection({
 
   const accountLinks = [
     { href: '/upload', label: t('upload') },
+    { href: '/feed', label: t('feed') },
     { href: '/collections', label: t('myCollections') },
     { href: `/photographers/${viewer.username}`, label: t('myProfile') },
     { href: '/settings', label: t('settings') },

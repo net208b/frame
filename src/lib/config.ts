@@ -245,6 +245,21 @@ export const COMMENT_POLICY = {
 } as const;
 
 /**
+ * How often one account may follow or unfollow.
+ *
+ * Generous enough that reading a list of photographers and following a dozen
+ * of them is normal use, tight enough that nobody walks the whole member list
+ * in a loop. Keyed per account, like every other limit here.
+ */
+export const FOLLOW_POLICY = {
+  maxPerMinute: 30,
+  maxPerHour: 300,
+} as const;
+
+/** How many notifications one page of /notifications holds. */
+export const NOTIFICATION_PAGE_SIZE = 40;
+
+/**
  * How many of a place's photographs a map pin carries, newest first.
  *
  * Three, because the card on the map shows the newest frame with two edges

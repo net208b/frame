@@ -106,7 +106,8 @@
     "myProfile": "My profile",
     "settings": "Settings",
     "moderation": "Moderation",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "feed": "Feed"
   },
   "footer": {
     "headings": {
@@ -701,7 +702,8 @@
       "appreciations": "Appreciations",
       "locations": "Locations",
       "locationsAdded": "Locations added",
-      "note": "Appreciations are counted once per member and can be withdrawn again."
+      "note": "Appreciations are counted once per member and can be withdrawn again.",
+      "followers": "Followers"
     },
     "gear": {
       "eyebrow": "Usual gear",
@@ -746,6 +748,17 @@
       "label": "Filter by gear",
       "all": "All",
       "count": "{count} frames"
+    },
+    "follow": {
+      "action": "Follow",
+      "following": "Following",
+      "followLabel": "Follow {name}",
+      "followingLabel": "Stop following {name}",
+      "signInLabel": "Sign in to follow {name}",
+      "failed": "That could not be saved. Try again in a moment.",
+      "rateLimited": "That is a lot of following at once. Try again in a moment.",
+      "notConfigured": "Following is unavailable in this deployment.",
+      "unauthenticated": "Sign in to follow a photographer."
     }
   },
   "community": {
@@ -2853,6 +2866,46 @@
       "commentNotYours": "That comment is not yours to change.",
       "commentRateLimited": "That is a lot of comments at once. Try again in {seconds} seconds.",
       "commentSuspended": "Your account cannot post comments at the moment."
+    }
+  },
+  "feed": {
+    "meta": {
+      "title": "Your feed",
+      "description": "New work from the photographers you follow."
+    },
+    "eyebrow": "Following",
+    "title": "Your feed",
+    "lead": "New work from the photographers you follow, in the order it was published.",
+    "emptyTitle": "You are not following anyone yet",
+    "emptyDescription": "Follow a photographer and their new frames arrive here.",
+    "findPhotographers": "Find photographers",
+    "quietTitle": "Nothing new yet",
+    "quietDescription": "Nobody you follow has published since you last looked. There is plenty elsewhere in the meantime.",
+    "browseDiscover": "Browse every frame"
+  },
+  "notifications": {
+    "meta": {
+      "title": "Notifications",
+      "description": "What happened to your work."
+    },
+    "eyebrow": "What happened",
+    "title": "Notifications",
+    "bell": "Notifications",
+    "bellWithCount": "Notifications, {count, plural, one {# unread} other {# unread}}",
+    "unreadCount": "{count, plural, one {# unread} other {# unread}}",
+    "allRead": "You are all caught up",
+    "markAll": "Mark all read",
+    "markFailed": "That could not be saved. Try again in a moment.",
+    "unreadMarker": "Unread",
+    "someone": "Someone",
+    "emptyTitle": "Nothing yet",
+    "emptyDescription": "When somebody comments on your work, appreciates a frame or follows you, it arrives here.",
+    "sentence": {
+      "comment": "{name} commented on “{subject}”",
+      "reply": "{name} replied to you on “{subject}”",
+      "appreciation": "{name} appreciated “{subject}”",
+      "follow": "{name} started following you",
+      "photograph_published": "“{subject}” is now published"
     }
   }
 }

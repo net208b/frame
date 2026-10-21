@@ -169,6 +169,9 @@ export interface PhotographerProfile extends PhotographerSummary {
   photographCount: number;
   appreciationsReceived: number;
   locationsContributed: number;
+  /** How many members follow this one, and how many it follows. */
+  followerCount: number;
+  followingCount: number;
   /** Month precision only — the exact signup day is not public. */
   memberSince: string;
   role: ProfileRole;
@@ -394,6 +397,49 @@ export interface PhotoSeries {
   /** In position order. An item whose photograph is no longer published is absent. */
   items: PhotoSeriesItem[];
   updatedAt: string;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Notifications                                                             */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * What a member can be told about.
+ *
+ * Kept in step with notifications_kind_allowed (migration 0023). Every one of
+ * these is something that happened to the member's own work or account —
+ * nothing here is a suggestion, a digest or a promotion.
+ */
+export const NOTIFICATION_KINDS = [
+  'comment',
+  'reply',
+  'appreciation',
+  'follow',
+  'photograph_published',
+] as const;
+
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+/**
+ * One thing that happened.
+ *
+ * `subjectLabel` and `subjectSlug` are frozen copies taken when the row was
+ * written, for the same reason `Report.subjectLabel` is one: a notification
+ * outlives its subject, and the sentence has to still read after the
+ * photograph is removed. `actor` is null for a notice with no author — a
+ * photograph clearing review is the platform's doing, not a person's.
+ */
+export interface AppNotification {
+  id: string;
+  kind: NotificationKind;
+  actor: PhotographerSummary | null;
+  subjectType: 'photograph' | 'profile' | 'comment';
+  subjectId: string;
+  subjectLabel: string;
+  /** The photograph's slug or the member's username, for the link. */
+  subjectSlug: string | null;
+  readAt: string | null;
+  createdAt: string;
 }
 
 /* ------------------------------------------------------------------------ */
