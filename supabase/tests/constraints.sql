@@ -2751,6 +2751,73 @@ begin
   raise notice 'precision ok the two old flags follow the precision and cannot be set apart from it';
 end $$;
 
+-- ------------------------ 0034: a proposal remembers its photograph
+-- The member proposes a place with their own published frame; approval
+-- credits the frame to the new place; a frame can only ever point at an
+-- approved place.
+reset "app.current_user_id";
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at, rights_confirmed_at, image_width, image_height)
+values ('cafecafe-0000-4000-8000-000000000034', 'proposer-frame', 'dddddddd-0000-4000-8000-000000000004',
+        'The frame that proposed a place', 'A cyclist crossing a wet junction under sodium light at the edge of town.',
+        'street', 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('proposing a place with somebody else''s photograph',
+  $$insert into public.location_submissions
+      (proposed_name, city, country, country_code, latitude, longitude, submitted_by, photograph_id)
+    values ('Not mine', 'Bangkok', 'Thailand', 'TH', 13.75, 100.5,
+            'dddddddd-0000-4000-8000-000000000004', 'eeeeeeee-1111-4000-8000-000000000001')$$, '42501');
+select public.test_accepts('proposing a place with one''s own photograph',
+  $$insert into public.location_submissions
+      (id, proposed_name, city, country, country_code, latitude, longitude, submitted_by, photograph_id)
+    values ('5ab00000-0000-4000-8000-000000000034', 'Wet Junction', 'Bangkok', 'Thailand', 'TH', 13.7501, 100.5002,
+            'dddddddd-0000-4000-8000-000000000004', 'cafecafe-0000-4000-8000-000000000034')$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('a moderator approving the proposal',
+  $$select public.approve_location_submission('5ab00000-0000-4000-8000-000000000034', '33333333-3333-4333-8333-333333333333')$$);
+commit;
+
+do $$
+declare v_location uuid; v_placed uuid; v_count integer;
+begin
+  select approved_location_id into v_location from public.location_submissions where id = '5ab00000-0000-4000-8000-000000000034';
+  select location_id into v_placed from public.photographs where id = 'cafecafe-0000-4000-8000-000000000034';
+  if v_location is null or v_placed is distinct from v_location then
+    raise exception 'LINK GAP  approval did not credit the proposing photograph to the place (% vs %)', v_placed, v_location;
+  end if;
+  select photograph_count into v_count from public.locations where id = v_location;
+  if v_count <> 1 then raise exception 'LINK GAP  the new place counts % photographs, expected 1', v_count; end if;
+  raise notice 'link ok      approving a proposal credits the photograph that proposed it';
+end $$;
+
+-- A member may place their own frame at an approved place later, and nowhere else.
+reset "app.current_user_id";
+insert into public.locations (id, slug, name, city, country, country_code, latitude, longitude, status)
+values ('aaaaaaaa-0000-4000-8000-000000000034', 'still-pending', 'Still pending', 'Bangkok', 'Thailand', 'TH', 13.76, 100.51, 'pending')
+on conflict (id) do nothing;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('placing a photograph at a place that is not approved',
+  $$update public.photographs set location_id = 'aaaaaaaa-0000-4000-8000-000000000034'
+     where id = 'cafecafe-0000-4000-8000-000000000002'$$, '42501');
+select public.test_accepts('placing one''s own photograph at an approved place',
+  $$update public.photographs set location_id = 'aaaaaaaa-0000-4000-8000-000000000033'
+     where id = 'cafecafe-0000-4000-8000-000000000002'$$);
+select public.test_accepts('taking the place off one''s own photograph',
+  $$update public.photographs set location_id = null
+     where id = 'cafecafe-0000-4000-8000-000000000002'$$);
+commit;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

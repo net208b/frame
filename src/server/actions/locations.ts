@@ -159,6 +159,7 @@ export async function submitLocation(input: unknown): Promise<ActionResult<{ sub
       longitude: submission.longitude,
       note: submission.note,
       submitted_by: viewer.id,
+      photograph_id: submission.photographId ?? null,
       // Advisory only. There is deliberately no path from a clean set of
       // signals to an approved location.
       signals,

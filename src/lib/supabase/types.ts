@@ -207,6 +207,8 @@ export interface LocationSubmissionRow extends Timestamps {
   resolved_at: string | null;
   resolved_by: string | null;
   approved_location_id: string | null;
+  /** The photograph the proposal came with (0034). */
+  photograph_id: string | null;
 }
 
 export interface PhotographRow extends Timestamps {

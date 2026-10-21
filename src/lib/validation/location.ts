@@ -42,6 +42,11 @@ export const locationSubmissionSchema = z.object({
   longitude: longitudeSchema,
   /** Context for the moderator: access, opening hours, anything they should know. */
   note: optionalText({ label: 'Note for the moderator', max: 600 }),
+  /**
+   * The photograph this proposal came with (0034). Approval credits it to the
+   * new place; the database refuses a photograph that is not the proposer's.
+   */
+  photographId: z.uuid('A photograph id must be a UUID.').optional(),
 });
 
 export type LocationSubmissionInput = z.infer<typeof locationSubmissionSchema>;
