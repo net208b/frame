@@ -43,6 +43,26 @@ import type { UploadDraft } from './use-upload-draft';
 /** Long enough that dragging a pin across a city is one lookup, not thirty. */
 const LOOKUP_DEBOUNCE_MS = 700;
 
+/**
+ * The pause after typing before a name is looked up.
+ *
+ * Deliberately longer than the 300 ms the approved-place search uses, because
+ * that one asks FRAME's own database and this one asks a free community
+ * service. At 500 ms a member typing a place name at speed spends one request
+ * on the word, not one per letter — which is the difference between
+ * autocomplete and abuse.
+ */
+const SEARCH_DEBOUNCE_MS = 500;
+
+/**
+ * Three, not two, before a name search fires on its own.
+ *
+ * Two letters match half of everywhere and the answer is never the one that is
+ * wanted, so the first useful suggestion is also the first request worth
+ * making. Pressing the button still searches from two.
+ */
+const SEARCH_MIN_LIVE = 3;
+
 interface LookupGuess {
   city: string | null;
   country: string | null;
@@ -73,6 +93,8 @@ export function PlaceFromPoint({
 
   const [query, setQuery] = useState('');
   const [matches, setMatches] = useState<LookupMatch[] | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchGeneration = useRef(0);
   const [searching, setSearching] = useState(false);
 
   // What the last lookup wrote, so the next one knows what it may replace.
@@ -161,27 +183,78 @@ export function PlaceFromPoint({
   /* Name → point                                                       */
   /* ---------------------------------------------------------------- */
 
-  async function runSearch(event: FormEvent) {
+  /**
+   * One lookup. `attempt` is how a slow answer to an earlier keystroke knows it
+   * has been overtaken: a member who keeps typing must not have yesterday's
+   * word land on top of today's.
+   */
+  const lookupName = useCallback(
+    async (text: string, attempt: number) => {
+      setSearching(true);
+      try {
+        const response = await fetch(
+          `/api/places/lookup?q=${encodeURIComponent(text)}&lang=${locale}`,
+          { headers: { accept: 'application/json' } },
+        );
+        const body = response.ok
+          ? ((await response.json()) as { matches?: LookupMatch[] })
+          : { matches: [] };
+        if (searchGeneration.current !== attempt) return;
+        setMatches(body.matches ?? []);
+      } catch {
+        if (searchGeneration.current !== attempt) return;
+        setMatches([]);
+      } finally {
+        if (searchGeneration.current === attempt) setSearching(false);
+      }
+    },
+    [locale],
+  );
+
+  /** Typing. Searches on the pause, not on the letter. */
+  function handleQueryChange(next: string) {
+    setQuery(next);
+
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchGeneration.current += 1;
+    const attempt = searchGeneration.current;
+
+    const trimmed = next.trim();
+    if (trimmed.length < SEARCH_MIN_LIVE) {
+      // Below the threshold there is nothing to show and nothing in flight that
+      // should still arrive: clearing the list is what makes deleting the query
+      // put the panel away.
+      setMatches(null);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    searchTimer.current = setTimeout(() => {
+      void lookupName(trimmed, attempt);
+    }, SEARCH_DEBOUNCE_MS);
+  }
+
+  /** The button and the Enter key, which search from two letters and at once. */
+  function runSearch(event: FormEvent) {
     event.preventDefault();
     const trimmed = query.trim();
     if (trimmed.length < 2) return;
 
-    setSearching(true);
-    try {
-      const response = await fetch(
-        `/api/places/lookup?q=${encodeURIComponent(trimmed)}&lang=${locale}`,
-        { headers: { accept: 'application/json' } },
-      );
-      const body = response.ok
-        ? ((await response.json()) as { matches?: LookupMatch[] })
-        : { matches: [] };
-      setMatches(body.matches ?? []);
-    } catch {
-      setMatches([]);
-    } finally {
-      setSearching(false);
-    }
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchGeneration.current += 1;
+    void lookupName(trimmed, searchGeneration.current);
   }
+
+  // Stops a late answer from calling setState after unmount, and drops any
+  // pending keystroke on the way out.
+  useEffect(
+    () => () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+      searchGeneration.current += 1;
+    },
+    [],
+  );
 
   function choose(match: LookupMatch) {
     // The coordinate first, then the rest: the picker follows the fields, so
@@ -191,6 +264,12 @@ export function PlaceFromPoint({
       longitude: match.longitude.toFixed(LOCATION_POLICY.publicCoordinateDecimals),
     });
     applyGuess(match);
+    // Past the live threshold and in the box: without bumping the generation
+    // and clearing the timer, putting the chosen name into the field would
+    // start a fresh search for the thing just chosen.
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    searchGeneration.current += 1;
+    setSearching(false);
     setMatches(null);
     setQuery(match.name);
   }
@@ -205,16 +284,22 @@ export function PlaceFromPoint({
       </p>
 
       {/*
-        A form rather than an input with a change handler, and that is the whole
-        point: it searches when the member asks it to. Searching as they type
-        would be a request per keystroke against a service that is free because
-        people do not do that to it.
+        Suggestions arrive as the member types, which is what they expect of a
+        place field and what this one did not do.
+
+        It is still a form, and the button and the Enter key still work: typing
+        is now one way to search rather than the only one, and a member on a
+        keyboard or without JavaScript is not left without a way to ask. What
+        makes typing affordable is the pause — `SEARCH_DEBOUNCE_MS` — plus the
+        three-letter floor, the day-long cache in `lib/geo/geocode.ts` and the
+        per-member limit on the route. One request per word typed, not one per
+        letter, against a free service that deserves that much care.
       */}
       <form onSubmit={runSearch} className="mt-4 flex flex-wrap items-end gap-2.5">
         <TextField
           label={t('place.searchByNameLabel')}
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => handleQueryChange(event.target.value)}
           placeholder={t('place.searchByNamePlaceholder')}
           hint={t('place.searchByNameHint')}
           autoComplete="off"
