@@ -2401,6 +2401,179 @@ begin
   raise notice 'capture ok   every column but captured_at is readable, and captured_at by no public role';
 end $$;
 
+-- -------------------------------------------- 0030: editor's picks and features
+-- Editor's pick: staff only, published only, stamped, told once.
+reset "app.current_user_id";
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('a member picking a photograph',
+  $$select public.set_editors_pick('eeeeeeee-1111-4000-8000-000000000001', true)$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('picking a draft',
+  $$select public.set_editors_pick('cafecafe-0000-4000-8000-000000000003', true)$$, '42501');
+select public.test_accepts('an editor picking a published photograph',
+  $$select public.set_editors_pick('eeeeeeee-1111-4000-8000-000000000001', true)$$);
+select public.test_accepts('picking it again',
+  $$select public.set_editors_pick('eeeeeeee-1111-4000-8000-000000000001', true)$$);
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'eeeeeeee-0000-4000-8000-000000000001';
+select public.test_rejects('the owner moving the pick date of their own picked photograph',
+  $$update public.photographs set editors_picked_at = now() + interval '30 days'
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '42501');
+select public.test_rejects('the owner un-picking their own photograph',
+  $$update public.photographs set editors_pick = false
+     where id = 'eeeeeeee-1111-4000-8000-000000000001'$$, '42501');
+commit;
+
+do $$
+declare v_pick boolean; v_at timestamptz; v_told integer;
+begin
+  select editors_pick, editors_picked_at into v_pick, v_at
+    from public.photographs where id = 'eeeeeeee-1111-4000-8000-000000000001';
+  if not v_pick or v_at is null then raise exception 'PICK GAP  the pick was not recorded with its time'; end if;
+  select count(*) into v_told from public.notifications
+   where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001' and kind = 'editors_pick';
+  if v_told <> 1 then raise exception 'PICK GAP  the photographer was told % times', v_told; end if;
+  raise notice 'pick ok      an editor''s pick is stamped and the photographer told once';
+end $$;
+
+-- Features: drafts are private, publication needs three published frames,
+-- goes through the function, and tells each photographer once.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+select public.test_rejects('a member writing a feature',
+  $$insert into public.features (slug, title_en, title_th, intro_en, intro_th)
+    values ('member-piece', 'Member piece', 'บทความสมาชิก', 'A piece a member tried to publish as editorial.',
+            'บทความที่สมาชิกพยายามเผยแพร่ในนามบรรณาธิการ')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('an editor inserting a feature as already published',
+  $$insert into public.features (slug, title_en, title_th, intro_en, intro_th, status, published_at)
+    values ('skip-the-rules', 'Skip the rules', 'ข้ามกติกา', 'A feature that tried to go up without the function.',
+            'บทความที่พยายามขึ้นโดยไม่ผ่านฟังก์ชัน', 'published', now())$$, '42501');
+select public.test_accepts('an editor starting a draft',
+  $$insert into public.features (id, slug, title_en, title_th, intro_en, intro_th, created_by)
+    values ('fea70000-0000-4000-8000-000000000001', 'after-rain', 'After rain', 'หลังฝน',
+            'Streets in the hour after the rain, when every surface is a mirror.',
+            'ถนนในชั่วโมงหลังฝนตก เมื่อทุกพื้นผิวกลายเป็นกระจก', '33333333-3333-4333-8333-333333333333')$$);
+select public.test_rejects('featuring a draft photograph',
+  $$insert into public.feature_items (feature_id, photograph_id, position)
+    values ('fea70000-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000003', 1)$$, '42501');
+select public.test_accepts('featuring two published photographs',
+  $$insert into public.feature_items (feature_id, photograph_id, position, caption_en)
+    values ('fea70000-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000002', 1, 'The first.'),
+           ('fea70000-0000-4000-8000-000000000001', 'cafecafe-0000-4000-8000-000000000004', 2, null)$$);
+select public.test_rejects('publishing a feature with only two photographs',
+  $$select public.publish_feature('fea70000-0000-4000-8000-000000000001', true)$$, '23514');
+select public.test_accepts('adding a third',
+  $$insert into public.feature_items (feature_id, photograph_id, position)
+    values ('fea70000-0000-4000-8000-000000000001', 'eeeeeeee-1111-4000-8000-000000000001', 3)$$);
+commit;
+
+begin;
+set local role anon;
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from public.features where id = 'fea70000-0000-4000-8000-000000000001';
+  if v_count <> 0 then raise exception 'FEATURE GAP  a visitor can read a draft feature'; end if;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('publishing the feature',
+  $$select public.publish_feature('fea70000-0000-4000-8000-000000000001', true)$$);
+select public.test_rejects('taking it down by writing the column',
+  $$update public.features set status = 'draft', published_at = null
+     where id = 'fea70000-0000-4000-8000-000000000001'$$, '42501');
+select public.test_accepts('taking it down with the function',
+  $$select public.publish_feature('fea70000-0000-4000-8000-000000000001', false)$$);
+select public.test_accepts('putting it back up',
+  $$select public.publish_feature('fea70000-0000-4000-8000-000000000001', true)$$);
+commit;
+
+do $$
+declare v_member integer; v_owner integer; v_visible integer;
+begin
+  select count(*) into v_member from public.notifications
+   where recipient_id = 'dddddddd-0000-4000-8000-000000000004' and kind = 'featured';
+  select count(*) into v_owner from public.notifications
+   where recipient_id = 'eeeeeeee-0000-4000-8000-000000000001' and kind = 'featured';
+  if v_member <> 1 or v_owner <> 1 then
+    raise exception 'FEATURE GAP  photographers were told % and % times, not once each', v_member, v_owner;
+  end if;
+  raise notice 'feature ok   each photographer is told once, however many frames and republications';
+end $$;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('cutting a published feature below three photographs',
+  $$select public.set_feature_items('fea70000-0000-4000-8000-000000000001',
+      '[{"photograph_id": "cafecafe-0000-4000-8000-000000000002"}]'::jsonb)$$, '23514');
+select public.test_accepts('reordering a published feature with captions',
+  $$select public.set_feature_items('fea70000-0000-4000-8000-000000000001',
+      '[{"photograph_id": "eeeeeeee-1111-4000-8000-000000000001", "caption_en": "Now first."},
+        {"photograph_id": "cafecafe-0000-4000-8000-000000000002"},
+        {"photograph_id": "cafecafe-0000-4000-8000-000000000004", "caption_th": "ภาพสุดท้าย"}]'::jsonb)$$);
+commit;
+
+do $$
+declare v_first uuid; v_count integer;
+begin
+  select photograph_id into v_first from public.feature_items
+   where feature_id = 'fea70000-0000-4000-8000-000000000001' and position = 1;
+  select count(*) into v_count from public.feature_items
+   where feature_id = 'fea70000-0000-4000-8000-000000000001';
+  if v_first <> 'eeeeeeee-1111-4000-8000-000000000001' or v_count <> 3 then
+    raise exception 'FEATURE GAP  the reorder did not land whole (first %, % items)', v_first, v_count;
+  end if;
+  raise notice 'feature ok   items are replaced whole, in order, and never below three while published';
+end $$;
+
+-- A photograph taken down drops out of the published piece.
+update public.photographs set status = 'removed', removed_reason = 'Test removal.'
+ where id = 'cafecafe-0000-4000-8000-000000000004';
+begin;
+set local role anon;
+do $$
+declare v_features integer; v_items integer;
+begin
+  select count(*) into v_features from public.features where id = 'fea70000-0000-4000-8000-000000000001';
+  select count(*) into v_items from public.feature_items where feature_id = 'fea70000-0000-4000-8000-000000000001';
+  if v_features <> 1 then raise exception 'FEATURE GAP  a visitor cannot read a published feature'; end if;
+  if v_items <> 2 then raise exception 'FEATURE GAP  a visitor sees % items, expected the 2 still published', v_items; end if;
+  raise notice 'feature ok   a published piece is public, and a frame taken down drops out of it';
+end $$;
+commit;
+
+do $$
+begin
+  if has_table_privilege('anon', 'public.features', 'INSERT')
+     or has_table_privilege('anon', 'public.feature_items', 'INSERT')
+     or has_table_privilege('authenticated', 'public.features', 'TRUNCATE')
+     or has_function_privilege('anon', 'public.set_editors_pick(uuid, boolean)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.publish_feature(uuid, boolean)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.set_feature_items(uuid, jsonb)', 'EXECUTE') then
+    raise exception 'PRIVILEGE GAP  0030 left a public role holding a write it should not';
+  end if;
+  raise notice 'feature ok   privileges were revoked first and granted back on purpose';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

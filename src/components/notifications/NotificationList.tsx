@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, Bell, Heart, ImageUp, MessageSquare, Reply, UserPlus } from 'lucide-react';
+import { Award, Bell, Heart, ImageUp, MessageSquare, Newspaper, Reply, Star, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTransition, type ComponentType } from 'react';
 
@@ -33,6 +33,8 @@ const ICONS: Record<NotificationKind, ComponentType<{ className?: string }>> = {
   follow: UserPlus,
   photograph_published: ImageUp,
   challenge_award: Award,
+  editors_pick: Star,
+  featured: Newspaper,
 };
 
 /**
@@ -49,6 +51,9 @@ function hrefFor(notification: AppNotification): string | null {
   }
   if (notification.subjectType === 'challenge') {
     return `/challenges/${notification.subjectSlug}`;
+  }
+  if (notification.subjectType === 'feature') {
+    return `/features/${notification.subjectSlug}`;
   }
   return `/photographs/${notification.subjectSlug}`;
 }

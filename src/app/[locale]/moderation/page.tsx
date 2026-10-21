@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { ChallengeDesk } from '@/components/challenges/ChallengeDesk';
 import { DuplicateLocationQueue } from '@/components/moderation/DuplicateLocationQueue';
+import { FeatureDesk } from '@/components/features/FeatureDesk';
 import {
   ADMIN_ONLY_QUEUES,
   DEFAULT_QUEUE,
@@ -22,6 +23,8 @@ import { isDemoMode } from '@/lib/config';
 import {
   getChallenge,
   getChallenges,
+  getFeature,
+  getFeatures,
   getMapPins,
   getModerationQueues,
   getStaffMembers,
@@ -104,10 +107,21 @@ export default async function ModerationPage({
         )
       : [];
 
+  // Features are read in full only on their own tab; the count is the drafts,
+  // which are the work still waiting on an editor.
+  const featureSummaries = await getFeatures(48);
+  const editorial =
+    active === 'features'
+      ? (await Promise.all(featureSummaries.map((feature) => getFeature(feature.slug)))).filter(
+          (feature): feature is NonNullable<typeof feature> => feature !== null,
+        )
+      : [];
+
   const counts: Record<QueueKey, number> = {
     submissions: queues.submissions.length,
     reports: queues.reports.length,
     challenges: awaitingResults.length,
+    features: featureSummaries.filter((feature) => feature.status === 'draft').length,
     uploads: queues.suspiciousUploads.length,
     duplicates: queues.possibleDuplicates.length,
     actions: queues.recentActions.length,
@@ -181,6 +195,7 @@ export default async function ModerationPage({
         {active === 'duplicates' && (
           <DuplicateLocationQueue locale={locale} pairs={queues.possibleDuplicates} />
         )}
+        {active === 'features' && <FeatureDesk locale={locale} features={editorial} />}
         {active === 'challenges' && (
           <ChallengeDesk locale={locale} challenges={challenges} judging={judging} />
         )}

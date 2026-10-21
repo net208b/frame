@@ -7,6 +7,7 @@ import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CaptureSpecs } from '@/components/photo-detail/CaptureSpecs';
 import { CommentThread } from '@/components/photo-detail/CommentThread';
 import { DeletePhotograph } from '@/components/photo-detail/DeletePhotograph';
+import { EditorsPickControl } from '@/components/features/EditorsPickControl';
 import { EditingNotes } from '@/components/photo-detail/EditingNotes';
 import { LocationPanel } from '@/components/photo-detail/LocationPanel';
 import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
@@ -225,6 +226,14 @@ export default async function PhotographPage({ params }: PageProps) {
           <EditingNotes editing={photo.editing} capturedAt={photo.capturedAt} />
           <LocationPanel summary={photo.location} detail={locationDetail} />
           <PhotographerPanel photographer={photo.photographer} profile={photographerProfile} />
+
+          {/* The editors' lever, for staff on a published frame — the same two
+              things set_editors_pick() checks. */}
+          {isModerator(viewer) && photo.status === 'published' ? (
+            <div className="border-t border-line pt-6">
+              <EditorsPickControl photographId={photo.id} slug={photo.slug} picked={photo.editorsPick} />
+            </div>
+          ) : null}
 
           {/* The owner manages their own work here; reporting it is for everyone else. */}
           {isOwner ? (

@@ -55,6 +55,28 @@ export interface ProfileRow extends Timestamps {
   following_count: number;
 }
 
+/** A piece by the editors (migration 0030). */
+export interface FeatureRow extends Timestamps {
+  id: string;
+  slug: string;
+  title_en: string;
+  title_th: string;
+  intro_en: string;
+  intro_th: string;
+  status: 'draft' | 'published';
+  published_at: string | null;
+  first_published_at: string | null;
+  created_by: string | null;
+}
+
+export interface FeatureItemRow {
+  feature_id: string;
+  photograph_id: string;
+  position: number;
+  caption_en: string | null;
+  caption_th: string | null;
+}
+
 /** A theme for a window of time (migration 0027). */
 export interface ChallengeRow extends Timestamps {
   id: string;
@@ -98,9 +120,17 @@ export interface ProfileFollowRow {
 export interface NotificationRow {
   id: string;
   recipient_id: string;
-  kind: 'comment' | 'reply' | 'appreciation' | 'follow' | 'photograph_published' | 'challenge_award';
+  kind:
+    | 'comment'
+    | 'reply'
+    | 'appreciation'
+    | 'follow'
+    | 'photograph_published'
+    | 'challenge_award'
+    | 'editors_pick'
+    | 'featured';
   actor_id: string | null;
-  subject_type: 'photograph' | 'profile' | 'comment' | 'challenge';
+  subject_type: 'photograph' | 'profile' | 'comment' | 'challenge' | 'feature';
   subject_id: string;
   subject_label: string;
   subject_slug: string | null;
@@ -193,6 +223,8 @@ export interface PhotographRow extends Timestamps {
   publish_captured_at: boolean;
   /** captured_at when the owner published it, null otherwise (0028, generated). */
   public_captured_at: string | null;
+  /** When an editor picked it (0030); set only by set_editors_pick(). */
+  editors_picked_at: string | null;
   rights_confirmed_at: string | null;
   storage_prefix: string | null;
   image_width: number | null;
@@ -392,6 +424,18 @@ export interface Database {
         Row: ProfileRow;
         Insert: Insertable<ProfileRow, 'id' | 'username' | 'display_name'>;
         Update: Updatable<ProfileRow>;
+        Relationships: [];
+      };
+      features: {
+        Row: FeatureRow;
+        Insert: Insertable<FeatureRow, 'slug' | 'title_en' | 'title_th' | 'intro_en' | 'intro_th'>;
+        Update: Updatable<FeatureRow>;
+        Relationships: [];
+      };
+      feature_items: {
+        Row: FeatureItemRow;
+        Insert: Insertable<FeatureItemRow, 'feature_id' | 'photograph_id' | 'position'>;
+        Update: Updatable<FeatureItemRow>;
         Relationships: [];
       };
       challenges: {
@@ -865,6 +909,21 @@ export interface Database {
       publish_challenge_results: {
         Args: { p_challenge_id: string };
         Returns: string;
+      };
+      set_editors_pick: {
+        Args: { p_photograph_id: string; p_pick: boolean };
+        Returns: undefined;
+      };
+      publish_feature: {
+        Args: { p_feature_id: string; p_publish: boolean };
+        Returns: undefined;
+      };
+      set_feature_items: {
+        Args: {
+          p_feature_id: string;
+          p_items: Array<{ photograph_id: string; caption_en: string | null; caption_th: string | null }>;
+        };
+        Returns: number;
       };
       own_photograph_capture_times: {
         Args: { p_ids: string[] };
