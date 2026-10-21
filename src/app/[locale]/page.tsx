@@ -7,7 +7,8 @@ import { CuratedGallery } from '@/components/home/CuratedGallery';
 import { FeaturedPhotographers } from '@/components/home/FeaturedPhotographers';
 import { FromTheEditors } from '@/components/home/FromTheEditors';
 import { CityMap } from '@/components/home/CityMap';
-import { Hero, type HeroCover } from '@/components/home/Hero';
+import { Hero } from '@/components/home/Hero';
+import { LatestWorldwide } from '@/components/home/LatestWorldwide';
 import { PlatformStatsRow } from '@/components/home/PlatformStatsRow';
 import { TrendingLocations } from '@/components/home/TrendingLocations';
 import { getViewer } from '@/lib/auth';
@@ -27,8 +28,8 @@ import { buildMetadata, siteJsonLd } from '@/lib/seo';
 
 /** How many editor-picked frames the curated gallery shows. */
 const CURATED_SIZE = 8;
-/** The pool the cover frame is chosen from, and the denominator of its pill. */
-const COVER_POOL_SIZE = 8;
+/** The newest frames from anywhere, the first gallery a visitor meets. */
+const LATEST_SIZE = 12;
 const TRENDING_LOCATION_COUNT = 3;
 /** The opening band only needs a handful of pins; /map carries the full set. */
 const CITY_MAP_PINS = 12;
@@ -66,10 +67,10 @@ export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await readLocaleParams(params);
   setRequestLocale(locale);
 
-  const [editorsPicks, trending, stats, photographers, locationPage, pins, viewer, place, t] =
+  const [editorsPicks, latest, stats, photographers, locationPage, pins, viewer, place, t] =
     await Promise.all([
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'editors', pageSize: CURATED_SIZE })),
-      getDiscoverFeed(normaliseDiscoverQuery({ sort: 'trending', pageSize: COVER_POOL_SIZE })),
+      getDiscoverFeed(normaliseDiscoverQuery({ sort: 'recent', pageSize: LATEST_SIZE })),
       getPlatformStats(),
       getFeaturedPhotographers(FEATURED_PHOTOGRAPHER_COUNT),
       getLocations({ page: 1 }),
@@ -93,30 +94,18 @@ export default async function HomePage({ params }: HomePageProps) {
   // containing "</script>" must not end the block early.
   const jsonLd = JSON.stringify(siteJsonLd(locale, t('meta.description'))).replace(/</g, '\\u003c');
 
-  // The cover frame is the leading trending photograph, so the opening spread
-  // reflects what the community is appreciating now. An editor's pick stands in
-  // when nothing is trending yet, and the caption says which of the two it is
-  // rather than calling everything "featured". Which set it came from is all
-  // this page decides; the sentence for each case lives in the catalogue.
-  const trendingCover = trending.items[0] ?? null;
-  const coverPhoto = trendingCover ?? editorsPicks.items[0] ?? null;
-  const coverPool = trendingCover ? trending.items : editorsPicks.items;
+  // The hero's globe lights the countries FRAME has approved places in. The
+  // pin read already carries every approved place with a publishable point,
+  // so this is a count over it rather than a query of its own.
+  const placesByCountry: Record<string, number> = {};
+  for (const pin of pins) {
+    const code = pin.countryCode.toUpperCase();
+    placesByCountry[code] = (placesByCountry[code] ?? 0) + 1;
+  }
 
-  const cover: HeroCover | null = coverPhoto
-    ? {
-        photo: coverPhoto,
-        kind: trendingCover ? 'trending' : 'editors',
-        position: 1,
-        total: coverPool.length,
-      }
-    : null;
-
-  // The cover already gives one frame the largest presence on the page, so the
-  // gallery below drops it rather than printing the same photograph twice. The
-  // fallback matters: with a single pick that is also the cover, filtering would
-  // otherwise leave an “no picks yet” state that is not true.
-  const withoutCover = editorsPicks.items.filter((photo) => photo.id !== coverPhoto?.id);
-  const curated = withoutCover.length > 0 ? withoutCover : editorsPicks.items;
+  // Nothing on the page shows an editor's pick twice any more: the hero holds
+  // the globe, not a photograph, so the gallery lists every pick.
+  const curated = editorsPicks.items;
 
   // The map-pin read already resolved a thumbnail per place, so the location
   // row reuses it instead of asking for one image per card.
@@ -126,7 +115,11 @@ export default async function HomePage({ params }: HomePageProps) {
   return (
     <div className="site-container pb-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
-      <Hero cover={cover} signedIn={viewer !== null} locale={locale} />
+      <Hero
+        globe={{ placesByCountry, visitorCountry: place.countryCode }}
+        signedIn={viewer !== null}
+        locale={locale}
+      />
 
       {/* Second on the page, not last. The map is the one thing FRAME can show
           a first-time reader before anybody has uploaded anything — their own
@@ -140,6 +133,10 @@ export default async function HomePage({ params }: HomePageProps) {
       />
 
       <PlatformStatsRow stats={stats} locale={locale} className="mt-9" />
+
+      {/* Newest first, from anywhere: what the community is doing now, before
+          what the editors chose. */}
+      <LatestWorldwide photos={latest.items} locale={locale} />
 
       <CuratedGallery photos={curated} locale={locale} />
 

@@ -147,13 +147,6 @@
       "explore": "Explore photographs",
       "share": "Share your work"
     },
-    "cover": {
-      "trendingEyebrow": "Trending now",
-      "editorsEyebrow": "Editor’s pick",
-      "trendingNote": "{count, plural, one {The only photograph currently trending} other {Ranked first of the # photographs currently trending}}",
-      "editorsNote": "{count, plural, one {The only photograph chosen by FRAME editors} other {The first of # photographs chosen by FRAME editors}}",
-      "empty": "No photographs have been published yet, so there is no cover frame to show. The first published photograph will appear here."
-    },
     "stats": {
       "headingReal": "FRAME in numbers",
       "headingDemo": "The bundled demo dataset in numbers",
@@ -222,6 +215,29 @@
     },
     "loading": {
       "status": "Loading the FRAME home page."
+    },
+    "latest": {
+      "eyebrow": "Just published, worldwide",
+      "title": "The newest frames, wherever they were made.",
+      "description": "Every photograph published on FRAME, newest first, from anywhere in the world. Nothing ranked, nothing chosen — just what the community made most recently.",
+      "browseAll": "Browse every published photograph",
+      "emptyTitle": "Nothing published yet",
+      "emptyDescription": "The first photograph published on FRAME will appear here the moment a moderator approves it.",
+      "emptyAction": "Share the first one"
+    },
+    "globe": {
+      "searchLabel": "Find a country",
+      "searchPlaceholder": "Find a country — Thailand, Japan, Portugal…",
+      "canvasLabel": "A globe of the world. Drag to turn it; click a country to choose it.",
+      "canvasLabelSelected": "A globe of the world, turned to {country}. Drag to turn it; click a country to choose it.",
+      "loading": "Drawing the world…",
+      "failed": "The globe could not be drawn. The map and the places index still work.",
+      "yourCountry": "Where you are",
+      "selected": "Chosen",
+      "places": "{count, plural, one {# place on FRAME} other {# places on FRAME}}",
+      "placesShort": "{count, plural, one {# place} other {# places}}",
+      "noPlaces": "No places on FRAME yet — be the first to pin one.",
+      "browse": "See the places"
     }
   },
   "discover": {
