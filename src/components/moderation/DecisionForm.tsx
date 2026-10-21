@@ -6,7 +6,7 @@ import { useId, useState, type FormEvent } from 'react';
 import { useToast } from '@/components/system/Toast';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/Dialog';
-import { CheckboxField, TextAreaField, TextField } from '@/components/ui/Field';
+import { TextAreaField, TextField } from '@/components/ui/Field';
 import type { ActionResult } from '@/lib/action-result';
 import { cn } from '@/lib/utils';
 import { isValidationCode } from '@/lib/validation/codes';
@@ -18,7 +18,7 @@ import {
   resolveReport,
   suspendAccount,
 } from '@/server/actions/moderation';
-import type { ModerationDecision } from '@/types/domain';
+import { PIN_PRECISIONS, type ModerationDecision, type PinPrecision } from '@/types/domain';
 
 /**
  * The controls for one queue item.
@@ -131,8 +131,7 @@ export function DecisionForm({
   );
   const [reason, setReason] = useState('');
   const [durationDays, setDurationDays] = useState('');
-  const [isSensitive, setIsSensitive] = useState(false);
-  const [withholdCoordinates, setWithholdCoordinates] = useState(false);
+  const [pinPrecision, setPinPrecision] = useState<PinPrecision>('exact');
 
   const [pending, setPending] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -151,8 +150,7 @@ export function DecisionForm({
         submissionId: target.submissionId,
         decision: value,
         reason: trimmed,
-        isSensitive,
-        withholdCoordinates,
+        pinPrecision,
       });
     }
     if (target.kind === 'report') {
@@ -352,19 +350,23 @@ export function DecisionForm({
               <p className="text-meta leading-relaxed text-muted">
                 {t('form.coordinatePrivacy.intro')}
               </p>
-              <div className="mt-3 flex flex-col gap-2.5">
-                <CheckboxField
-                  label={t('form.coordinatePrivacy.reducedLabel')}
-                  description={t('form.coordinatePrivacy.reducedDescription')}
-                  checked={isSensitive}
-                  onChange={(event) => setIsSensitive(event.currentTarget.checked)}
-                />
-                <CheckboxField
-                  label={t('form.coordinatePrivacy.withholdLabel')}
-                  description={t('form.coordinatePrivacy.withholdDescription')}
-                  checked={withholdCoordinates}
-                  onChange={(event) => setWithholdCoordinates(event.currentTarget.checked)}
-                />
+              <div className="mt-3 flex flex-col gap-2">
+                {PIN_PRECISIONS.map((option) => (
+                  <label key={option} className="flex cursor-pointer items-start gap-3 rounded-card border border-line p-3 has-[:checked]:border-ink">
+                    <input
+                      type="radio"
+                      name={`${groupId}-precision`}
+                      value={option}
+                      checked={pinPrecision === option}
+                      onChange={() => setPinPrecision(option)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block text-body font-semibold">{t(`form.coordinatePrivacy.options.${option}.label`)}</span>
+                      <span className="block text-meta text-muted">{t(`form.coordinatePrivacy.options.${option}.description`)}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
             </fieldset>
           ) : null}

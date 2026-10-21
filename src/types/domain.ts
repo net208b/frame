@@ -181,6 +181,14 @@ export interface PhotographerProfile extends PhotographerSummary {
 /* Places                                                                    */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * How precisely a place is pinned, chosen by staff at approval and changeable
+ * afterwards. Kept in step with locations_pin_precision_allowed (0033).
+ */
+export const PIN_PRECISIONS = ['exact', 'approximate', 'area', 'none'] as const;
+
+export type PinPrecision = (typeof PIN_PRECISIONS)[number];
+
 export interface LocationSummary {
   id: string;
   slug: string;
@@ -208,6 +216,8 @@ export interface LocationDetail extends LocationSummary {
   description: string | null;
   /** Null when the place is sensitive and no coordinate may be published. */
   coordinates: Coordinates | null;
+  /** The staff's precision choice for this place (0033). */
+  pinPrecision: PinPrecision;
   /** Categories this place is actually good for, from approved photographs. */
   categories: PhotoCategory[];
   /** Community-written, moderator-approved shooting advice. */

@@ -226,7 +226,13 @@ export const LOCATION_POLICY = {
   maxSubmissionsPerDay: 5,
   /** Two submissions closer than this are flagged as possible duplicates. */
   duplicateRadiusMetres: 120,
-  /** Coordinate precision published for an approved location (~11 m). */
+  /**
+   * The point as submitted (0033's `exact`, the default). Six decimals is
+   * about a tenth of a metre — finer than any camera or phone records — so
+   * nothing is lost, and the figure still names a precision the UI can state.
+   */
+  exactCoordinateDecimals: 6,
+  /** Coordinate precision for a place pinned "approximate" (~11 m). */
   publicCoordinateDecimals: 4,
   /** Precision used when a location is marked as privacy-sensitive (~1.1 km). */
   reducedCoordinateDecimals: 2,

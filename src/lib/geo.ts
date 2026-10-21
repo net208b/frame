@@ -1,5 +1,5 @@
 import { LOCATION_POLICY } from '@/lib/config';
-import type { Coordinates, SubmissionSignal } from '@/types/domain';
+import type { Coordinates, PinPrecision, SubmissionSignal } from '@/types/domain';
 
 /**
  * Geographic helpers, plus the coordinate-privacy policy.
@@ -58,26 +58,34 @@ function roundTo(value: number, decimals: number): number {
 /**
  * Apply the publication policy to a stored coordinate.
  *
- * `isSensitive` is a moderator-set flag on the location row. When it is set we
- * either coarsen the point to roughly a kilometre or withhold it entirely.
+ * `precision` is the moderator's choice on the location row (0033): the point
+ * as submitted, about eleven metres, about a kilometre, or no point. The two
+ * older flags are still accepted from readers that have not been updated and
+ * mean what they always did; a precision, when given, wins.
  */
 export function publishableCoordinates(
   latitude: number,
   longitude: number,
-  options: { isSensitive?: boolean; withhold?: boolean } = {},
+  options: { precision?: PinPrecision | null; isSensitive?: boolean; withhold?: boolean } = {},
 ): Coordinates | null {
   if (!isValidLatitude(latitude) || !isValidLongitude(longitude)) return null;
-  if (options.withhold) return null;
 
-  const decimals = options.isSensitive
-    ? LOCATION_POLICY.reducedCoordinateDecimals
-    : LOCATION_POLICY.publicCoordinateDecimals;
+  const precision: PinPrecision =
+    options.precision ?? (options.withhold ? 'none' : options.isSensitive ? 'area' : 'approximate');
+  if (precision === 'none') return null;
+
+  const decimals =
+    precision === 'exact'
+      ? LOCATION_POLICY.exactCoordinateDecimals
+      : precision === 'area'
+        ? LOCATION_POLICY.reducedCoordinateDecimals
+        : LOCATION_POLICY.publicCoordinateDecimals;
 
   return {
     latitude: roundTo(latitude, decimals),
     longitude: roundTo(longitude, decimals),
     precisionDecimals: decimals,
-    isApproximate: Boolean(options.isSensitive),
+    isApproximate: precision === 'area',
   };
 }
 

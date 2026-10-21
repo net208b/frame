@@ -172,6 +172,8 @@ export interface LocationRow extends Timestamps {
   best_time_of_day: string | null;
   is_sensitive: boolean;
   withhold_coordinates: boolean;
+  /** exact | approximate | area | none (0033); the two flags above are derived from it. */
+  pin_precision: string;
   status: 'pending' | 'approved' | 'rejected';
   submitted_by: string | null;
   approved_at: string | null;
