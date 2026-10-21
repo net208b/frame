@@ -1526,7 +1526,7 @@
       "pointHint": "Search by name, or click the map to drop a pin and drag it to the exact spot. The city, country and code fill themselves in from the point, and you can edit any of them. The two fields below follow the pin — use them if you have the coordinate from a GPS or from the camera.",
       "searchByNameLabel": "Search for the place by name",
       "searchByNamePlaceholder": "Wat Arun, Shibuya Crossing, Praça do Comércio",
-      "searchByNameHint": "Finds the point on the map and fills in the city and country. Press Enter to search — it only looks when you ask it to.",
+      "searchByNameHint": "Finds the point on the map and fills in the city and country. Suggestions appear as you type, from three letters; Enter or the button searches at once.",
       "searchByNameAction": "Search",
       "searchByNameNone": "Nothing found by that name. Drop a pin on the map instead, or try a nearby landmark.",
       "pickerIdle": "No pin yet. Click the map where the photograph was taken.",
