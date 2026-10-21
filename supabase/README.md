@@ -144,11 +144,11 @@ create policy "members delete only their own objects"
 The bucket is public because every derivative is served directly to a browser
 from a public photograph page. Being public, it serves any object by its
 address whatever the policies say — which is why the read policy no longer
-lets anybody list other members' folders (0026), why the original is deleted
-on every path out of processing, failed ones included, and why a moderator's
-removal deletes the photograph's files rather than only hiding the row. The
-original still passes through this bucket while it is processed; a private
-bucket for originals is the complete fix. If the
+lets anybody list other members' folders (0026), why a moderator's removal
+deletes the photograph's files rather than only hiding the row, and why an
+upload's original never comes here at all: since 0031 it goes to the private
+`photograph-originals` bucket, is read back through the member's own session,
+and is deleted on every path out of processing. If the
 project is configured for R2 instead (`STORAGE_PROVIDER=r2`), none of this
 applies and the bucket lives there — the swap is meant to be a configuration
 change, which is what `StorageDriver` in `@/lib/storage` is for.

@@ -3,8 +3,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 import {
+  AVATAR_FOLDER,
   assertSignableUpload,
   encodeKeyPath,
+  isOriginalKey,
   parseStorageKey,
   StorageRequestError,
   type StorageDriver,
@@ -38,7 +40,13 @@ const CACHE_CONTROL = `max-age=${365 * 24 * 60 * 60}`;
 export function supabaseStorageDriver(): StorageDriver {
   const env = serverEnv();
   const bucket = env.storageBucket;
+  const originalsBucket = env.originalsBucket;
   const origin = env.supabaseUrl.replace(/\/+$/, '');
+
+  // The key decides the bucket (0031): an upload's original goes to the
+  // private bucket, everything served goes to the public one. Every caller
+  // already builds keys with storageKeys(), so none of them has to know.
+  const bucketFor = (key: string) => (isOriginalKey(key) ? originalsBucket : bucket);
 
   return {
     name: 'supabase',
@@ -48,7 +56,7 @@ export function supabaseStorageDriver(): StorageDriver {
 
       const supabase = await createClient();
       const { data, error } = await supabase.storage
-        .from(bucket)
+        .from(bucketFor(input.key))
         // Upsert so a retry after a dropped connection succeeds instead of
         // stranding the draft behind a key that already exists.
         .createSignedUploadUrl(input.key, { upsert: true });
@@ -73,13 +81,34 @@ export function supabaseStorageDriver(): StorageDriver {
     },
 
     /**
-     * Assumes the bucket is public-read, which is how FRAME configures it: the
-     * derivatives are published photographs. A private bucket would need signed
-     * download URLs instead, which is a repository-level change, not a string
-     * built here.
+     * Served files only. The public bucket is public-read: the derivatives are
+     * published photographs. An original has no public address at all — it
+     * lives in the private bucket — so asking for one is a bug in the caller.
      */
     publicUrl(key) {
+      if (isOriginalKey(key)) {
+        throw new StorageRequestError(`Refusing a public address for ${key}: an original is never served.`);
+      }
       return `${origin}/storage/v1/object/public/${bucket}/${encodeKeyPath(key)}`;
+    },
+
+    /**
+     * Read an original back for processing, as the member — the private
+     * bucket lets them read their own prefix and nobody else's. Null when it
+     * is not there, including the moment between the upload finishing and the
+     * object becoming readable; the caller retries.
+     */
+    async readOriginal(key) {
+      if (!isOriginalKey(key)) {
+        throw new StorageRequestError(`Refusing to read ${key} as an original.`);
+      }
+      const supabase = await createClient();
+      const { data, error } = await supabase.storage.from(originalsBucket).download(key);
+      if (error !== null || data === null) {
+        console.error(`FRAME storage: reading ${key} failed — ${error?.message ?? 'no data'}`);
+        return null;
+      }
+      return new Uint8Array(await data.arrayBuffer());
     },
 
     async remove(keys, options = {}) {
@@ -95,11 +124,21 @@ export function supabaseStorageDriver(): StorageDriver {
 
       // As the member unless the caller says otherwise; see StorageDriver.remove.
       const supabase = options.asService ? createAdminClient() : await createClient();
-      const { error } = await supabase.storage.from(bucket).remove([...keys]);
-      if (error !== null) {
-        throw new StorageRequestError('Supabase Storage refused to delete those objects.', {
-          cause: error,
-        });
+
+      // One request per bucket: an original and its derivatives live apart.
+      const byBucket = new Map<string, string[]>();
+      for (const key of keys) {
+        const target = bucketFor(key);
+        byBucket.set(target, [...(byBucket.get(target) ?? []), key]);
+      }
+
+      for (const [target, targetKeys] of byBucket) {
+        const { error } = await supabase.storage.from(target).remove(targetKeys);
+        if (error !== null) {
+          throw new StorageRequestError('Supabase Storage refused to delete those objects.', {
+            cause: error,
+          });
+        }
       }
 
       /*
@@ -113,10 +152,10 @@ export function supabaseStorageDriver(): StorageDriver {
        * That is not hypothetical: it is what happened, in a local test, before
        * this check existed.
        *
-       * So the folders are listed afterwards and any key still there is an
-       * error. The response's own list of deleted objects cannot answer this:
-       * a key that never existed is absent from it too, and a draft has no
-       * derivatives yet.
+       * So the folders are listed afterwards, in each bucket, and any key still
+       * there is an error. The response's own list of deleted objects cannot
+       * answer this: a key that never existed is absent from it too, and a
+       * draft has no derivatives yet.
        *
        * The listing uses the service role, which RLS does not filter. Listed
        * as the member, it would go through the read policy, and a bucket
@@ -135,30 +174,37 @@ export function supabaseStorageDriver(): StorageDriver {
         );
       }
 
-      const byFolder = new Map<string, Set<string>>();
-      for (const key of keys) {
-        const parsed = parseStorageKey(key);
-        if (!parsed) continue;
-        const folder = `${parsed.ownerId}/${parsed.photographId}`;
-        const leaves = byFolder.get(folder) ?? new Set<string>();
-        leaves.add(parsed.leaf);
-        byFolder.set(folder, leaves);
-      }
-
-      for (const [folder, leaves] of byFolder) {
-        const { data: listed, error: listError } = await verifier.storage
-          .from(bucket)
-          .list(folder, { limit: 100 });
-        if (listError !== null) {
-          throw new StorageRequestError(`Could not confirm the objects in ${folder} were deleted.`, {
-            cause: listError,
-          });
+      for (const [target, targetKeys] of byBucket) {
+        const byFolder = new Map<string, Set<string>>();
+        for (const key of targetKeys) {
+          const parsed = parseStorageKey(key);
+          if (!parsed) continue;
+          // An avatar has no photograph id; its folder is `<owner>/avatars`.
+          // (Listing `<owner>/null` here, as this check once did, found
+          // nothing and so passed whether or not the avatar was gone.)
+          const folder = parsed.photographId
+            ? `${parsed.ownerId}/${parsed.photographId}`
+            : `${parsed.ownerId}/${AVATAR_FOLDER}`;
+          const leaves = byFolder.get(folder) ?? new Set<string>();
+          leaves.add(parsed.leaf);
+          byFolder.set(folder, leaves);
         }
-        const remaining = (listed ?? []).filter((object) => leaves.has(object.name));
-        if (remaining.length > 0) {
-          throw new StorageRequestError(
-            `Supabase Storage reported ${folder} deleted, but ${remaining.length} object(s) remain. Check the bucket's delete policy.`,
-          );
+
+        for (const [folder, leaves] of byFolder) {
+          const { data: listed, error: listError } = await verifier.storage
+            .from(target)
+            .list(folder, { limit: 100 });
+          if (listError !== null) {
+            throw new StorageRequestError(`Could not confirm the objects in ${folder} were deleted.`, {
+              cause: listError,
+            });
+          }
+          const remaining = (listed ?? []).filter((object) => leaves.has(object.name));
+          if (remaining.length > 0) {
+            throw new StorageRequestError(
+              `Supabase Storage reported ${folder} deleted, but ${remaining.length} object(s) remain. Check the bucket's delete policy.`,
+            );
+          }
         }
       }
     },

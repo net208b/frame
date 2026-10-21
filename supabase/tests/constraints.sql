@@ -2574,6 +2574,63 @@ begin
   raise notice 'feature ok   privileges were revoked first and granted back on purpose';
 end $$;
 
+-- ------------------------------------ 0031: originals in a private bucket
+-- The original never has a public address: the bucket is private, a visitor
+-- reads nothing in it, and a member reads only their own.
+do $$
+declare v_public boolean; v_limit bigint;
+begin
+  select public, file_size_limit into v_public, v_limit
+    from storage.buckets where id = 'photograph-originals';
+  if not found then raise exception 'STORAGE GAP  the photograph-originals bucket does not exist'; end if;
+  if v_public then raise exception 'STORAGE GAP  the originals bucket is public'; end if;
+  if v_limit is distinct from 52428800 then
+    raise exception 'STORAGE DRIFT  the originals bucket limit is %, not 52428800', v_limit;
+  end if;
+end $$;
+
+reset "app.current_user_id";
+insert into storage.objects (bucket_id, name) values
+  ('photograph-originals', 'dddddddd-0000-4000-8000-000000000004/aaaaaaaa-0000-4000-8000-000000000003/original'),
+  ('photograph-originals', 'eeeeeeee-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000004/original')
+on conflict (bucket_id, name) do nothing;
+
+begin;
+set local role anon;
+do $$
+declare v_count integer;
+begin
+  select count(*) into v_count from storage.objects where bucket_id = 'photograph-originals';
+  if v_count <> 0 then raise exception 'STORAGE GAP  a visitor can see % originals', v_count; end if;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'dddddddd-0000-4000-8000-000000000004';
+do $$
+declare v_own integer; v_others integer;
+begin
+  select count(*) into v_own from storage.objects
+   where bucket_id = 'photograph-originals' and name like 'dddddddd-0000-4000-8000-000000000004/%';
+  select count(*) into v_others from storage.objects
+   where bucket_id = 'photograph-originals' and name not like 'dddddddd-0000-4000-8000-000000000004/%';
+  if v_own <> 1 then raise exception 'STORAGE GAP  a member cannot read their own original'; end if;
+  if v_others <> 0 then raise exception 'STORAGE GAP  a member can read % originals of other members', v_others; end if;
+end $$;
+select public.test_rejects('a member writing an original into somebody else''s prefix',
+  $$insert into storage.objects (bucket_id, name)
+    values ('photograph-originals', 'eeeeeeee-0000-4000-8000-000000000001/aaaaaaaa-0000-4000-8000-000000000005/original')$$,
+  '42501');
+select public.test_accepts('a member writing an original into their own prefix',
+  $$insert into storage.objects (bucket_id, name)
+    values ('photograph-originals', 'dddddddd-0000-4000-8000-000000000004/aaaaaaaa-0000-4000-8000-000000000006/original')$$);
+commit;
+
+do $$ begin
+  raise notice 'storage ok   originals live in a private bucket: invisible to visitors, a member sees and writes only their own';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
