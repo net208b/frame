@@ -705,7 +705,7 @@ are things only the operator of a deployment can do.
    empty, and no `NEXT_PUBLIC_` variable may hold it.
 3. **Create the storage bucket with its limits and its four policies**, from
    [`supabase/README.md`](../supabase/README.md#creating-the-storage-bucket).
-   `file_size_limit` must match `UPLOAD_POLICY.maxFileBytes` (26214400) and
+   `file_size_limit` must match `UPLOAD_POLICY.maxFileBytes` (52428800) and
    `allowed_mime_types` must match the four accepted types — the per-grant
    ceiling cannot be expressed, so the bucket is where that limit lives.
 4. **Set the Supabase auth URLs** (site URL and the redirect allow-list) so that

@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { fail, NOT_CONFIGURED_MESSAGE, ok, type ActionResult } from '@/lib/action-result';
 import { getViewer, getViewerSuspension, isModerator, type Viewer } from '@/lib/auth';
 import { isDemoMode } from '@/lib/config';
+import { storageKeys } from '@/lib/images/variants';
+import { storageDriver } from '@/lib/storage';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
 import { createClient } from '@/lib/supabase/server';
@@ -515,6 +517,7 @@ export async function resolveReport(input: unknown): Promise<ActionResult<void>>
   let photographSlug: string | null = null;
   let ownerUsername: string | null = null;
   let locationSlug: string | null = null;
+  let filesWithdrawn = true;
 
   if (decision === 'remove_content') {
     if (!REMOVABLE_SUBJECTS.has(subjectType)) {
@@ -545,6 +548,7 @@ export async function resolveReport(input: unknown): Promise<ActionResult<void>>
 
       if (removeError) return failFromQuery(removeError, 'removing the reported photograph');
 
+      filesWithdrawn = await withdrawPhotographFiles(subjectId, photograph.data.owner_id);
       photographSlug = photograph.data.slug;
       ownerUsername = await usernameOf(supabase, photograph.data.owner_id);
     } else {
@@ -613,7 +617,7 @@ export async function resolveReport(input: unknown): Promise<ActionResult<void>>
     decision === 'dismiss'
       ? 'The report is dismissed and closed.'
       : decision === 'remove_content'
-        ? 'The content is removed and the report is closed.'
+        ? `The content is removed and the report is closed.${filesWithdrawn ? '' : FILES_STILL_SERVED}`
         : // `moderation_actions` has no member SELECT policy, so this note
           // reaches moderators and nobody else.
           'The report is closed and your note is in the moderation trail. The owner has not been told.',
@@ -621,6 +625,43 @@ export async function resolveReport(input: unknown): Promise<ActionResult<void>>
 }
 
 const REPORT_SUBJECTS: ReadonlySet<string> = new Set(['photograph', 'location', 'profile', 'collection']);
+
+/**
+ * Take a removed photograph's files out of storage.
+ *
+ * Marking the row `removed` takes the photograph off every page, but the
+ * bucket is public-read and serves its files without consulting the row, so
+ * the addresses that were public while it was up — in caches, in shares, in
+ * image search — kept working. A photograph removed for a privacy complaint
+ * has to stop being served, not merely stop being linked.
+ *
+ * Removal is final (0012: a removed photograph cannot be resubmitted), so
+ * nothing is lost that the product could have restored. It runs with the
+ * service role because the files belong to the member and the policies only
+ * let an owner delete their own. A failure does not undo the decision, which
+ * is already recorded; it is reported so the moderator knows the files are
+ * still there.
+ */
+async function withdrawPhotographFiles(photographId: string, ownerId: string): Promise<boolean> {
+  try {
+    const keys = storageKeys(photographId, ownerId);
+    await storageDriver().remove(
+      [keys.original, keys.thumb, keys.grid, keys.display, keys.full],
+      { asService: true },
+    );
+    return true;
+  } catch (error) {
+    console.error(
+      `FRAME moderation: removing the files of photograph ${photographId} failed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return false;
+  }
+}
+
+const FILES_STILL_SERVED =
+  ' Its image files could not be deleted, so their old addresses may still serve them — check the storage logs.';
 
 /** Narrow a stored subject type, defaulting to the one the audit table allows. */
 function toReportSubject(value: string): ModerationSubjectType {
@@ -717,6 +758,9 @@ export async function actOnUpload(input: unknown): Promise<ActionResult<void>> {
   const { error: writeError } = await supabase.from('photographs').update(update).eq('id', photographId);
   if (writeError) return failFromQuery(writeError, 'recording the decision on the upload');
 
+  const filesWithdrawn =
+    decision === 'remove_content' ? await withdrawPhotographFiles(photographId, current.owner_id) : true;
+
   const audit = await recordAuditRow(supabase, {
     decision,
     subjectType: 'photograph',
@@ -738,7 +782,7 @@ export async function actOnUpload(input: unknown): Promise<ActionResult<void>> {
     decision === 'approve'
       ? 'The photograph is published.'
       : decision === 'remove_content'
-        ? 'The photograph is removed and the member can read your reason.'
+        ? `The photograph is removed and the member can read your reason.${filesWithdrawn ? '' : FILES_STILL_SERVED}`
         : // `removed_reason` is the only member-readable note on a photograph,
           // and a hold does not set it, so this reason stays internal.
           'The photograph stays under review. Your reason is in the moderation trail, which only moderators can read.',

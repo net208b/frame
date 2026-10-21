@@ -95,29 +95,32 @@ psql postgresql://postgres:postgres@127.0.0.1:54322/postgres
 
 ## The storage bucket
 
-`migrations/0008_storage.sql` creates it, so there is no manual step: a
-`supabase db push` or a `supabase db reset` produces the bucket and its four
-policies. The local stack also declares it in `config.toml`
+`migrations/0008_storage.sql` creates it and `0026` corrects it, so there is
+no manual step: a `supabase db push` or a `supabase db reset` produces the
+bucket and its four policies. The local stack also declares it in `config.toml`
 (`[storage.buckets.photographs]`); keep the two in step. What follows is what
 0008 does and why, not something to run by hand.
 
 ```sql
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('photographs', 'photographs', true, 26214400,
+values ('photographs', 'photographs', true, 52428800,
         array['image/jpeg', 'image/png', 'image/webp', 'image/avif'])
 on conflict (id) do nothing;
 ```
 
-`26214400` is `UPLOAD_POLICY.maxFileBytes` (25 MiB) from `src/lib/config.ts`.
+`52428800` is `UPLOAD_POLICY.maxFileBytes` (50 MiB) from `src/lib/config.ts`;
+0008 wrote 25 MiB and 0026 raised it to match.
 Then allow a member to write only inside their own prefix — storage keys are
 `<owner_id>/<photograph_id>/<variant>.webp`, per `storageKeys()` in
 `src/lib/images/variants.ts`:
 
 ```sql
-create policy "photographs are publicly readable"
+-- 0026. A public bucket serves files without consulting RLS, so this policy
+-- only governs listing and authenticated download — a member's own folder.
+create policy "members read only their own objects"
   on storage.objects for select
-  to anon, authenticated
-  using (bucket_id = 'photographs');
+  to authenticated
+  using (bucket_id = 'photographs' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
 create policy "members write only their own prefix"
   on storage.objects for insert
@@ -139,8 +142,13 @@ create policy "members delete only their own objects"
 ```
 
 The bucket is public because every derivative is served directly to a browser
-from a public photograph page. Only the derivatives are ever served; the
-original is kept under the same prefix and is never linked from the UI. If the
+from a public photograph page. Being public, it serves any object by its
+address whatever the policies say — which is why the read policy no longer
+lets anybody list other members' folders (0026), why the original is deleted
+on every path out of processing, failed ones included, and why a moderator's
+removal deletes the photograph's files rather than only hiding the row. The
+original still passes through this bucket while it is processed; a private
+bucket for originals is the complete fix. If the
 project is configured for R2 instead (`STORAGE_PROVIDER=r2`), none of this
 applies and the bucket lives there — the swap is meant to be a configuration
 change, which is what `StorageDriver` in `@/lib/storage` is for.
