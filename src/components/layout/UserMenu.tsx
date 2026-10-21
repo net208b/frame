@@ -3,7 +3,7 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { Bookmark, ChevronDown, LogOut, Settings, ShieldCheck, Upload, User } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId, type ComponentType, type ReactNode } from 'react';
+import { useRef, type ComponentType, type ReactNode } from 'react';
 
 import { Avatar } from '@/components/photographer/Avatar';
 import { Link } from '@/i18n/navigation';
@@ -41,16 +41,18 @@ export function UserMenu({
 }) {
   const t = useTranslations('nav');
 
-  // A real form POST, so signing out does not depend on a click handler.
-  const signOutFormId = useId();
+  // Sign-out is a real form POST, but it is NOT fired by a `type="submit"`
+  // button inside the menu item: Radix owns the item's activation and the
+  // native submit never reached the form, so clicking did nothing at all. The
+  // item's `onSelect` calls `requestSubmit()` on this form instead — the same
+  // real POST, triggered by the one handler Radix guarantees runs.
+  const signOutForm = useRef<HTMLFormElement>(null);
 
   return (
     <>
-      {/* The form lives OUTSIDE the dropdown, not in its portal. The portal is
-          unmounted the moment the item is clicked, and a submit button that
-          refers to a form by id needs that form in the DOM at submit time. Kept
-          here, as a sibling that never unmounts, the POST always fires. */}
-      <form id={signOutFormId} action="/auth/signout" method="post" className="hidden" />
+      {/* Outside the dropdown's portal, so it survives the menu unmounting on
+          select — `requestSubmit` below needs it in the DOM at that moment. */}
+      <form ref={signOutForm} action="/auth/signout" method="post" className="hidden" />
 
       <DropdownMenu.Root>
       <DropdownMenu.Trigger
@@ -104,11 +106,15 @@ export function UserMenu({
 
           <DropdownMenu.Separator className="mx-1 my-1.5 h-px bg-line" />
 
-          <DropdownMenu.Item asChild>
-            <button type="submit" form={signOutFormId} className={ITEM_CLASS}>
-              <LogOut className="size-4 shrink-0 text-muted" aria-hidden />
-              {t('signOut')}
-            </button>
+          <DropdownMenu.Item
+            // `requestSubmit`, not `.submit()`, so the POST goes through the
+            // form's action and method exactly as a click on a submit button
+            // would — the route still sees a same-origin form POST.
+            onSelect={() => signOutForm.current?.requestSubmit()}
+            className={ITEM_CLASS}
+          >
+            <LogOut className="size-4 shrink-0 text-muted" aria-hidden />
+            {t('signOut')}
           </DropdownMenu.Item>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
