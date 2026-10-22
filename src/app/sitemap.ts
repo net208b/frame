@@ -3,6 +3,7 @@ import type { MetadataRoute } from 'next';
 import { DEFAULT_LOCALE, LOCALES, withLocalePrefix } from '@/i18n/locales';
 import { siteUrl } from '@/lib/config';
 import {
+  getCitiesWithContent,
   getLocationSlugs,
   getPhotographSlugs,
   getPhotographerUsernames,
@@ -46,7 +47,7 @@ import { LEGAL_DOCUMENTS, LEGAL_LAST_REVIEWED } from './[locale]/legal/policy';
  *
  * Two languages double the number of URLs in this file, which doubles the cost
  * of getting the filtering wrong — so the filtering is not repeated here. Every
- * entry is still derived from exactly the five repository functions above and
+ * entry is still derived from exactly the six repository functions above and
  * the two static lists below, and `expand` only ever adds a prefix to a path
  * that one of them produced. It cannot turn a private URL into a public one,
  * and it cannot invent a path. Anything new belongs in one of those sources,
@@ -94,12 +95,13 @@ function expand(base: string, entries: readonly LocaleFreeEntry[]): MetadataRout
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
 
-  const [photographs, locations, photographers, collections, styles] = await Promise.all([
+  const [photographs, locations, photographers, collections, styles, cities] = await Promise.all([
     getPhotographSlugs(),
     getLocationSlugs(),
     getPhotographerUsernames(),
     getPublicCollectionSlugs(),
     getStyleSlugsWithContent(),
+    getCitiesWithContent(),
   ]);
 
   const landing: LocaleFreeEntry[] = [
@@ -119,6 +121,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     path: `/discover/style/${slug}`,
     changeFrequency: 'daily',
     priority: 0.8,
+  }));
+
+  // The city hubs with published work behind them, filtered at the repository
+  // for the same reason as everything else here, and `noIndex` on the page in
+  // exactly the case they are withheld.
+  const cityEntries: LocaleFreeEntry[] = cities.map(({ countryCode, citySlug }) => ({
+    path: `/locations/in/${countryCode}/${citySlug}`,
+    changeFrequency: 'weekly',
+    priority: 0.7,
   }));
 
   const legal: LocaleFreeEntry[] = LEGAL_DOCUMENTS.map((policy) => ({
@@ -158,6 +169,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return expand(base, [
     ...landing,
     ...styleEntries,
+    ...cityEntries,
     ...photographEntries,
     ...locationEntries,
     ...photographerEntries,

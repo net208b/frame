@@ -10,7 +10,7 @@ import { TranslationBlock, Translated } from '@/components/translation/AutoTrans
 import { anyTranslation } from '@/lib/translation/applies';
 import { INTL_LOCALES, type Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
-import { cn, formatCount, formatDate } from '@/lib/utils';
+import { cn, formatCount, formatDate, slugify } from '@/lib/utils';
 import type { LocationDetail } from '@/types/domain';
 
 /**
@@ -67,8 +67,17 @@ export async function LocationHeader({
       </TranslationBlock>
 
       <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-lead text-muted">
+        {/* The city is a link to its hub: the other approved places in it and
+            the frames made at them. A derived address, built from the place's
+            own columns by the same `slugify` the route resolves with. */}
         <span>
-          {location.city}, {location.country}
+          <Link
+            href={`/locations/in/${location.countryCode}/${slugify(location.city)}`}
+            className="underline decoration-line underline-offset-4 transition-colors duration-150 hover:text-ink hover:decoration-line-strong"
+          >
+            {location.city}
+          </Link>
+          , {location.country}
         </span>
         <span className="rounded-pill border border-line px-2 py-1 text-eyebrow text-ink-soft uppercase">
           {/* The code is shown; the sentence that explains what it is belongs to

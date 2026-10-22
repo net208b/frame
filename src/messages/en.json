@@ -574,6 +574,22 @@
       "submitPlace": "Submit a place",
       "loading": "Loading locations"
     },
+    "city": {
+      "eyebrow": "A city",
+      "lead": "Every place in {country} that a photographer has submitted here and a moderator has approved, with the frames made at them.",
+      "summary": "{places, plural, one {# approved place} other {# approved places}} · {photographs, plural, =0 {nothing published yet} one {{formattedPhotographs} published photograph} other {{formattedPhotographs} published photographs}}",
+      "placesHeading": "Places in this city",
+      "framesHeading": "Made in this city",
+      "openGallery": "Open in Discover",
+      "openMap": "See these on the map",
+      "emptyTitle": "Nothing published here yet",
+      "emptyBody": "The places are approved, but no photograph made at them has been published yet. Every upload is read by a moderator before it appears, so this fills up as work is approved.",
+      "emptyAction": "Browse every place",
+      "metaTitle": "Street photography in {city}, {country}",
+      "metaDescription": "Street photography made in {city}, {country}: the places photographers have worked, each submitted by a member and approved by a moderator, with the frames made at them.",
+      "notFoundMetaTitle": "City not found",
+      "notFoundMetaDescription": "No approved place on FRAME belongs to this city."
+    },
     "detail": {
       "loading": "Loading this location",
       "metaTitle": "{name}, {city}",

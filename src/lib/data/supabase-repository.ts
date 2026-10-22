@@ -9,7 +9,13 @@ import {
   serverEnv,
   UPLOAD_POLICY,
 } from '@/lib/config';
-import type { MapPin, MapPinFrame, ModerationQueues } from '@/lib/data/repository';
+import type {
+  CityHub,
+  CityRef,
+  MapPin,
+  MapPinFrame,
+  ModerationQueues,
+} from '@/lib/data/repository';
 import { NO_TRANSLATIONS, translationsFor } from '@/lib/data/translations';
 import { boundingBoxAround, distanceMetres, publishableCoordinates } from '@/lib/geo';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
@@ -20,6 +26,7 @@ import {
   type StyleLandingSlug,
 } from '@/lib/style-landing';
 import { createClient } from '@/lib/supabase/server';
+import { slugify } from '@/lib/utils';
 import type { Tables } from '@/lib/supabase/types';
 import {
   COLLABORATION_STATUSES,
@@ -906,6 +913,8 @@ interface PhotographQuery {
   /** Several owners at once, for the following feed. An empty array matches nothing. */
   ownerIds?: readonly string[] | null;
   locationId?: string | null;
+  /** Several places at once, for a city. An empty array matches nothing. */
+  locationIds?: readonly string[] | null;
   excludeId?: string | null;
   editorsOnly?: boolean;
 }
@@ -952,6 +961,7 @@ async function fetchPhotographRows(
   if (options.ownerId) query = query.eq('owner_id', options.ownerId);
   if (options.ownerIds) query = query.in('owner_id', [...options.ownerIds]);
   if (options.locationId) query = query.eq('location_id', options.locationId);
+  if (options.locationIds) query = query.in('location_id', [...options.locationIds]);
   if (options.excludeId) query = query.neq('id', options.excludeId);
   if (options.editorsOnly) query = query.eq('editors_pick', true);
 
@@ -1807,6 +1817,163 @@ export async function photographerMapPins(ownerId: string): Promise<MapPin[]> {
 
   await attachLocationNames(supabase, pins);
   return pins;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Cities                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * A city hub is DERIVED. There is no cities table and this does not want one.
+ *
+ * `locations.city` and `locations.country_code` have been on every place since
+ * 0002, and `locations_country_city_idx` indexes exactly that pair, so "the
+ * approved places in this city" is a question the schema can already answer.
+ * Adding a curated `cities` table would mean a second name for a city that the
+ * places already carry, two things to keep in step, and an editorial job nobody
+ * has asked for.
+ *
+ * The city in a URL is a slug, and Postgres is not asked to slugify: the
+ * country's approved places are read through the index — a country is a small,
+ * bounded set — and the slugs are compared here, by the same `slugify()` that
+ * built the link. A city whose places sit past the bound is a city with more
+ * approved places than FRAME has in total today; if that changes, this becomes
+ * a keyset read rather than a bigger limit.
+ */
+const CITY_SCAN_LIMIT = 2_000;
+
+/** How many of a city's newest frames the hub shows. */
+const CITY_PHOTOGRAPH_LIMIT = PAGE_SIZE.gallery;
+
+interface CityGroup {
+  city: string;
+  citySlug: string;
+  country: string;
+  countryCode: string;
+  locations: LocationSummary[];
+  photographCount: number;
+}
+
+/** Every approved place in one country, grouped by the slug of its city. */
+async function cityGroups(countryCode: string): Promise<Map<string, CityGroup>> {
+  const code = countryCode.trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return new Map();
+
+  const rows = unwrapList<LocationSummaryColumns>(
+    'reading the approved places in a country',
+    await publicClient()
+      .from('locations')
+      .select(LOCATION_SUMMARY_FIELDS)
+      .eq('status', 'approved')
+      .eq('country_code', code)
+      .order('photograph_count', { ascending: false })
+      .limit(CITY_SCAN_LIMIT),
+  );
+
+  const groups = new Map<string, CityGroup>();
+  for (const row of rows) {
+    const summary = mapLocationSummary(row);
+    if (!summary) continue;
+
+    const citySlug = slugify(summary.city);
+    if (!citySlug) continue;
+
+    const group = groups.get(citySlug);
+    if (group) {
+      group.locations.push(summary);
+      group.photographCount += summary.photographCount;
+      continue;
+    }
+
+    groups.set(citySlug, {
+      city: summary.city,
+      citySlug,
+      country: summary.country,
+      countryCode: summary.countryCode,
+      locations: [summary],
+      photographCount: summary.photographCount,
+    });
+  }
+
+  return groups;
+}
+
+/**
+ * One city: its approved places and its newest frames.
+ *
+ * Null when the country and city name nothing approved, which the route answers
+ * with its not-found page rather than with an empty hub.
+ */
+export async function cityHub(
+  countryCode: string,
+  citySlug: string,
+): Promise<CityHub | null> {
+  const groups = await cityGroups(countryCode);
+  const group = groups.get(citySlug.trim().toLowerCase());
+  if (!group) return null;
+
+  const supabase = await createClient();
+  await attachLocationNames(supabase, group.locations);
+
+  // The frames made at those places, through the same filter the feed uses. A
+  // city holds few enough places for an `in` filter to be a sane request.
+  const rows = await fetchPhotographRows(supabase, {
+    operation: 'reading the photographs made in a city',
+    locationIds: group.locations.map((place) => place.id),
+    order: 'recent',
+    limit: CITY_PHOTOGRAPH_LIMIT,
+  });
+
+  return {
+    city: group.city,
+    citySlug: group.citySlug,
+    country: group.country,
+    countryCode: group.countryCode,
+    locations: group.locations,
+    photographCount: group.photographCount,
+    photographs: await mapPhotographRows(supabase, rows),
+  };
+}
+
+/**
+ * The cities worth publishing to a crawler: those with at least one published
+ * photograph behind them.
+ *
+ * `photograph_count` on a place is maintained by the schema and is already the
+ * count of its *published* frames, so the sum is the honest number and no
+ * second read is needed. A city with approved places but nothing published in
+ * them is withheld, exactly as the page itself is `noIndex` in that case.
+ */
+export async function citiesWithContent(): Promise<CityRef[]> {
+  const rows = unwrapList<Pick<LocationSummaryColumns, 'city' | 'country_code' | 'photograph_count'>>(
+    'listing the cities with published work',
+    await publicClient()
+      .from('locations')
+      .select('city, country_code, photograph_count')
+      .eq('status', 'approved')
+      .limit(CITY_SCAN_LIMIT),
+  );
+
+  const counts = new Map<string, CityRef & { photographCount: number }>();
+  for (const row of rows) {
+    const city = toText(row.city);
+    const countryCode = toText(row.country_code);
+    if (!city || !countryCode) continue;
+
+    const citySlug = slugify(city);
+    if (!citySlug) continue;
+
+    const key = `${countryCode}/${citySlug}`;
+    const existing = counts.get(key);
+    const count = toNumber(row.photograph_count) ?? 0;
+
+    if (existing) existing.photographCount += count;
+    else counts.set(key, { countryCode, citySlug, photographCount: count });
+  }
+
+  return [...counts.values()]
+    .filter((entry) => entry.photographCount > 0)
+    .map(({ countryCode, citySlug }) => ({ countryCode, citySlug }));
 }
 
 export async function approvedLocationSlugs(): Promise<string[]> {

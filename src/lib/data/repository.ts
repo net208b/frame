@@ -261,6 +261,58 @@ export async function getPhotographerMapPins(photographerId: string): Promise<Ma
   return demo.demoPhotographerMapPins(photographerId);
 }
 
+/* ------------------------------------------------------------------------ */
+/* Cities                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/** A city, as an address: the pair that names one city hub. */
+export interface CityRef {
+  /** ISO 3166-1 alpha-2, upper case, as `locations.country_code` stores it. */
+  countryCode: string;
+  /** `slugify(city)`, which is what the URL carries. */
+  citySlug: string;
+}
+
+/**
+ * A city hub: the approved places in one city and the newest frames made at
+ * them.
+ *
+ * Derived from `locations.city` and `locations.country_code`, which every place
+ * has carried since 0002 — there is no cities table, and this deliberately does
+ * not want one. The city's own name is whatever the places say it is.
+ */
+export interface CityHub extends CityRef {
+  /** The city as written on its places, for the heading. */
+  city: string;
+  country: string;
+  locations: LocationSummary[];
+  photographs: PhotographDetail[];
+  /** The published frames across every place in the city. */
+  photographCount: number;
+}
+
+/**
+ * One city, or null when the pair names nothing approved — which the route
+ * answers with its not-found page rather than with an empty hub.
+ */
+export async function getCityHub(
+  countryCode: string,
+  citySlug: string,
+): Promise<CityHub | null> {
+  if (useLive()) return live.cityHub(countryCode, citySlug);
+  return demo.demoCityHub(countryCode, citySlug);
+}
+
+/**
+ * The cities with published work behind them, for the sitemap. A city whose
+ * places hold nothing published is withheld, and its page is `noIndex` in the
+ * same case, so the two agree.
+ */
+export async function getCitiesWithContent(): Promise<CityRef[]> {
+  if (useLive()) return live.citiesWithContent();
+  return demo.demoCitiesWithContent();
+}
+
 export async function getLocationSlugs(): Promise<string[]> {
   if (useLive()) return live.approvedLocationSlugs();
   return demo.demoLocationSlugs();
