@@ -18,6 +18,7 @@ import type {
 } from '@/lib/data/repository';
 import { NO_TRANSLATIONS, translationsFor } from '@/lib/data/translations';
 import { boundingBoxAround, distanceMetres, publishableCoordinates } from '@/lib/geo';
+import { captureProvenance } from '@/lib/images/provenance';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
 import { trendingScore } from '@/lib/ranking';
 import {
@@ -517,6 +518,7 @@ type MetadataColumns = Nullable<
     | 'film_stock'
     | 'film_camera'
     | 'film_scanner'
+    | 'exif_source'
   >
 >;
 
@@ -555,8 +557,12 @@ const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, co
   style_tags, collaboration_status, critique_preference, social_links, usual_gear, role,
   member_since, created_at, follower_count, following_count, ${PROFILE_COVER_FIELDS}`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
+// `exif_source` is here because 0015 grants exactly this column list to anon
+// and authenticated — the raw position columns beside it are not readable at
+// all. It is read to answer "are these the values the file carried", and for
+// nothing else; see `lib/images/provenance.ts`.
 const METADATA_FIELDS =
-  'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes, film_stock, film_camera, film_scanner';
+  'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes, film_stock, film_camera, film_scanner, exif_source';
 
 const PHOTOGRAPH_OWN_FIELDS = `
   id, slug, title, alt_text, category, description, status, appreciation_count,
@@ -802,6 +808,23 @@ function mapPhotograph(
       filmStock: toText(metadata?.film_stock),
       filmCamera: toText(metadata?.film_camera),
       filmScanner: toText(metadata?.film_scanner),
+      provenance: captureProvenance(
+        {
+          cameraBrand: toText(metadata?.camera_brand_text),
+          cameraModel: toText(metadata?.camera_model_text),
+          lensBrand: toText(metadata?.lens_brand_text),
+          lensModel: toText(metadata?.lens_model_text),
+          focalLengthMm: toNumber(metadata?.focal_length_mm),
+          aperture: toNumber(metadata?.aperture),
+          shutterSpeed: toText(metadata?.shutter_speed),
+          iso: toNumber(metadata?.iso),
+          filmStock: toText(metadata?.film_stock),
+          filmCamera: toText(metadata?.film_camera),
+          filmScanner: toText(metadata?.film_scanner),
+          provenance: 'unknown',
+        },
+        metadata?.exif_source ?? null,
+      ),
     },
     editing: {
       software: toText(metadata?.editing_software),

@@ -107,6 +107,29 @@ export async function CaptureSpecs({
   // gives them a reason to choose.
   const hasFilm = Boolean(filmStock || filmCamera || filmScanner);
 
+  /*
+   * Where these values came from, as ONE line rather than a badge per row.
+   *
+   * The brief asks for a clear status when a value was typed, and the reason it
+   * matters is not auditing: it is that a reader deciding whether to trust an
+   * exposure should know whether they are reading the camera's record or the
+   * photographer's account. Both are legitimate — EXIF is regularly wrong about
+   * a manual lens — so the line states which it is and claims nothing more. It
+   * is deliberately not a verification mark: EXIF is editable with a free tool,
+   * which is exactly why the schema calls `exif_source` evidence for review
+   * rather than proof.
+   *
+   * Nothing is said when there is nothing to compare against — a scan from
+   * film, or a frame published before the readout was kept. Printing "we don't
+   * know" under every film frame would be noise about an absence.
+   */
+  const provenanceLine =
+    capture.provenance === 'camera'
+      ? t('capture.provenance.camera')
+      : capture.provenance === 'edited'
+        ? t('capture.provenance.edited')
+        : null;
+
   return (
     <section className={cn('min-w-0', className)}>
       <Eyebrow>{t('capture.eyebrow')}</Eyebrow>
@@ -114,6 +137,10 @@ export async function CaptureSpecs({
 
       {!hasGear && !hasExposure && !hasFilm ? (
         <p className="mt-3 text-caption leading-relaxed text-muted">{t('capture.none')}</p>
+      ) : null}
+
+      {provenanceLine && (hasGear || hasExposure) ? (
+        <p className="mt-3 text-meta leading-relaxed text-muted">{provenanceLine}</p>
       ) : null}
 
       {hasFilm ? (

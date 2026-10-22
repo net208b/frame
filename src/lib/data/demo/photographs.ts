@@ -614,6 +614,11 @@ function toDetail(raw: RawPhotograph): PhotographDetail {
       filmStock: null,
       filmCamera: null,
       filmScanner: null,
+      // The bundled dataset has no EXIF readout to compare against — these
+      // values are written into the fixture — so it claims nothing. Saying
+      // "from the camera" about a sample would be the demo telling a story the
+      // live site would have had to earn.
+      provenance: 'unknown',
     },
     editing: {
       software: raw.editingSoftware,
