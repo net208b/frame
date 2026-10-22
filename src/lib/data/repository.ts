@@ -127,6 +127,16 @@ export async function getLocation(slug: string): Promise<LocationDetail | null> 
   return demo.demoLocation(slug);
 }
 
+/**
+ * Where a merged place's old address should send a reader (0039): the slug
+ * of the surviving place, or null when the slug was never a merged place.
+ */
+export async function getMergedLocationTarget(slug: string): Promise<string | null> {
+  if (useLive()) return live.mergedLocationTarget(slug);
+  // The bundled dataset merges nothing.
+  return null;
+}
+
 export async function getPhotographsAt(locationId: string): Promise<PhotographDetail[]> {
   if (useLive()) return live.photographsAtLocation(locationId, '');
   return demo.demoPhotographsAtLocation(locationId);

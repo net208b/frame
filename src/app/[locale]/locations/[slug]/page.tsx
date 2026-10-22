@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
+import { redirect } from '@/i18n/navigation';
+
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { LocationGallery } from '@/components/location/LocationGallery';
 import { LocationHeader } from '@/components/location/LocationHeader';
@@ -10,6 +12,7 @@ import { RestrictionList } from '@/components/location/RestrictionList';
 import { ShootingNotes } from '@/components/location/ShootingNotes';
 import {
   getLocation,
+  getMergedLocationTarget,
   getNearbyLocations,
   getPhotographsAt,
 } from '@/lib/data/repository';
@@ -86,7 +89,13 @@ export default async function LocationDetailPage({
   setRequestLocale(locale);
 
   const location = await getLocation(slug);
-  if (!location) notFound();
+  if (!location) {
+    // A place merged into another keeps its slug as a pointer (0039), so an
+    // old link lands on the surviving place rather than on a not-found page.
+    const target = await getMergedLocationTarget(slug);
+    if (target && target !== slug) redirect({ href: `/locations/${target}`, locale });
+    notFound();
+  }
 
   const [photographs, nearby] = await Promise.all([
     getPhotographsAt(location.id),

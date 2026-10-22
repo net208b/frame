@@ -50,7 +50,7 @@ export type DecisionTarget =
   | { kind: 'report'; reportId: string }
   | { kind: 'upload'; photographId: string }
   | { kind: 'account'; accountId: string }
-  | { kind: 'duplicate'; locationId: string };
+  | { kind: 'duplicate'; locationId: string; otherLocationId: string };
 
 /**
  * Who can actually read the reason this decision records.
@@ -72,6 +72,18 @@ export interface DecisionOption {
   effect: string;
   reasonRequired: boolean;
   reasonAudience: ReasonAudience;
+  /**
+   * Tells two options with the same decision apart — the duplicate queue
+   * offers `merge` in both directions. Defaults to the decision value, which
+   * is unique everywhere else.
+   */
+  id?: string;
+  /**
+   * Fields the option itself decides, sent with the decision. The duplicate
+   * queue uses it to say which of two places survives a merge (0039): the
+   * form has one target, and the direction is the option's to choose.
+   */
+  extra?: Record<string, string>;
   /** Takes something away from a member, so it is confirmed by name first. */
   destructive?: boolean;
 }
@@ -126,8 +138,10 @@ export function DecisionForm({
   }
 
   // Pre-selected only when there is nothing to choose between.
-  const [decision, setDecision] = useState<ModerationDecision | null>(
-    options.length === 1 ? (options[0]?.value ?? null) : null,
+  // The key of the chosen option — its id, or its decision value where that
+  // is unique. Pre-selected only when there is nothing to choose between.
+  const [decision, setDecision] = useState<string | null>(
+    options.length === 1 ? (options[0] ? (options[0].id ?? options[0].value) : null) : null,
   );
   const [reason, setReason] = useState('');
   const [durationDays, setDurationDays] = useState('');
@@ -140,9 +154,11 @@ export function DecisionForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [recorded, setRecorded] = useState(false);
 
-  const selected = options.find((option) => option.value === decision) ?? null;
+  const optionKey = (option: DecisionOption): string => option.id ?? option.value;
+  const selected = options.find((option) => optionKey(option) === decision) ?? null;
 
-  async function dispatch(value: ModerationDecision): Promise<ActionResult<void>> {
+  async function dispatch(option: DecisionOption): Promise<ActionResult<void>> {
+    const value = option.value;
     const trimmed = reason.trim();
 
     if (target.kind === 'submission') {
@@ -167,6 +183,7 @@ export function DecisionForm({
       subjectId: target.locationId,
       decision: value,
       reason: trimmed,
+      ...(option.extra ?? {}),
     });
   }
 
@@ -177,7 +194,7 @@ export function DecisionForm({
     setStatus({ tone: 'pending', message: t('form.recording', { decision: option.label }) });
 
     try {
-      const result = await dispatch(option.value);
+      const result = await dispatch(option);
 
       if (result.ok) {
         // The action's own sentence, not one written here: several of these say
@@ -310,18 +327,18 @@ export function DecisionForm({
             </legend>
             <div className="mt-2.5 flex flex-col gap-2">
               {options.map((option) => {
-                const id = `${groupId}-${option.value}`;
+                const id = `${groupId}-${optionKey(option)}`;
                 return (
-                  <div key={option.value} className="flex items-start gap-2.5">
+                  <div key={optionKey(option)} className="flex items-start gap-2.5">
                     <input
                       id={id}
                       type="radio"
                       name={groupId}
                       value={option.value}
                       required
-                      checked={decision === option.value}
+                      checked={decision === optionKey(option)}
                       onChange={() => {
-                        setDecision(option.value);
+                        setDecision(optionKey(option));
                         setError(null);
                       }}
                       className="mt-1 size-4 shrink-0 cursor-pointer accent-ink"

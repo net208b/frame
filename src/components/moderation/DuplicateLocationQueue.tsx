@@ -13,11 +13,11 @@ import type { LocationSummary } from '@/types/domain';
 /**
  * Approved places close enough together to be worth a second look.
  *
- * FRAME cannot merge two places: there is no merge function and no table that
- * holds a merge request, so the control here records a flag for a person to
- * pick up and says exactly that. Labelling it "Merge" would be a button that
- * looks real and does something smaller than it claims, which is the one thing
- * this product is not allowed to ship.
+ * A pair can be kept, or merged in either direction (0039). The form has one
+ * target — the second place of the pair — and the direction is the option's:
+ * each merge option names which place survives, and `merge_location` does the
+ * rest in one statement, recounting the survivor and leaving the loser's slug
+ * pointing at it. Keeping both records that the pair was looked at.
  */
 
 type Translator = Awaited<ReturnType<typeof getTranslations>>;
@@ -57,14 +57,28 @@ function optionsFor(pair: DuplicatePair, t: Translator): readonly DecisionOption
       reasonAudience: 'internal',
     },
     {
-      value: 'request_changes',
-      label: t('duplicates.options.flagForMerging.label'),
-      effect: t('duplicates.options.flagForMerging.effect', {
+      id: 'merge-into-target',
+      value: 'merge',
+      label: t('duplicates.options.mergeIntoTarget.label', { target: pair.b.name }),
+      effect: t('duplicates.options.mergeIntoTarget.effect', {
         target: pair.b.name,
         other: pair.a.name,
       }),
       reasonRequired: true,
       reasonAudience: 'internal',
+      extra: { keepId: pair.b.id, mergeId: pair.a.id },
+    },
+    {
+      id: 'merge-into-other',
+      value: 'merge',
+      label: t('duplicates.options.mergeIntoOther.label', { other: pair.a.name }),
+      effect: t('duplicates.options.mergeIntoOther.effect', {
+        target: pair.b.name,
+        other: pair.a.name,
+      }),
+      reasonRequired: true,
+      reasonAudience: 'internal',
+      extra: { keepId: pair.a.id, mergeId: pair.b.id },
     },
   ];
 }
@@ -138,7 +152,7 @@ async function DuplicateRow({ locale, pair }: { locale: Locale; pair: DuplicateP
 
         <div className="min-w-0 lg:border-l lg:border-line lg:pl-7">
           <DecisionForm
-            target={{ kind: 'duplicate', locationId: pair.b.id }}
+            target={{ kind: 'duplicate', locationId: pair.b.id, otherLocationId: pair.a.id }}
             subjectLabel={t('duplicates.subject', { target: pair.b.name, other: pair.a.name })}
             options={optionsFor(pair, t)}
             reasonHint={t('duplicates.reasonHint')}

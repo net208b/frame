@@ -112,6 +112,7 @@ A place a photograph was made. **Members do not insert here**; they write to
 | `withhold_coordinates` | Moderator flag. No coordinate is published at all. |
 | `photograph_count` | Recounted by the same trigger as `categories`. |
 | `submitted_by`, `approved_by` | `on delete set null`. Deleting an account must not delete the places the community relies on; the credit disappears, the place stays. |
+| `merged_into_id` | Migration `0039`. Set exactly when `status = 'merged'` (a CHECK says so both ways): the place this row was folded into. The row keeps its slug so the old address redirects, and keeps its name and coordinate as the record of what was merged; no public read treats it as a place. |
 
 Both privacy flags are read in exactly one place:
 [`publishableCoordinates()`](../src/lib/geo.ts). Precision is never widened on

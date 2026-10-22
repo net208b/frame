@@ -910,24 +910,32 @@ export async function suspendAccount(input: unknown): Promise<ActionResult<void>
 
 const DUPLICATE_DECISIONS: ReadonlySet<ModerationDecision> = new Set<ModerationDecision>([
   'dismiss',
-  'request_changes',
+  'merge',
 ]);
 
+/** The two ids a merge needs, sent by the option that chose the direction. */
+const duplicateDecisionSchema = moderationDecisionSchema.safeExtend({
+  keepId: identifier('Surviving place').optional(),
+  mergeId: identifier('Merged place').optional(),
+});
+
 /**
- * Record a review of two places that may be the same place.
+ * Record a review of two places that may be the same place — or merge them.
  *
- * FRAME cannot merge locations: there is no merge function, and no table that
- * stores a merge request. So this writes exactly one thing — an audit row — and
- * the queue says so in those words. `dismiss` means the pair was looked at and
- * both entries are real; `request_changes` means one of them should be merged
- * away and the reason says which. A person still has to do it.
+ * `dismiss` writes one audit row: the pair was looked at and both entries are
+ * real. `merge` calls merge_location() (0039), which moves the photographs,
+ * collection items, restrictions and proposal to the surviving place, recounts
+ * it, writes the audit row naming both, and leaves the loser's slug pointing
+ * at the survivor. Everything that decides whether a merge is allowed lives in
+ * the function; this maps its refusals to sentences and revalidates what
+ * showed either place.
  */
 export async function recordDuplicateReview(input: unknown): Promise<ActionResult<void>> {
   const started = await begin();
   if (!started.ok) return started.refusal;
   const { viewer, supabase } = started;
 
-  const parsed = parseForm(input, moderationDecisionSchema);
+  const parsed = parseForm(input, duplicateDecisionSchema);
   if (!parsed.ok) return fail(parsed.message, 'validation', parsed.fieldErrors);
 
   const { subjectType, subjectId, decision } = parsed.data;
@@ -937,6 +945,50 @@ export async function recordDuplicateReview(input: unknown): Promise<ActionResul
 
   const checked = requireReason(decision, parsed.data.reason);
   if (!checked.ok) return checked.refusal;
+
+  if (decision === 'merge') {
+    const { keepId, mergeId } = parsed.data;
+    if (!keepId || !mergeId || keepId === mergeId) {
+      return fail('Say which place survives and which is merged into it.', 'validation');
+    }
+    if (mergeId !== subjectId && keepId !== subjectId) {
+      return fail('The merge has to involve the place under review.', 'validation');
+    }
+
+    // Both slugs before the merge, so the pages that showed either place —
+    // and the old address, which now redirects — can be revalidated after.
+    const { data: rows } = await supabase
+      .from('locations')
+      .select('id, slug')
+      .in('id', [keepId, mergeId]);
+    const slugs = z.array(z.object({ id: z.string(), slug: z.string().min(1) })).safeParse(rows);
+
+    const { error } = await supabase.rpc('merge_location', {
+      p_keep: keepId,
+      p_merge: mergeId,
+      p_reason: checked.reason ?? '',
+    });
+    if (error) {
+      if (error.code === 'P0002') return fail('One of the places no longer exists.', 'not_found');
+      if (error.code === '42501') return fail('Only a moderator merges places.', 'forbidden');
+      // 22023 is the function's own refusal with the reason in the message —
+      // not approved, merged into itself, no reason — and is worth passing on.
+      if (error.code === '22023') return fail(error.message, 'validation');
+      return failFromQuery(error, 'merging the places');
+    }
+
+    for (const row of slugs.success ? slugs.data : []) {
+      revalidateAfterReport({ photographSlug: null, ownerUsername: null, locationSlug: row.slug });
+    }
+    revalidateLocalisedPath('/map');
+    revalidateLocalisedPath('/locations');
+    revalidateLocalisedPath('/moderation');
+
+    return ok<void>(
+      undefined,
+      'Merged. The photographs, collection items, restrictions and proposal are at the surviving place, which has been recounted; the old address now redirects to it.',
+    );
+  }
 
   const audit = await recordAuditRow(supabase, {
     decision,
@@ -950,12 +1002,7 @@ export async function recordDuplicateReview(input: unknown): Promise<ActionResul
 
   revalidateLocalisedPath('/moderation');
 
-  return ok<void>(
-    undefined,
-    decision === 'dismiss'
-      ? 'Noted: both places stay as they are.'
-      : 'Flagged for merging. Nothing has been merged — the note is in the audit trail for a person to pick up.',
-  );
+  return ok<void>(undefined, 'Noted: both places stay as they are.');
 }
 
 /* ------------------------------------------------------------------------ */
