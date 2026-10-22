@@ -412,6 +412,22 @@ export async function getSeriesByOwner(ownerId: string): Promise<PhotoSeries[]> 
   return demo.demoSeriesByOwner(ownerId);
 }
 
+/** Demo mode counts nothing: the bundled photographs are a fixture. */
+export async function countPhotographOpen(slug: string): Promise<void> {
+  if (useLive()) return live.countPhotographOpen(slug);
+}
+
+/**
+ * How often each photograph was opened, for its owner or a moderator. Empty in
+ * demo mode, where nothing has been counted.
+ */
+export async function getPhotographOpenCounts(
+  photographIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (useLive()) return live.photographOpenCounts(photographIds);
+  return new Map();
+}
+
 /** Demo mode counts nothing: there is no series to count against. */
 export async function countSeriesOpen(slug: string): Promise<void> {
   if (useLive()) return live.countSeriesOpen(slug);
