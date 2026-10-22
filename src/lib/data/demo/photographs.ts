@@ -611,6 +611,9 @@ function toDetail(raw: RawPhotograph): PhotographDetail {
       aperture: raw.aperture,
       shutterSpeed: raw.shutterSpeed,
       iso: raw.iso,
+      filmStock: null,
+      filmCamera: null,
+      filmScanner: null,
     },
     editing: {
       software: raw.editingSoftware,

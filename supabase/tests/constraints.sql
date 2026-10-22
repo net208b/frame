@@ -3208,6 +3208,68 @@ begin
   end if;
   raise notice 'fingerprint ok  the fingerprint is deleted with the photograph';
 end $$;
+-- ------------------------------------------------------- 0038: film scans
+-- Fixtures of this section's own: one member, one published frame.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('f11a0000-0000-4000-8000-00000000000a', 'film.member@example.test', '{"username":"film_member"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('f11a0000-0000-4000-8000-000000000001', 'film-one', 'f11a0000-0000-4000-8000-00000000000a',
+   'Film one', 'A tram at dusk on a wet street, scanned from a colour negative.',
+   'street', 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+-- The three statements a film photographer makes are public like the camera
+-- texts beside them, and bounded like them.
+select public.test_accepts('a frame scanned from film, said in full',
+  $$insert into public.photograph_metadata (photograph_id, film_stock, film_camera, film_scanner)
+    values ('f11a0000-0000-4000-8000-000000000001', 'Kodak Portra 400', 'Leica M6', 'Epson V850')
+    on conflict (photograph_id) do update
+      set film_stock = excluded.film_stock, film_camera = excluded.film_camera,
+          film_scanner = excluded.film_scanner$$);
+select public.test_rejects('a film stock longer than a name',
+  $$update public.photograph_metadata set film_stock = repeat('x', 81)
+     where photograph_id = 'f11a0000-0000-4000-8000-000000000001'$$, '23514');
+
+begin;
+set local role anon;
+do $$
+declare v_stock text;
+begin
+  select film_stock into v_stock from public.photograph_metadata
+   where photograph_id = 'f11a0000-0000-4000-8000-000000000001';
+  if v_stock is distinct from 'Kodak Portra 400' then
+    raise exception 'FILM GAP  a visitor cannot read the film statements (got %)', coalesce(v_stock, 'null');
+  end if;
+  raise notice 'film ok       the film statements are public, like the camera texts beside them';
+end $$;
+commit;
+
+-- A scanner is a device class the verdict row may record; a made-up one is not.
+select public.test_accepts('a verdict that names a scanner',
+  $$insert into public.photograph_exif_checks (photograph_id, verdict, device_class, make, model, film_declared)
+    values ('f11a0000-0000-4000-8000-000000000001', 'film', 'scanner', 'EPSON', 'Perfection V850', true)
+    on conflict (photograph_id) do update
+      set verdict = excluded.verdict, device_class = excluded.device_class,
+          make = excluded.make, model = excluded.model, film_declared = excluded.film_declared$$);
+select public.test_rejects('a device class the gate does not know',
+  $$update public.photograph_exif_checks set device_class = 'typewriter'
+     where photograph_id = 'f11a0000-0000-4000-8000-000000000001'$$, '23514');
+
+-- "Not from film or a camera" is a reason a member may report under.
+select public.test_accepts('reporting a declared scan as not from film',
+  $$insert into public.reports (reported_by, subject_type, subject_id, reason, details)
+    values ('22222222-2222-4222-8222-222222222222', 'photograph',
+            'f11a0000-0000-4000-8000-000000000001', 'not-film-or-camera',
+            'The grain is a filter and the border is pasted on.')$$);
+select public.test_rejects('a reason the dialog does not offer',
+  $$insert into public.reports (reported_by, subject_type, subject_id, reason)
+    values ('22222222-2222-4222-8222-222222222222', 'photograph',
+            'f11a0000-0000-4000-8000-000000000001', 'ugly')$$, '23514');
 
 -- ------------------------------------------------------------------ summary
 do $$

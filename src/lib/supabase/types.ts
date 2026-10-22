@@ -267,6 +267,10 @@ export interface PhotographMetadataRow extends Timestamps {
   iso: number | null;
   editing_software: string | null;
   editing_notes: string | null;
+  /** The member's film statements (0038): stock, camera, scanner. */
+  film_stock: string | null;
+  film_camera: string | null;
+  film_scanner: string | null;
   exif_source: Json | null;
   exif_gps_latitude: number | null;
   exif_gps_longitude: number | null;
@@ -358,7 +362,7 @@ export interface PhotographFingerprintRow {
 export interface PhotographExifCheckRow {
   photograph_id: string;
   verdict: 'camera' | 'film' | 'rejected';
-  device_class: 'camera' | 'phone' | 'unknown';
+  device_class: 'camera' | 'phone' | 'scanner' | 'unknown';
   missing: string[];
   make: string | null;
   model: string | null;

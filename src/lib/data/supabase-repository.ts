@@ -501,6 +501,9 @@ type MetadataColumns = Nullable<
     | 'iso'
     | 'editing_software'
     | 'editing_notes'
+    | 'film_stock'
+    | 'film_camera'
+    | 'film_scanner'
   >
 >;
 
@@ -540,7 +543,7 @@ const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, co
   member_since, created_at, follower_count, following_count, ${PROFILE_COVER_FIELDS}`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
 const METADATA_FIELDS =
-  'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes';
+  'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes, film_stock, film_camera, film_scanner';
 
 const PHOTOGRAPH_OWN_FIELDS = `
   id, slug, title, alt_text, category, description, status, appreciation_count,
@@ -783,6 +786,9 @@ function mapPhotograph(
       aperture: toNumber(metadata?.aperture),
       shutterSpeed: toText(metadata?.shutter_speed),
       iso: toNumber(metadata?.iso),
+      filmStock: toText(metadata?.film_stock),
+      filmCamera: toText(metadata?.film_camera),
+      filmScanner: toText(metadata?.film_scanner),
     },
     editing: {
       software: toText(metadata?.editing_software),
@@ -2528,6 +2534,9 @@ type SuspiciousMetadataColumns = Nullable<
     | 'editing_software'
     | 'editing_notes'
     | 'exif_source'
+    | 'film_stock'
+    | 'film_camera'
+    | 'film_scanner'
   >
 >;
 
@@ -2584,7 +2593,7 @@ async function suspiciousUploads(
          photograph_images(${IMAGE_FIELDS}),
          photograph_metadata(camera_brand_text, camera_model_text, lens_brand_text, lens_model_text,
            focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes,
-           exif_source),
+           exif_source, film_stock, film_camera, film_scanner),
          locations(name, slug, latitude, longitude),
          photograph_content_checks(verdict, note)`,
       )
@@ -2792,6 +2801,7 @@ async function suspiciousUploads(
         capturedAt: toText(row.public_captured_at),
         editingSoftware: toText(metadata?.editing_software),
         editingNotes: toText(metadata?.editing_notes),
+        film: joinText(metadata?.film_stock, metadata?.film_camera, metadata?.film_scanner),
         width,
         height,
       },

@@ -182,6 +182,12 @@ Two groups of columns deserve attention:
   never published, never used to create or move a location, and never copied
   onto a public record without consent **and** a moderator approving the
   resulting location submission.
+- `film_stock`, `film_camera`, `film_scanner` (migration `0038`): what the
+  member says about a frame scanned from film, kept apart from
+  `camera_*_text` because a scan's EXIF names the scanner, not the camera.
+  Public like the texts beside them, and shown on the page the way a digital
+  frame shows its settings — so that other film photographers, who can tell a
+  scan from a phone filter, can read them.
 
 ### `photograph_fingerprints`
 

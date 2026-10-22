@@ -140,6 +140,44 @@ export function StepGear({ draft }: { draft: UploadDraft }) {
           checked={state.filmDeclared}
           onChange={(event) => draft.setFilmDeclared(event.target.checked)}
         />
+
+        {/* What a film photographer has to hand and a disguise has to invent
+            (0038): the stock, the camera, the scanner. Optional, all three —
+            the declaration is the tick — and shown on the page the way
+            aperture and ISO are shown for a digital frame. */}
+        {state.filmDeclared ? (
+          <div className="mt-5 grid gap-5 border-t border-line pt-5 md:grid-cols-3">
+            <TextField
+              label={t('gear.filmStockLabel')}
+              value={state.film.stock}
+              maxLength={80}
+              onChange={(event) => draft.updateFilm({ stock: event.target.value })}
+              error={errors.filmStock}
+              placeholder={t('gear.filmStockPlaceholder')}
+              autoComplete="off"
+            />
+            <TextField
+              label={t('gear.filmCameraLabel')}
+              value={state.film.camera}
+              maxLength={80}
+              onChange={(event) => draft.updateFilm({ camera: event.target.value })}
+              error={errors.filmCamera}
+              placeholder={t('gear.filmCameraPlaceholder')}
+              hint={t('gear.filmCameraHint')}
+              autoComplete="off"
+            />
+            <TextField
+              label={t('gear.filmScannerLabel')}
+              value={state.film.scanner}
+              maxLength={80}
+              onChange={(event) => draft.updateFilm({ scanner: event.target.value })}
+              error={errors.filmScanner}
+              placeholder={t('gear.filmScannerPlaceholder')}
+              hint={t('gear.filmScannerHint')}
+              autoComplete="off"
+            />
+          </div>
+        ) : null}
       </div>
 
       <p className="mt-6 max-w-prose text-meta leading-relaxed text-muted">{t('gear.note')}</p>

@@ -9,6 +9,7 @@ import { locationSubmissionSchema } from '@/lib/validation/location';
 import {
   captureSettingsSchema,
   editingDetailsSchema,
+  filmDetailsSchema,
   normaliseShutterSpeed,
   publishPhotographSchema,
   uploadDraftSchema,
@@ -83,6 +84,13 @@ export interface EditingFields {
   notes: string;
 }
 
+/** What the member says about a scan from film (0038). Empty for a digital frame. */
+export interface FilmFields {
+  stock: string;
+  camera: string;
+  scanner: string;
+}
+
 export interface ProposalFields {
   proposedName: string;
   city: string;
@@ -122,6 +130,7 @@ export interface UploadDraftState {
   gpsChoice: GpsChoice;
   capture: CaptureFields;
   editing: EditingFields;
+  film: FilmFields;
   /** EXIF holding a capture date is not consent to show it. */
   publishCapturedAt: boolean;
   rightsConfirmed: boolean;
@@ -166,6 +175,7 @@ const INITIAL_STATE: UploadDraftState = {
   gpsChoice: 'unanswered',
   capture: EMPTY_CAPTURE,
   editing: { software: '', notes: '' },
+  film: { stock: '', camera: '', scanner: '' },
   publishCapturedAt: false,
   rightsConfirmed: false,
   prefilled: [],
@@ -380,6 +390,14 @@ function describeIssue(field: string, issue: IssueLike): FieldIssue {
       }
       return { key: 'validation.editingNotesInvalid' };
 
+    case 'filmStock':
+    case 'filmCamera':
+    case 'filmScanner':
+      if (code === 'too_big' && max !== null) {
+        return { key: 'validation.filmMax', values: { max } };
+      }
+      return { key: 'validation.filmInvalid' };
+
     default:
       return { key: 'validation.generic' };
   }
@@ -518,6 +536,18 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldIssues
   if (step === 'gear') {
     const parsed = gearSchema.safeParse(state.capture);
     if (!parsed.success) collect(parsed.error.issues, errors);
+    // The film statements are validated only when film was declared: for a
+    // digital frame they are not shown and are sent empty.
+    if (state.filmDeclared) {
+      const film = filmDetailsSchema.safeParse(state.film);
+      if (!film.success) {
+        collect(film.error.issues, errors, {
+          stock: 'filmStock',
+          camera: 'filmCamera',
+          scanner: 'filmScanner',
+        });
+      }
+    }
     return errors;
   }
 
@@ -534,6 +564,7 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldIssues
     }
     return errors;
   }
+
 
   if (step === 'review') {
     if (!state.rightsConfirmed) {
@@ -568,6 +599,8 @@ export interface PublishPayload {
   capturedAt: string | null;
   capture: CaptureFields;
   editing: EditingFields;
+  /** Sent empty for a digital frame; the server ignores it unless film was declared. */
+  film: FilmFields;
   rightsConfirmed: boolean;
   exif: ExifReadout | null;
   shareExifGps: boolean;
@@ -598,6 +631,7 @@ export function publishPayload(state: UploadDraftState, photographId: string): P
     capturedAt: state.publishCapturedAt ? (state.exif?.capturedAt ?? null) : null,
     capture: state.capture,
     editing: state.editing,
+    film: state.filmDeclared ? state.film : { stock: '', camera: '', scanner: '' },
     rightsConfirmed: state.rightsConfirmed,
     exif: state.exif,
     // Only ever true because the member chose it on the place step.
@@ -642,6 +676,7 @@ export interface UploadDraft {
   updateCapture: (patch: Partial<CaptureFields>) => void;
   updateEditing: (patch: Partial<EditingFields>) => void;
   setFilmDeclared: (value: boolean) => void;
+  updateFilm: (patch: Partial<FilmFields>) => void;
   updateProposal: (patch: Partial<ProposalFields>) => void;
   answerGps: (choice: GpsChoice) => void;
   /** Records the draft row the server created, so a retry reuses it. */
@@ -720,6 +755,11 @@ export function useUploadDraft(): UploadDraft {
   const setFilmDeclared = useCallback((value: boolean) => {
     setDirty(true);
     setState((current) => ({ ...current, filmDeclared: value }));
+  }, []);
+
+  const updateFilm = useCallback((patch: Partial<FilmFields>) => {
+    setDirty(true);
+    setState((current) => ({ ...current, film: { ...current.film, ...patch } }));
   }, []);
 
   const updateProposal = useCallback((patch: Partial<ProposalFields>) => {
@@ -930,6 +970,7 @@ export function useUploadDraft(): UploadDraft {
     updateCapture,
     updateEditing,
     setFilmDeclared,
+    updateFilm,
     updateProposal,
     answerGps,
     setPhotographId,
