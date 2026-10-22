@@ -123,6 +123,17 @@ export const editingDetailsSchema = z.object({
   notes: optionalText({ label: 'Editing notes', max: 1_200 }),
 });
 
+/**
+ * What a member says about a frame scanned from film (0038). All optional:
+ * the declaration is the tick-box, these are the detail a film photographer
+ * has and a disguise has to invent. Ignored for a digital frame.
+ */
+export const filmDetailsSchema = z.object({
+  stock: optionalText({ label: 'Film stock', max: 80 }),
+  camera: optionalText({ label: 'Film camera', max: 80 }),
+  scanner: optionalText({ label: 'Scanner', max: 80 }),
+});
+
 /* ------------------------------------------------------------------------ */
 /* Files                                                                     */
 /* ------------------------------------------------------------------------ */
@@ -239,6 +250,7 @@ export const publishPhotographSchema = z.object({
   capturedAt: optionalInstant('Capture date'),
   capture: captureSettingsSchema,
   editing: editingDetailsSchema,
+  film: filmDetailsSchema,
   rightsConfirmed: consent(
     'Confirm that this is your photograph and that you hold the rights to publish it.',
   ),

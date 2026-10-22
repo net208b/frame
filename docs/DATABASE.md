@@ -183,6 +183,29 @@ Two groups of columns deserve attention:
   never published, never used to create or move a location, and never copied
   onto a public record without consent **and** a moderator approving the
   resulting location submission.
+- `film_stock`, `film_camera`, `film_scanner` (migration `0038`): what the
+  member says about a frame scanned from film, kept apart from
+  `camera_*_text` because a scan's EXIF names the scanner, not the camera.
+  Public like the texts beside them, and shown on the page the way a digital
+  frame shows its settings — so that other film photographers, who can tell a
+  scan from a phone filter, can read them.
+
+### `photograph_fingerprints`
+
+A 64-bit difference hash of each stored photograph, keyed one-to-one on
+`photograph_id` and written by the server with the service role at the moment
+the derivatives are stored (migration `0037`). `method` names the algorithm and
+its input (`dhash-9x8-display`), so a second hash can never be silently compared
+with the first.
+
+No public role may read it: the table has no policy and no grant, because a
+table that answers "is this image on FRAME" to anyone answers it for a frame
+still under review or already removed. The one way in is
+`similar_photographs(uuid[], integer)`, which returns the *published* frames
+within a Hamming distance of each given one — to a moderator, or to the server
+— and gives everyone else no rows. What comes back is a reason for a person to
+put two frames side by side, and nothing more; see
+[LIMITATIONS](LIMITATIONS.md#perceptual-hashing-is-a-near-duplicate-hint-and-no-more).
 
 ### `photograph_appreciations`
 

@@ -11,7 +11,7 @@ import { Notice } from '@/components/ui/states';
 import { LOCATION_POLICY } from '@/lib/config';
 import { evaluateLocationSubmission, isValidLatitude, isValidLongitude } from '@/lib/geo';
 import { cn } from '@/lib/utils';
-import { searchApprovedLocations } from '@/server/actions/locations';
+import { approvedPlacesNear, searchApprovedLocations } from '@/server/actions/locations';
 import type { LocationSummary, SubmissionSignal } from '@/types/domain';
 
 import { useUploadFormat } from './format';
@@ -312,12 +312,42 @@ function ProposalForm({
 
   const countryCode = proposal.countryCode.trim().toUpperCase();
 
-  // Run against the coordinate rules only. The duplicate check needs every
-  // approved place on the map, which is a server read, so it runs when the
-  // proposal is sent and the result is shown to the moderator.
+  // Run against the coordinate rules only. The duplicate check is a server
+  // read and still runs when the proposal is sent, for the moderator — but the
+  // member sees the same places first, below, and can choose one instead of
+  // proposing it again.
   const signals = hasPoint
     ? evaluateLocationSubmission({ latitude, longitude, countryCode })
     : [];
+
+  // APPROVED PLACES NEAR THE POINT. Two members standing on the same corner
+  // should end up at the same place, not at two pins on top of each other, and
+  // the cheapest moment to arrange that is before the second one is proposed.
+  // Debounced from the point changing, with a generation counter so a late
+  // answer for an earlier point cannot overwrite a newer one — the same shape
+  // as the name search in LocationPicker.
+  // The answer is kept with the point it answers for, so a list fetched for
+  // an earlier point is never shown against a newer one — and so the effect
+  // never has to clear state itself, which React asks it not to do.
+  const [nearAnswer, setNearAnswer] = useState<{
+    key: string;
+    places: Array<LocationSummary & { distanceMetres: number }>;
+  } | null>(null);
+  const nearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointKey = hasPoint ? `${latitude.toFixed(5)},${longitude.toFixed(5)}` : null;
+  useEffect(() => {
+    if (pointKey === null) return;
+    const [lat, lng] = pointKey.split(',').map(Number);
+    nearTimer.current = setTimeout(() => {
+      void approvedPlacesNear(lat, lng).then((result) => {
+        setNearAnswer({ key: pointKey, places: result.ok ? result.data : [] });
+      });
+    }, 400);
+    return () => {
+      if (nearTimer.current) clearTimeout(nearTimer.current);
+    };
+  }, [pointKey]);
+  const near = nearAnswer !== null && nearAnswer.key === pointKey ? nearAnswer.places : [];
 
   return (
     <div>
@@ -381,6 +411,45 @@ function ProposalForm({
         error={errors.note}
         hint={t('place.noteHint')}
       />
+
+      {near.length > 0 ? (
+        <section
+          aria-labelledby="proposal-near"
+          className="mt-7 rounded-card border border-ink bg-surface p-4"
+        >
+          <h4 id="proposal-near" className="text-eyebrow text-muted uppercase">
+            {t('place.nearbyHeading')}
+          </h4>
+          <p className="mt-2 max-w-prose text-meta leading-relaxed text-ink-soft">
+            {t('place.nearbyLead', { metres: LOCATION_POLICY.duplicateRadiusMetres })}
+          </p>
+          <ul className="mt-3 divide-y divide-line overflow-hidden rounded-card border border-line">
+            {near.map((place) => (
+              <li key={place.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                <div className="min-w-0">
+                  <span className="block truncate text-body font-semibold">{place.name}</span>
+                  <span className="block truncate text-meta text-muted">
+                    {place.city}, {place.country} · {t('place.nearbyDistance', { metres: place.distanceMetres })}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    const { distanceMetres: _distance, ...summary } = place;
+                    draft.update({ placeMode: 'existing', location: summary });
+                  }}
+                >
+                  {t('place.nearbyUse')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-meta leading-relaxed text-muted">{t('place.nearbyAnyway')}</p>
+        </section>
+      ) : null}
 
       <section
         aria-labelledby="proposal-checks"

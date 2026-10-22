@@ -3091,6 +3091,185 @@ begin
   raise notice 'delete ok    the frame outlives the place and is simply placeless';
 end $$;
 
+-- ------------------------------------------------- 0037: fingerprints
+-- Fixtures of this section's own, so it does not depend on which earlier
+-- frames are still here: two members, four frames. Alpha's -01 and -02 get
+-- hashes two bits apart (the same picture exported twice); Beta's -03 is four
+-- bits from -01 (a cross-owner near miss); Alpha's -04 is far from everything;
+-- and Alpha's draft -05 is bit-for-bit identical to -01 and must never come
+-- back, because only published frames do.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('f1a70000-0000-4000-8000-00000000000a', 'fp.alpha@example.test', '{"username":"fp_alpha"}'),
+  ('f1a70000-0000-4000-8000-00000000000b', 'fp.beta@example.test',  '{"username":"fp_beta"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('f1a70000-0000-4000-8000-000000000001', 'fp-alpha-one', 'f1a70000-0000-4000-8000-00000000000a',
+   'Alpha one', 'A man with an umbrella crossing a wet street under neon signs.',
+   'street', 'published', now() - interval '3 days', now(), 1800, 1200),
+  ('f1a70000-0000-4000-8000-000000000002', 'fp-alpha-two', 'f1a70000-0000-4000-8000-00000000000a',
+   'Alpha two', 'The same wet street, the same umbrella, exported a second time.',
+   'street', 'published', now() - interval '2 days', now(), 1800, 1200),
+  ('f1a70000-0000-4000-8000-000000000003', 'fp-beta-one', 'f1a70000-0000-4000-8000-00000000000b',
+   'Beta one', 'A wet street under neon signs photographed by somebody else entirely.',
+   'street', 'published', now() - interval '1 day', now(), 1800, 1200),
+  ('f1a70000-0000-4000-8000-000000000004', 'fp-alpha-far', 'f1a70000-0000-4000-8000-00000000000a',
+   'Alpha far', 'An empty beach at noon with nothing in the frame but sand and sky.',
+   'street', 'published', now(), now(), 1800, 1200),
+  ('f1a70000-0000-4000-8000-000000000005', 'fp-alpha-draft', 'f1a70000-0000-4000-8000-00000000000a',
+   'Alpha draft', 'The umbrella frame again, this time still a draft nobody can see.',
+   'street', 'draft', null, null, null, null)
+on conflict (id) do nothing;
+insert into public.photograph_fingerprints (photograph_id, dhash) values
+  ('f1a70000-0000-4000-8000-000000000001', B'1010101010101010101010101010101010101010101010101010101010101010'),
+  ('f1a70000-0000-4000-8000-000000000002', B'1010101010101010101010101010101010101010101010101010101010101001'),
+  ('f1a70000-0000-4000-8000-000000000003', B'1010101010101010101010101010101010101010101010101010101010100101'),
+  ('f1a70000-0000-4000-8000-000000000004', B'0101010101010101010101010101010101010101010101010101010101010101'),
+  ('f1a70000-0000-4000-8000-000000000005', B'1010101010101010101010101010101010101010101010101010101010101010')
+on conflict (photograph_id) do nothing;
+
+select public.test_rejects('a fingerprint shorter than 64 bits',
+  $$insert into public.photograph_fingerprints (photograph_id, dhash)
+    values ('f1a70000-0000-4000-8000-000000000004', B'1010')$$, '22026');
+
+-- No public role reads the table, directly or through the function.
+begin;
+set local role anon;
+select public.test_rejects('a visitor reading fingerprints',
+  $$select dhash from public.photograph_fingerprints limit 1$$, '42501');
+commit;
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'f1a70000-0000-4000-8000-00000000000a';
+select public.test_rejects('a member reading fingerprints',
+  $$select dhash from public.photograph_fingerprints limit 1$$, '42501');
+select public.test_rejects('a member writing a fingerprint, even of their own frame',
+  $$insert into public.photograph_fingerprints (photograph_id, dhash)
+    values ('f1a70000-0000-4000-8000-000000000001',
+            B'0000000000000000000000000000000000000000000000000000000000000000')
+    on conflict (photograph_id) do update set dhash = excluded.dhash$$, '42501');
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.similar_photographs(
+    array['f1a70000-0000-4000-8000-000000000001']::uuid[], 10);
+  if n <> 0 then
+    raise exception 'FINGERPRINT GAP  a member got % similar-photograph rows; a non-moderator must get none', n;
+  end if;
+  raise notice 'fingerprint ok  a member asking for matches gets no rows';
+end $$;
+commit;
+
+-- A moderator gets exactly the published neighbours, nearest first, and each
+-- row says whether the two frames share an owner.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+do $$
+declare v_rows text; n integer;
+begin
+  select string_agg(match_slug || ':' || distance || ':' || same_owner, ' ' order by distance)
+    into v_rows
+    from public.similar_photographs(array['f1a70000-0000-4000-8000-000000000001']::uuid[], 10);
+  if v_rows is distinct from 'fp-alpha-two:2:true fp-beta-one:4:false' then
+    raise exception 'FINGERPRINT GAP  expected the two near published frames, got: %', coalesce(v_rows, '(none)');
+  end if;
+  -- The ceiling is honoured: at 2 bits the other member''s frame drops out.
+  select count(*) into n
+    from public.similar_photographs(array['f1a70000-0000-4000-8000-000000000001']::uuid[], 2);
+  if n <> 1 then
+    raise exception 'FINGERPRINT GAP  at a ceiling of 2 expected one match, got %', n;
+  end if;
+  -- One call answers for several frames at once, keyed by the frame asked about.
+  select count(distinct photograph_id) into n
+    from public.similar_photographs(
+      array['f1a70000-0000-4000-8000-000000000001', 'f1a70000-0000-4000-8000-000000000003']::uuid[], 10);
+  if n <> 2 then
+    raise exception 'FINGERPRINT GAP  asking about two frames answered for %', n;
+  end if;
+  -- A draft with an identical hash is invisible; so is an unrelated frame.
+  if exists (select 1 from public.similar_photographs(array['f1a70000-0000-4000-8000-000000000001']::uuid[], 64)
+              where match_slug = 'fp-alpha-draft') then
+    raise exception 'FINGERPRINT GAP  an unpublished frame came back as a match';
+  end if;
+  raise notice 'fingerprint ok  a moderator sees the published neighbours, nearest first, owners compared';
+end $$;
+commit;
+
+-- A fingerprint goes with its photograph.
+delete from public.photographs where id = 'f1a70000-0000-4000-8000-000000000005';
+do $$
+begin
+  if exists (select 1 from public.photograph_fingerprints where photograph_id = 'f1a70000-0000-4000-8000-000000000005') then
+    raise exception 'FINGERPRINT GAP  a fingerprint outlived its photograph';
+  end if;
+  raise notice 'fingerprint ok  the fingerprint is deleted with the photograph';
+end $$;
+-- ------------------------------------------------------- 0038: film scans
+-- Fixtures of this section's own: one member, one published frame.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('f11a0000-0000-4000-8000-00000000000a', 'film.member@example.test', '{"username":"film_member"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('f11a0000-0000-4000-8000-000000000001', 'film-one', 'f11a0000-0000-4000-8000-00000000000a',
+   'Film one', 'A tram at dusk on a wet street, scanned from a colour negative.',
+   'street', 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+-- The three statements a film photographer makes are public like the camera
+-- texts beside them, and bounded like them.
+select public.test_accepts('a frame scanned from film, said in full',
+  $$insert into public.photograph_metadata (photograph_id, film_stock, film_camera, film_scanner)
+    values ('f11a0000-0000-4000-8000-000000000001', 'Kodak Portra 400', 'Leica M6', 'Epson V850')
+    on conflict (photograph_id) do update
+      set film_stock = excluded.film_stock, film_camera = excluded.film_camera,
+          film_scanner = excluded.film_scanner$$);
+select public.test_rejects('a film stock longer than a name',
+  $$update public.photograph_metadata set film_stock = repeat('x', 81)
+     where photograph_id = 'f11a0000-0000-4000-8000-000000000001'$$, '23514');
+
+begin;
+set local role anon;
+do $$
+declare v_stock text;
+begin
+  select film_stock into v_stock from public.photograph_metadata
+   where photograph_id = 'f11a0000-0000-4000-8000-000000000001';
+  if v_stock is distinct from 'Kodak Portra 400' then
+    raise exception 'FILM GAP  a visitor cannot read the film statements (got %)', coalesce(v_stock, 'null');
+  end if;
+  raise notice 'film ok       the film statements are public, like the camera texts beside them';
+end $$;
+commit;
+
+-- A scanner is a device class the verdict row may record; a made-up one is not.
+select public.test_accepts('a verdict that names a scanner',
+  $$insert into public.photograph_exif_checks (photograph_id, verdict, device_class, make, model, film_declared)
+    values ('f11a0000-0000-4000-8000-000000000001', 'film', 'scanner', 'EPSON', 'Perfection V850', true)
+    on conflict (photograph_id) do update
+      set verdict = excluded.verdict, device_class = excluded.device_class,
+          make = excluded.make, model = excluded.model, film_declared = excluded.film_declared$$);
+select public.test_rejects('a device class the gate does not know',
+  $$update public.photograph_exif_checks set device_class = 'typewriter'
+     where photograph_id = 'f11a0000-0000-4000-8000-000000000001'$$, '23514');
+
+-- "Not from film or a camera" is a reason a member may report under.
+select public.test_accepts('reporting a declared scan as not from film',
+  $$insert into public.reports (reported_by, subject_type, subject_id, reason, details)
+    values ('22222222-2222-4222-8222-222222222222', 'photograph',
+            'f11a0000-0000-4000-8000-000000000001', 'not-film-or-camera',
+            'The grain is a filter and the border is pasted on.')$$);
+select public.test_rejects('a reason the dialog does not offer',
+  $$insert into public.reports (reported_by, subject_type, subject_id, reason)
+    values ('22222222-2222-4222-8222-222222222222', 'photograph',
+            'f11a0000-0000-4000-8000-000000000001', 'ugly')$$, '23514');
 -- ------------------------------------------------- 0039: merging a place
 -- Fixtures of this section's own: a member, two approved places 60 m apart,
 -- a published frame and a draft at the loser, a frame at the survivor, a

@@ -269,6 +269,10 @@ export interface PhotographMetadataRow extends Timestamps {
   iso: number | null;
   editing_software: string | null;
   editing_notes: string | null;
+  /** The member's film statements (0038): stock, camera, scanner. */
+  film_stock: string | null;
+  film_camera: string | null;
+  film_scanner: string | null;
   exif_source: Json | null;
   exif_gps_latitude: number | null;
   exif_gps_longitude: number | null;
@@ -348,10 +352,19 @@ export interface PhotoSeriesItemRow {
   caption: string | null;
 }
 
+/** 0037. Written by the server; readable by no public role. */
+export interface PhotographFingerprintRow {
+  photograph_id: string;
+  /** 64 characters of 0 and 1 — a bit(64) crosses PostgREST as a string. */
+  dhash: string;
+  method: 'dhash-9x8-display';
+  computed_at: string;
+}
+
 export interface PhotographExifCheckRow {
   photograph_id: string;
   verdict: 'camera' | 'film' | 'rejected';
-  device_class: 'camera' | 'phone' | 'unknown';
+  device_class: 'camera' | 'phone' | 'scanner' | 'unknown';
   missing: string[];
   make: string | null;
   model: string | null;
@@ -811,6 +824,20 @@ export interface Database {
           },
         ];
       };
+      photograph_fingerprints: {
+        Row: PhotographFingerprintRow;
+        Insert: Insertable<PhotographFingerprintRow, 'photograph_id' | 'dhash'>;
+        Update: Partial<PhotographFingerprintRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photograph_fingerprints_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: true;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       collections: {
         Row: CollectionRow;
         Insert: Insertable<CollectionRow, 'slug' | 'owner_id' | 'title'>;
@@ -906,6 +933,22 @@ export interface Database {
       merge_location: {
         Args: { p_keep: string; p_merge: string; p_reason: string };
         Returns: undefined;
+      };
+      is_service_role: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      similar_photographs: {
+        Args: { p_photograph_ids: string[]; p_max_distance?: number };
+        Returns: Array<{
+          photograph_id: string;
+          match_id: string;
+          match_slug: string;
+          match_title: string;
+          match_username: string;
+          same_owner: boolean;
+          distance: number;
+        }>;
       };
       mark_notifications_read: {
         Args: { p_ids: string[] | null };

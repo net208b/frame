@@ -84,19 +84,49 @@ export async function CaptureSpecs({
 }) {
   const t = await getTranslations('photo');
 
-  const { cameraBrand, cameraModel, lensBrand, lensModel, focalLengthMm, aperture, shutterSpeed, iso } =
-    capture;
+  const {
+    cameraBrand,
+    cameraModel,
+    lensBrand,
+    lensModel,
+    focalLengthMm,
+    aperture,
+    shutterSpeed,
+    iso,
+    filmStock,
+    filmCamera,
+    filmScanner,
+  } = capture;
 
   const hasGear = Boolean(cameraBrand || cameraModel || lensBrand || lensModel || focalLengthMm);
   const hasExposure = aperture !== null || shutterSpeed !== null || iso !== null;
+  // A frame scanned from film says so here, in the member's words (0038) —
+  // the stock, the camera and the scanner stand where a digital frame's
+  // camera record would. Public on purpose: other film photographers are the
+  // readers who can tell a scan from a phone filter, and the report dialog
+  // gives them a reason to choose.
+  const hasFilm = Boolean(filmStock || filmCamera || filmScanner);
 
   return (
     <section className={cn('min-w-0', className)}>
       <Eyebrow>{t('capture.eyebrow')}</Eyebrow>
       <h2 className="mt-2 text-title font-bold">{t('capture.title')}</h2>
 
-      {!hasGear && !hasExposure ? (
+      {!hasGear && !hasExposure && !hasFilm ? (
         <p className="mt-3 text-caption leading-relaxed text-muted">{t('capture.none')}</p>
+      ) : null}
+
+      {hasFilm ? (
+        <dl className="mt-4 text-caption">
+          <Row term={t('capture.film')}>
+            <span className="rounded-pill border border-line px-2 py-0.5 text-meta font-semibold">
+              {t('capture.filmBadge')}
+            </span>
+          </Row>
+          {filmStock ? <Row term={t('capture.filmStock')}>{filmStock}</Row> : null}
+          {filmCamera ? <Row term={t('capture.filmCamera')}>{filmCamera}</Row> : null}
+          {filmScanner ? <Row term={t('capture.filmScanner')}>{filmScanner}</Row> : null}
+        </dl>
       ) : null}
 
       {hasExposure ? (

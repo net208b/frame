@@ -420,7 +420,12 @@
       "camera": "Camera",
       "lensBrand": "Lens brand",
       "lens": "Lens",
-      "focalLength": "Focal length"
+      "focalLength": "Focal length",
+      "film": "Medium",
+      "filmBadge": "Film",
+      "filmStock": "Film stock",
+      "filmCamera": "Film camera",
+      "filmScanner": "Scanned with"
     },
     "editing": {
       "eyebrow": "After the shutter",
@@ -489,6 +494,7 @@
       "inappropriate": "Inappropriate or unsafe content",
       "spam": "Spam or misleading upload",
       "duplicate": "Duplicate of an existing entry",
+      "not-film-or-camera": "Declared as film, but not from film or a camera",
       "other": "Something else"
     },
     "detailsLabel": "Details",
@@ -821,6 +827,26 @@
       "precisionMetres": "about {value, number} m",
       "precisionKilometres": "about {value, number} km",
       "guidelines": "What will and will not be approved is set out in the <guidelines>community guidelines</guidelines>."
+    },
+    "rules": {
+      "title": "The rules a photograph is held to, and why.",
+      "lead": "Four things the upload form will hold you to. None of them is a judgement of your work; each is what keeps the record honest.",
+      "camera": {
+        "title": "It has to come from a camera.",
+        "body": "FRAME is a record of how a frame was made as much as of the frame, and that record is written by the camera itself: make, body, shutter, ISO, the moment. A phone is refused whatever else is ticked. A scanned negative carries no camera record and is admitted when you say it is film — flagged, to a person, who looks at the frame and the gear by eye."
+      },
+      "review": {
+        "title": "Every upload waits for a person.",
+        "body": "Nothing is published the moment it is uploaded. An upload the automated checks cleared is published by the server; anything else — a possible match with a frame already on the site, a declared film scan, a check that could not run — waits for a moderator. There is no account that skips the queue."
+      },
+      "rights": {
+        "title": "The copyright stays yours, and you say so.",
+        "body": "Publishing needs your own confirmation, in your own words, that the work is yours. FRAME is granted nothing beyond showing it here. The original file is never served to anyone; what the site shows are the sizes it made from it. You can withdraw a photograph whenever you like."
+      },
+      "copies": {
+        "title": "Copies are looked for, not caught.",
+        "body": "Every stored photograph gets a perceptual fingerprint, and a new upload that closely resembles a published one is held for a moderator with both frames side by side. Said plainly: the fingerprint cannot tell which came first, cannot tell a crop from a copy, and cannot see a photograph that lives somewhere other than FRAME. If your work has been published here by somebody else, the <copyright>copyright page</copyright> says how to tell us, and what happens next."
+      }
     },
     "join": {
       "eyebrow": "Made by photographers",
@@ -1390,6 +1416,7 @@
       "filesNotDeleted": "The image files could not be deleted, so the photograph was kept rather than leaving files behind with nothing pointing at them. Try again in a moment.",
       "filesDeletedRecordKept": "The image files were deleted but the photograph record could not be. Reload the page and try again.",
       "exifRejectedPhone": "FRAME publishes photographs from cameras only, and this file was made by a phone. It was not kept.",
+      "exifRejectedScanner": "This file was written by a scanner, which is what a scan from film carries, but it is not marked as film. Tick “This is scanned from film” in the gear step and send it again.",
       "exifRejectedMissing": "FRAME publishes photographs that carry a camera’s own record, and this file is missing: {fields}. It was not kept.",
       "exifNotRecorded": "The camera record could not be saved, so the file was not processed. Try again in a moment.",
       "exifRejectedHelp": "If it is a scanned negative, tick “scanned from film” in the gear step. If it came from a camera, export it again without removing metadata — and not through a chat app."
@@ -1573,7 +1600,12 @@
       "proposalNoticeTitle": "What happens to a proposed place",
       "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes as soon as the automated checks clear it, with the place marked pending, and is credited to the location once it is approved.",
       "proposalNoticePrecision": "A published point is shown as submitted unless a moderator marks the place as sensitive, when it is coarsened — to {precision} or to about a kilometre — or withheld. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
-      "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them."
+      "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them.",
+      "nearbyHeading": "Already on FRAME near this point",
+      "nearbyLead": "These approved places are within {metres} m of the point you chose. If one of them is where you stood, use it — a second pin on the same corner is a duplicate the moderators would otherwise have to untangle.",
+      "nearbyDistance": "{metres, plural, one {# m away} other {# m away}}",
+      "nearbyUse": "Use this place",
+      "nearbyAnyway": "None of these? Carry on below and propose the place as it really is."
     },
     "gear": {
       "heading": "Camera and lens",
@@ -1590,7 +1622,15 @@
       "lensModelPlaceholder": "35mm f/1.4 Nokton",
       "note": "If your camera is not one FRAME already lists, what you type is kept exactly as you wrote it. Nobody is asked to pretend they shot something else.",
       "filmLabel": "This is scanned from film",
-      "filmHint": "A scan carries no camera record, so name the camera above. A reviewer sees the claim beside the missing record. Phone photographs are refused either way."
+      "filmHint": "A scan carries no camera record, so name the camera above. A reviewer sees the claim beside the missing record. Phone photographs are refused either way.",
+      "filmStockLabel": "Film stock",
+      "filmStockPlaceholder": "Kodak Portra 400",
+      "filmCameraLabel": "Film camera",
+      "filmCameraPlaceholder": "Leica M6",
+      "filmCameraHint": "The camera the negative was made in. The fields above describe the scan.",
+      "filmScannerLabel": "Scanned with",
+      "filmScannerPlaceholder": "Epson V850, or the lab’s Noritsu",
+      "filmScannerHint": "Shown on the page with the stock and the camera, the way a digital frame shows its settings."
     },
     "settings": {
       "heading": "Exposure and editing",
@@ -1801,6 +1841,8 @@
       "editingSoftwareInvalid": "The editing software must be text.",
       "editingNotesMax": "The editing notes must be {max, number} characters or fewer.",
       "editingNotesInvalid": "The editing notes must be text.",
+      "filmMax": "Keep this to {max} characters.",
+      "filmInvalid": "This could not be read as text.",
       "rightsConfirmedRequired": "Confirm the declaration below: FRAME cannot publish a photograph without it."
     },
     "exifGate": {
@@ -1820,7 +1862,9 @@
         "capturedAt": "date and time taken"
       },
       "filmTitle": "A scanned negative goes to a reviewer",
-      "filmBody": "You have marked this as film. It carries no camera record, so a person will look at it together with the camera you named."
+      "filmBody": "You have marked this as film. It carries no camera record and names no scanner, so a person will look at it together with the film, camera and scanner you name in the gear step.",
+      "filmScannerBody": "You have marked this as film, and the file names a scanner — what a scan from a negative is expected to carry. A person still looks at it, with the film and camera you name in the gear step.",
+      "failScanner": "It was written by a scanner, which is what a scan from film carries — but it is not marked as film."
     }
   },
   "collections": {
@@ -2163,6 +2207,7 @@
       "inappropriate": "Inappropriate or unsafe content",
       "spam": "Spam or misleading upload",
       "duplicate": "Duplicate of an existing entry",
+      "not-film-or-camera": "Declared as film, but not from film or a camera",
       "other": "Something else"
     },
     "form": {
@@ -2372,6 +2417,7 @@
         "location": "Place",
         "camera": "Camera",
         "lens": "Lens",
+        "film": "Film, as the member describes it",
         "settings": "Settings",
         "capturedAt": "Taken",
         "editing": "Editing",
