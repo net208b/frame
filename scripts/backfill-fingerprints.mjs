@@ -9,6 +9,11 @@
  * the public display derivative, which is the same input the upload uses, so a
  * value computed here is the value the upload would have stored.
  *
+ * Talks to PostgREST and Storage over plain fetch rather than through
+ * supabase-js: the client's realtime module wants a WebSocket, which Node 20
+ * does not provide, and a one-off script that reads two tables and writes one
+ * has no use for a realtime connection in the first place.
+ *
  * Needs the service role: `SUPABASE_URL` (or NEXT_PUBLIC_SUPABASE_URL) and
  * `SUPABASE_SERVICE_ROLE_KEY` (or SUPABASE_SECRET_KEY) in the environment.
  * Nothing is printed but counts and the ids it worked on.
@@ -16,10 +21,9 @@
  *   node scripts/backfill-fingerprints.mjs            # do it
  *   node scripts/backfill-fingerprints.mjs --dry-run  # only say what it would do
  */
-import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
 
-const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+const url = (process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/+$/, '');
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_SECRET_KEY;
 const bucket = process.env.STORAGE_BUCKET ?? 'photographs';
 const dryRun = process.argv.includes('--dry-run');
@@ -29,7 +33,18 @@ if (!url || !key) {
   process.exit(2);
 }
 
-const supabase = createClient(url, key, { auth: { persistSession: false } });
+const headers = { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' };
+
+/** One PostgREST call. A non-2xx answer is an error with the body in it. */
+async function rest(path, init = {}) {
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    ...init,
+    headers: { ...headers, ...(init.headers ?? {}) },
+  });
+  if (!response.ok) throw new Error(`${path} answered HTTP ${response.status}: ${await response.text()}`);
+  const text = await response.text();
+  return text.length > 0 ? JSON.parse(text) : null;
+}
 
 // The same algorithm as src/lib/images/fingerprint.ts, kept in step by hand:
 // 9×8 grey, each bit "left pixel brighter than the one to its right".
@@ -52,22 +67,17 @@ async function dhash(bytes) {
   return bits;
 }
 
-const { data: images, error } = await supabase
-  .from('photograph_images')
-  .select('photograph_id, storage_key, photographs!inner(status)')
-  .eq('variant', 'display')
-  .in('photographs.status', ['published', 'under_review', 'processing']);
-
-if (error) {
-  console.error(`backfill-fingerprints: reading photographs failed — ${error.message}`);
-  process.exit(1);
-}
-
-const { data: existing } = await supabase.from('photograph_fingerprints').select('photograph_id');
+const images = await rest(
+  'photograph_images?select=photograph_id,storage_key,photographs!inner(status)' +
+    '&variant=eq.display&photographs.status=in.(published,under_review,processing)',
+);
+const existing = await rest('photograph_fingerprints?select=photograph_id');
 const done = new Set((existing ?? []).map((row) => row.photograph_id));
 
 const todo = (images ?? []).filter((row) => !done.has(row.photograph_id));
-console.log(`${images?.length ?? 0} stored photographs, ${done.size} already fingerprinted, ${todo.length} to do${dryRun ? ' (dry run)' : ''}`);
+console.log(
+  `${images?.length ?? 0} stored photographs, ${done.size} already fingerprinted, ${todo.length} to do${dryRun ? ' (dry run)' : ''}`,
+);
 
 let written = 0;
 for (const row of todo) {
@@ -80,15 +90,22 @@ for (const row of todo) {
   const bytes = new Uint8Array(await response.arrayBuffer());
   const hash = await dhash(bytes);
   if (dryRun) {
-    console.log(`  ${row.photograph_id}: would store ${hash}`);
+    console.log(`  ${row.photograph_id}: would store a ${hash.length}-bit fingerprint`);
     continue;
   }
-  const { error: writeError } = await supabase.from('photograph_fingerprints').upsert(
-    { photograph_id: row.photograph_id, dhash: hash, method: 'dhash-9x8-display', computed_at: new Date().toISOString() },
-    { onConflict: 'photograph_id' },
-  );
-  if (writeError) {
-    console.error(`  ${row.photograph_id}: storing failed — ${writeError.message}`);
+  try {
+    await rest('photograph_fingerprints', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        photograph_id: row.photograph_id,
+        dhash: hash,
+        method: 'dhash-9x8-display',
+        computed_at: new Date().toISOString(),
+      }),
+    });
+  } catch (error) {
+    console.error(`  ${row.photograph_id}: storing failed — ${error instanceof Error ? error.message : String(error)}`);
     continue;
   }
   written += 1;
