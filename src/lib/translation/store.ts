@@ -41,7 +41,7 @@ const SUBJECTS: Record<TranslationSubject, { table: string; fields: readonly str
   photograph: { table: 'photographs', fields: ['title', 'description', 'alt_text'] },
   comment: { table: 'photograph_comments', fields: ['body'] },
   location: { table: 'locations', fields: ['name', 'description'] },
-  profile: { table: 'profiles', fields: ['biography'] },
+  profile: { table: 'profiles', fields: ['biography', 'approach'] },
 };
 
 function sha256(text: string): string {
