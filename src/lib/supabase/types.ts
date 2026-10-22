@@ -57,6 +57,14 @@ export interface ProfileRow extends Timestamps {
   /** Recounted from profile_follows by trigger (migration 0023). */
   follower_count: number;
   following_count: number;
+  /**
+   * 0046 — an editorial choice, not a count. Written only by
+   * set_featured_photographer(); profiles_guard_privileged_columns() refuses
+   * all three to every session, a moderator's included.
+   */
+  editorial_feature: boolean;
+  feature_note: string | null;
+  featured_at: string | null;
 }
 
 /** A piece by the editors (migration 0030). */
@@ -994,6 +1002,10 @@ export interface Database {
       };
       set_editors_pick: {
         Args: { p_photograph_id: string; p_pick: boolean };
+        Returns: undefined;
+      };
+      set_featured_photographer: {
+        Args: { p_profile_id: string; p_featured: boolean; p_note?: string | null };
         Returns: undefined;
       };
       publish_feature: {

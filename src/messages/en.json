@@ -817,6 +817,10 @@
       "moderator": "Community moderator",
       "admin": "Administrator"
     },
+    "featured": {
+      "label": "Featured photographer",
+      "by": "Chosen by FRAME’s editors"
+    },
     "roleShort": {
       "moderator": "Moderator",
       "admin": "Admin"
@@ -909,13 +913,19 @@
       "sampleFigure": "sample data",
       "sampleNote": "No database is configured for this deployment, so these four figures describe the bundled sample dataset rather than a real community."
     },
-    "featured": {
+    "appreciated": {
       "eyebrow": "Members",
       "title": "The most appreciated photographers",
       "description": "Ranked by the appreciations their published photographs have received, nothing else.",
       "emptyTitle": "No photographers to show yet",
       "emptyDescription": "This list is built from published photographs, so it fills up as members publish their first frames.",
       "allPhotographers": "See every photographer"
+    },
+    "featuredPhotographer": {
+      "eyebrow": "Chosen by the editors",
+      "label": "Featured photographer",
+      "since": "featured {month}",
+      "promise": "An editor chose this photographer and wrote why. It is always labelled, it is never paid for, and appreciation counts had no part in it."
     },
     "appreciation": {
       "title": "What an appreciation means",
@@ -3153,6 +3163,7 @@
       "challenge_award": "“{subject}” received an award in a challenge",
       "editors_pick": "“{subject}” was chosen as an editor’s pick",
       "featured": "Your work appears in “{subject}”, a feature by FRAME’s editors",
+      "featuredProfile": "FRAME’s editors featured you as a photographer",
       "admin_notice": "The admin left you a note about “{subject}”"
     }
   },
@@ -3254,6 +3265,17 @@
       "remove": "Remove from editors’ picks",
       "picked": "Marked as an editor’s pick.",
       "unpicked": "Removed from the editors’ picks."
+    },
+    "feature": {
+      "heading": "Feature this photographer",
+      "intro": "Editors only. A featured photographer appears on the home page and on Community, with your reason shown beside their name and attributed to the editors. The photographer is told once.",
+      "noteLabel": "Why, in your own words",
+      "notePlaceholder": "What this photographer does that is worth somebody's attention.",
+      "noteRemaining": "{count, plural, one {# character left} other {# characters left}}",
+      "add": "Feature, with this reason",
+      "update": "Update the reason",
+      "remove": "Stop featuring",
+      "saved": "Saved."
     },
     "draft": "Draft",
     "photographCount": "{count, plural, one {# photograph} other {# photographs}}",

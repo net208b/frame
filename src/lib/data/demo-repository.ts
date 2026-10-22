@@ -519,11 +519,19 @@ export function demoPortfolio(photographerId: string): PhotographDetail[] {
   );
 }
 
-export function demoFeaturedPhotographers(limit = 4): PhotographerProfile[] {
+export function demoMostAppreciatedPhotographers(limit = 4): PhotographerProfile[] {
   return [...DEMO_PHOTOGRAPHERS]
     .sort((a, b) => b.appreciationsReceived - a.appreciationsReceived)
     .slice(0, limit)
     .map(withCover);
+}
+
+/** The editorial choice (0046), newest first — not the ranking above it. */
+export function demoFeaturedPhotographer(): PhotographerProfile | null {
+  const [chosen] = [...DEMO_PHOTOGRAPHERS]
+    .filter((person) => person.editorialFeature)
+    .sort((a, b) => (b.featuredAt ?? '').localeCompare(a.featuredAt ?? ''));
+  return chosen ? withCover(chosen) : null;
 }
 
 /**

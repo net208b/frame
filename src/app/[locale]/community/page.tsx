@@ -9,6 +9,7 @@ import {
 } from '@/components/community/CommunityTabs';
 import { ChallengesOverview } from '@/components/challenges/ChallengesOverview';
 import { FeaturesOverview } from '@/components/features/FeaturesOverview';
+import { FeaturedPhotographerBand } from '@/components/community/FeaturedPhotographerBand';
 import { PhotobookShowcase, SHELF_LIMIT } from '@/components/community/PhotobookShowcase';
 import { PhotographerCard } from '@/components/photographer/PhotographerCard';
 import { CapabilityNotice } from '@/components/system/CapabilityNotice';
@@ -20,7 +21,8 @@ import { Link } from '@/i18n/navigation';
 import { LOCATION_POLICY } from '@/lib/config';
 import {
   getChallenges,
-  getFeaturedPhotographers,
+  getFeaturedPhotographer,
+  getMostAppreciatedPhotographers,
   getFeatures,
   getPlatformStats,
   getPublicPhotobooks,
@@ -74,7 +76,7 @@ export async function generateMetadata({
 }
 
 /** A larger set than the home page shows, because this is the page about people. */
-const FEATURED_LIMIT = 12;
+const APPRECIATED_LIMIT = 12;
 
 /**
  * Metres in one degree of latitude, the figure `precisionLabel` in
@@ -137,8 +139,12 @@ export default async function CommunityPage({ params, searchParams }: CommunityP
 
   // The shelf is only read for the view that shows it; the photographers view
   // pays nothing for a feature it does not display.
-  const [featured, stats, books, challenges, editorial] = await Promise.all([
-    getFeaturedPhotographers(FEATURED_LIMIT),
+  const [appreciated, chosen, stats, books, challenges, editorial] = await Promise.all([
+    getMostAppreciatedPhotographers(APPRECIATED_LIMIT),
+    // The editorial choice, read on every view: it is one row, and the band is
+    // the one thing on this page that is a statement by FRAME rather than a
+    // consequence of what members did.
+    getFeaturedPhotographer(),
     getPlatformStats(),
     view === 'photobooks' ? getPublicPhotobooks(SHELF_LIMIT) : Promise.resolve([]),
     view === 'challenges' ? getChallenges() : Promise.resolve([]),
@@ -180,7 +186,7 @@ export default async function CommunityPage({ params, searchParams }: CommunityP
       ) : view === 'features' ? (
         <FeaturesOverview features={editorial} locale={locale} />
       ) : (
-        <PhotographersView featured={featured} locale={locale} />
+        <PhotographersView appreciated={appreciated} chosen={chosen} locale={locale} />
       )}
     </div>
   );
@@ -192,10 +198,12 @@ export default async function CommunityPage({ params, searchParams }: CommunityP
  * its own component when the page gained a second view.
  */
 async function PhotographersView({
-  featured,
+  appreciated,
+  chosen,
   locale,
 }: {
-  featured: Awaited<ReturnType<typeof getFeaturedPhotographers>>;
+  appreciated: Awaited<ReturnType<typeof getMostAppreciatedPhotographers>>;
+  chosen: Awaited<ReturnType<typeof getFeaturedPhotographer>>;
   locale: Locale;
 }) {
   const t = await getTranslations({ locale, namespace: 'community' });
@@ -217,16 +225,21 @@ async function PhotographersView({
 
   return (
     <>
+      {/* The editorial choice FIRST, and the ranking after it. A leaderboard
+          above a chosen photographer reads as the reason they were chosen,
+          which is the one thing this band must not say (§7.4). */}
+      <FeaturedPhotographerBand photographer={chosen} className="mt-16" />
+
       <section className="mt-16">
         <SectionHead
-          eyebrow={t('featured.eyebrow')}
-          title={t('featured.title')}
-          description={t('featured.description')}
+          eyebrow={t('appreciated.eyebrow')}
+          title={t('appreciated.title')}
+          description={t('appreciated.description')}
         />
 
-        {featured.length > 0 ? (
+        {appreciated.length > 0 ? (
           <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {featured.map((photographer) => (
+            {appreciated.map((photographer) => (
               <li key={photographer.id}>
                 <PhotographerCard photographer={photographer} />
               </li>
@@ -234,8 +247,8 @@ async function PhotographersView({
           </ul>
         ) : (
           <EmptyState
-            title={t('featured.emptyTitle')}
-            description={t('featured.emptyDescription')}
+            title={t('appreciated.emptyTitle')}
+            description={t('appreciated.emptyDescription')}
           />
         )}
 
@@ -246,7 +259,7 @@ async function PhotographersView({
             href="/photographers"
             className="text-caption font-semibold text-ink underline decoration-line underline-offset-4 transition-colors duration-150 hover:decoration-line-strong"
           >
-            {t('featured.allPhotographers')}
+            {t('appreciated.allPhotographers')}
           </Link>
         </p>
       </section>

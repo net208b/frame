@@ -1,6 +1,6 @@
 'use client';
 
-import { Award, Bell, Heart, ImageUp, MessageSquare, Newspaper, Reply, ShieldCheck, Star, UserPlus } from 'lucide-react';
+import { Award, BadgeCheck, Bell, Heart, ImageUp, MessageSquare, Newspaper, Reply, ShieldCheck, Star, UserPlus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTransition, type ComponentType } from 'react';
 
@@ -99,10 +99,21 @@ export function NotificationList({ notifications }: { notifications: AppNotifica
 
       <ol className="mt-6 divide-y divide-line border-y border-line">
         {notifications.map((notification) => {
-          const Icon = ICONS[notification.kind];
+          /*
+            'featured' carries two different pieces of news, told apart by
+            what they are ABOUT: a photograph appearing in an editorial
+            feature (subject_type 'feature'), and the member themselves being
+            featured as a photographer (subject_type 'profile', migration
+            0046). Both are genuinely "featured" and the database allows both
+            pairs, so the subject decides the sentence rather than a second
+            kind that would have meant the same word twice.
+          */
+          const aboutThem =
+            notification.kind === 'featured' && notification.subjectType === 'profile';
+          const Icon = aboutThem ? BadgeCheck : ICONS[notification.kind];
           const href = hrefFor(notification);
           const actorName = notification.actor?.displayName ?? t('someone');
-          const sentence = t(`sentence.${notification.kind}`, {
+          const sentence = t(aboutThem ? 'sentence.featuredProfile' : `sentence.${notification.kind}`, {
             name: actorName,
             subject: notification.subjectLabel,
           });

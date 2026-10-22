@@ -11,6 +11,7 @@ import { ProfileCollections } from '@/components/photographer/ProfileCollections
 import { ProfileFootprints } from '@/components/photographer/ProfileFootprints';
 import { ProfileSeries } from '@/components/photographer/ProfileSeries';
 import { ProfileShelf } from '@/components/photographer/ProfileShelf';
+import { FeaturedPhotographerControl } from '@/components/features/FeaturedPhotographerControl';
 import { ProfileHeader } from '@/components/photographer/ProfileHeader';
 import { ProfileStats } from '@/components/photographer/ProfileStats';
 import {
@@ -20,7 +21,7 @@ import {
 } from '@/components/photographer/ProfileTabs';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
-import { getViewer } from '@/lib/auth';
+import { getViewer, isModerator } from '@/lib/auth';
 import {
   getCollections,
   getPhotographer,
@@ -318,6 +319,22 @@ export default async function PhotographerProfilePage({
           photographerName={photographer.displayName}
           className="mt-10"
         />
+      ) : null}
+
+      {/* The editors' lever, for staff, at the foot of the page rather than
+          beside the name: it is a tool, and the label it writes is already
+          shown in the header where everybody reads it. No check on whose page
+          it is — an editor may feature anybody, themselves included, and the
+          moderation trail records who chose. */}
+      {isModerator(viewer) ? (
+        <div className="mt-14 border-t border-line pt-6">
+          <FeaturedPhotographerControl
+            profileId={photographer.id}
+            username={photographer.username}
+            featured={photographer.editorialFeature}
+            note={photographer.featureNote}
+          />
+        </div>
       ) : null}
     </div>
   );

@@ -26,7 +26,9 @@ import { createFeatureSchema, parseFeatureLines } from '@/lib/validation/feature
  * change shows up on.
  */
 
-const RULE_CODES = new Set(['42501', '23514', '23505', '23503', 'P0002']);
+const RULE_CODES = new Set(['42501', '23514', '23505', '23503', 'P0002', '22023']);
+/** profiles_feature_note_length (0046). */
+const FEATURE_NOTE_MAX = 400;
 const uuid = z.uuid('An id must be a UUID.');
 
 async function requireStaff(): Promise<
@@ -70,6 +72,68 @@ export async function setEditorsPick(input: {
   revalidateLocalisedPath('/');
   revalidateLocalisedPath('/discover');
   return ok(undefined, input.pick ? 'Marked as an editor’s pick.' : 'Removed from the editors’ picks.');
+}
+
+/* ------------------------------------------------------------------------ */
+/* Featured photographer                                                     */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * Feature a photographer, or stop featuring one (0046).
+ *
+ * The note is required to feature and ignored to unfeature, which is what
+ * set_featured_photographer() enforces — the rule is in the database, and this
+ * only declines earlier so the editor gets a sentence instead of a SQLSTATE.
+ * Nothing here decides who may do it: the function checks the role itself, and
+ * the trigger on `profiles` refuses the three columns to every session anyway,
+ * so a bug in this file cannot put an unearned label on a profile.
+ */
+export async function setFeaturedPhotographer(input: {
+  profileId: string;
+  username: string;
+  featured: boolean;
+  note?: string;
+}): Promise<ActionResult> {
+  const staff = await requireStaff();
+  if (!staff.ok) return staff.result;
+
+  const parsed = uuid.safeParse(input.profileId);
+  if (!parsed.success) return failFromZod(parsed.error);
+
+  const note = (input.note ?? '').trim();
+  if (input.featured) {
+    if (note.length === 0) {
+      return fail('Say why this photographer is featured.', 'validation', {
+        note: 'A reason is what makes this different from a ranking.',
+      });
+    }
+    if (note.length > FEATURE_NOTE_MAX) {
+      return fail(`Keep the reason to ${FEATURE_NOTE_MAX} characters or fewer.`, 'validation', {
+        note: `${note.length} characters; the limit is ${FEATURE_NOTE_MAX}.`,
+      });
+    }
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('set_featured_photographer', {
+    p_profile_id: parsed.data,
+    p_featured: input.featured,
+    p_note: input.featured ? note : null,
+  });
+  if (error) {
+    if (RULE_CODES.has(error.code ?? '')) return fail(error.message, 'forbidden');
+    return fail('That could not be saved. Try again in a moment.', 'unknown');
+  }
+
+  // Every surface the band appears on, plus the profile that carries the label.
+  revalidateLocalisedPath(`/photographers/${input.username}`);
+  revalidateLocalisedPath('/photographers');
+  revalidateLocalisedPath('/community');
+  revalidateLocalisedPath('/');
+  return ok(
+    undefined,
+    input.featured ? 'Featured, with your reason.' : 'No longer featured.',
+  );
 }
 
 /* ------------------------------------------------------------------------ */
