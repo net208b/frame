@@ -1,10 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 
 import { Chip } from '@/components/ui/Chip';
-import { buildDiscoverHref } from '@/lib/discover-query';
+import { buildDiscoverHref, type DiscoverViewState } from '@/lib/discover-query';
 import { taxonomyLabels } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
-import { PHOTO_CATEGORIES, type DiscoverQuery } from '@/types/domain';
+import { PHOTO_CATEGORIES } from '@/types/domain';
 
 /**
  * The category row.
@@ -23,7 +23,7 @@ export async function CategoryFilter({
   query,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   className?: string;
 }) {
   const t = await getTranslations('discover');

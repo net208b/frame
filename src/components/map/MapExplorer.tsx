@@ -82,6 +82,7 @@ export function MapExplorer({
   ownLocationIds,
   initialSelectedSlug = null,
   fallbackCamera,
+  nothingToDraw,
   className,
 }: {
   pins: MapPin[];
@@ -101,6 +102,16 @@ export function MapExplorer({
    * everything.
    */
   fallbackCamera?: { centre: [number, number]; zoom: number };
+  /**
+   * What the map says over itself when it has nothing to draw.
+   *
+   * The /map page's reason is that no place on FRAME has a position that may be
+   * published, and that is what it says. It is not the reason on Discover's
+   * map, where the places exist and the reader's own filter is what excluded
+   * them — so the caller that knows why supplies the words, already translated,
+   * and the default stays the place index's own.
+   */
+  nothingToDraw?: { title: string; description: string };
   className?: string;
 }) {
   const baseId = useId();
@@ -267,7 +278,7 @@ export function MapExplorer({
           }
         />
         {mapConfigured ? <PinLegend /> : null}
-        {mapConfigured && pins.length === 0 ? <NothingPinned /> : null}
+        {mapConfigured && pins.length === 0 ? <NothingPinned copy={nothingToDraw} /> : null}
       </div>
 
       <aside
@@ -371,14 +382,16 @@ export function MapExplorer({
  * The copy is the same pair the panel used, so this is a change of where it is
  * said rather than of what it says.
  */
-function NothingPinned() {
+function NothingPinned({ copy }: { copy?: { title: string; description: string } }) {
   const t = useTranslations('map');
 
   return (
     <div className="pointer-events-none absolute inset-0 z-10 grid place-items-center p-5">
       <div className="w-[min(26rem,100%)] rounded-panel border border-line bg-surface p-5 text-center shadow-popover">
-        <p className="text-body font-semibold">{t('page.emptyTitle')}</p>
-        <p className="mt-1.5 text-meta leading-relaxed text-muted">{t('page.emptyDescription')}</p>
+        <p className="text-body font-semibold">{copy?.title ?? t('page.emptyTitle')}</p>
+        <p className="mt-1.5 text-meta leading-relaxed text-muted">
+          {copy?.description ?? t('page.emptyDescription')}
+        </p>
       </div>
     </div>
   );

@@ -5,11 +5,11 @@ import {
   activeDiscoverFilters,
   buildClearedDiscoverHref,
   buildDiscoverHrefWithout,
+  type DiscoverViewState,
 } from '@/lib/discover-query';
 import { Link } from '@/i18n/navigation';
 import { taxonomyLabels } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
-import type { DiscoverQuery } from '@/types/domain';
 
 /**
  * The filters currently narrowing the gallery, each one removable.
@@ -29,7 +29,7 @@ export async function ActiveFilters({
   query,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   className?: string;
 }) {
   const filters = activeDiscoverFilters(query);
