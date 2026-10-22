@@ -2167,6 +2167,58 @@ export async function featuredPhotographers(limit = 4): Promise<PhotographerProf
   );
 }
 
+/**
+ * The directory: every member who has not been suspended, newest first.
+ *
+ * This is a NEW query, not a reuse of anything. `findPhotographers` in the
+ * search route is a module-private helper that unions a username match with an
+ * appreciation-ranked pool and slices the result — it is not exported, it is
+ * not paged, and borrowing it would have made the directory a search result
+ * without a search term.
+ *
+ * Newest first, which `profiles_active_idx (created_at desc) where
+ * is_suspended = false` serves exactly. Deliberately NOT ordered by
+ * appreciation: a browse of who is here is not a leaderboard, and §7.4 of the
+ * guardrails is that likes do not decide value. Alphabetical and by-city
+ * orderings would each need an index of their own, so they are absent rather
+ * than offered as an unindexed scan.
+ *
+ * One row beyond the page answers "is there a next page" without an exact
+ * count, the same way the discover feed does.
+ */
+export async function photographerDirectory(
+  page: number,
+  pageSize: number,
+): Promise<Paginated<PhotographerProfile>> {
+  const supabase = await createClient();
+  const size = clampPageSize(pageSize);
+  const current = clampPage(page);
+  const offset = (current - 1) * size;
+
+  const rows = unwrapList<ProfileDetailColumns>(
+    'reading the photographer directory',
+    await supabase
+      .from('profiles')
+      .select(PROFILE_DETAIL_FIELDS)
+      .eq('is_suspended', false)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + size),
+  );
+
+  const hasMore = rows.length > size;
+  const profiles = await buildProfiles(supabase, rows.slice(0, size));
+
+  return {
+    items: profiles,
+    page: current,
+    pageSize: size,
+    // Not counted: an exact count of a growing table is the expensive half of
+    // the query, and the page needs "is there more", not a total.
+    totalCount: null,
+    hasMore,
+  };
+}
+
 export async function photographerUsernames(): Promise<string[]> {
   const rows = unwrapList<{ username: string | null }>(
     'listing photographer usernames',

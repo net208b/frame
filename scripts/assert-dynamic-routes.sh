@@ -6,6 +6,12 @@
 # added without a line here is simply unguarded. Add it in the same pull
 # request that creates it.
 #
+# Only routes with a dynamic segment of their own belong here. A page whose path
+# is static — `/[locale]/settings`, `/[locale]/photographers` — is reported as ●
+# even with `export const dynamic = 'force-dynamic'`, because the ● is about the
+# `[locale]` params its parent prerenders, not about the page. Listing one of
+# those fails this check against perfectly correct code.
+#
 # `next build` prints one line per route, prefixed with its render mode:
 #   ƒ  server-rendered on demand   — the correct mode for every route below
 #   ●  prerendered, from generateStaticParams

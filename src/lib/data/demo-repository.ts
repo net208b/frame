@@ -519,6 +519,21 @@ export function demoFeaturedPhotographers(limit = 4): PhotographerProfile[] {
     .map(withCover);
 }
 
+/**
+ * The directory, newest first — the same ordering the live query uses, so the
+ * two modes answer the same question. The bundled dataset carries no join date
+ * ordering of its own, so `memberSince` is what it is sorted by.
+ */
+export function demoPhotographerDirectory(
+  page: number,
+  pageSize: number,
+): Paginated<PhotographerProfile> {
+  const ordered = [...DEMO_PHOTOGRAPHERS]
+    .sort((a, b) => b.memberSince.localeCompare(a.memberSince))
+    .map(withCover);
+  return paginate(ordered, page, pageSize);
+}
+
 /* ------------------------------------------------------------------------ */
 /* Photobooks                                                                */
 /* ------------------------------------------------------------------------ */
