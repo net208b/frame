@@ -25,7 +25,7 @@ const FIELD_NAMES: Record<string, Record<string, string>> = {
   photograph: { title: 'title', description: 'description', alt_text: 'altText' },
   comment: { body: 'body' },
   location: { name: 'name', description: 'description' },
-  profile: { biography: 'biography' },
+  profile: { biography: 'biography', approach: 'approach' },
 };
 
 interface TranslationRow {

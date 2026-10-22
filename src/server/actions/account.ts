@@ -194,7 +194,10 @@ export async function updateProfile(
   }
 
   // A profile is public the moment it is saved, so a biography needs no
-  // approval before it can be read in the other language (0035).
+  // approval before it can be read in the other language (0035) — and neither
+  // does the approach (0041). No change was needed here for that: the store
+  // reads one field list per subject, so adding the field there is what makes
+  // this call cover it.
   scheduleTranslation('profile', member.id);
 
   revalidateProfile(member.username);

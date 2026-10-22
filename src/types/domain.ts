@@ -169,8 +169,11 @@ export interface ProfileCover {
 
 export interface PhotographerProfile extends PhotographerSummary {
   biography: string | null;
-  /** The biography in the other language (0035). */
-  translations: Translations<'biography'>;
+  /**
+   * The biography and the approach in the other language — 0035 for the
+   * biography, 0041 for the approach.
+   */
+  translations: Translations<'biography' | 'approach'>;
   website: string | null;
   /**
    * The country the member chose, ISO 3166-1 alpha-2, beside the free-text

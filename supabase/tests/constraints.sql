@@ -3593,6 +3593,92 @@ begin
   raise notice 'extras ok     closing an account still strips every field the member wrote';
 end $$;
 
+-- ------------------------------- 0041: translating a profile's approach
+-- Fixtures of this section's own.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('7a0c0000-0000-4000-8000-00000000000a', 'approach.member@example.test', '{"username":"approach_member"}')
+on conflict (id) do nothing;
+
+update public.profiles
+   set biography = 'A biography, in the language it was written in.',
+       approach  = 'I walk the same three streets until they stop surprising me.'
+ where id = '7a0c0000-0000-4000-8000-00000000000a';
+
+-- The pair is allowed now. Written as the service role, which is the only role
+-- 0035 lets write a translation at all.
+do $$
+begin
+  insert into public.content_translations
+    (subject_type, subject_id, field, language, source_language, value, source_hash, provider)
+  values
+    ('profile', '7a0c0000-0000-4000-8000-00000000000a', 'approach', 'th', 'en',
+     'ผมเดินถนนสามสายเดิมจนกว่ามันจะเลิกทำให้ผมประหลาดใจ',
+     repeat('a', 64), 'google');
+  raise notice 'approach ok   a profile approach may carry a translation';
+end $$;
+
+-- And the other three subjects still may, because this CHECK was replaced whole
+-- and a pair left out of the new one would have stopped being translatable.
+select public.test_rejects('a translation of a field no subject has',
+  $$insert into public.content_translations
+      (subject_type, subject_id, field, language, source_language, value, source_hash, provider)
+    values ('profile','7a0c0000-0000-4000-8000-00000000000a','based_in','th','en',
+            'กรุงเทพ', repeat('b', 64), 'google')$$, '23514');
+
+do $$
+declare n integer;
+begin
+  -- Each of the seven pairs 0035 and 0041 between them allow.
+  select count(*) into n from (values
+    ('photograph','title'), ('photograph','description'), ('photograph','alt_text'),
+    ('comment','body'),
+    ('location','name'), ('location','description'),
+    ('profile','biography'), ('profile','approach')
+  ) as allowed(subject, field)
+  where not pg_catalog.pg_get_constraintdef(
+    (select oid from pg_constraint
+      where conrelid = 'public.content_translations'::regclass
+        and conname = 'content_translations_field_belongs_to_subject')
+  ) like '%' || allowed.field || '%';
+
+  if n > 0 then
+    raise exception 'TRANSLATION GAP  % translatable field(s) are no longer named by the CHECK', n;
+  end if;
+  raise notice 'approach ok   every field 0035 made translatable still is';
+end $$;
+
+-- Editing the approach drops its translation, and leaves the biography's alone.
+do $$
+declare n_approach integer; n_biography integer;
+begin
+  insert into public.content_translations
+    (subject_type, subject_id, field, language, source_language, value, source_hash, provider)
+  values
+    ('profile', '7a0c0000-0000-4000-8000-00000000000a', 'biography', 'th', 'en',
+     'ประวัติโดยย่อ', repeat('c', 64), 'google')
+  on conflict do nothing;
+
+  update public.profiles
+     set approach = 'I changed my mind about the three streets.'
+   where id = '7a0c0000-0000-4000-8000-00000000000a';
+
+  select count(*) into n_approach from public.content_translations
+   where subject_type = 'profile' and subject_id = '7a0c0000-0000-4000-8000-00000000000a'
+     and field = 'approach';
+  select count(*) into n_biography from public.content_translations
+   where subject_type = 'profile' and subject_id = '7a0c0000-0000-4000-8000-00000000000a'
+     and field = 'biography';
+
+  if n_approach <> 0 then
+    raise exception 'STALE TRANSLATION  an edited approach kept its old translation';
+  end if;
+  if n_biography <> 1 then
+    raise exception 'TRANSLATION BUG  editing the approach also dropped the biography translation';
+  end if;
+  raise notice 'approach ok   editing the approach drops only its own translation';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

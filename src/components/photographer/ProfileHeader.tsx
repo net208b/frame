@@ -257,16 +257,22 @@ export async function ProfileHeader({
           {photographer.approach ? (
             <div className="mt-6 max-w-[58ch]">
               <h2 className="text-eyebrow uppercase text-muted">{t('approach.label')}</h2>
-              {/* Not machine-translated, unlike the biography above it. 0035
-                  lists which (subject, field) pairs may carry a translation,
-                  and adding this one is a migration of its own rather than
-                  something to assume — so for now it reads in the language it
-                  was written in, like `basedIn` and the gear list do. */}
-              <div className="mt-2 space-y-3 text-caption leading-relaxed text-ink-soft">
-                {paragraphs(photographer.approach).map((block, index) => (
-                  <p key={index}>{block}</p>
-                ))}
-              </div>
+              {/* Translated with the original kept available, exactly as the
+                  biography above it is: 0041 made ('profile', 'approach') a
+                  pair 0035's table accepts, and taught the stale-translation
+                  trigger to drop this one when the words change. */}
+              <TranslationBlock
+                className="mt-2"
+                locale={locale}
+                available={anyTranslation(locale, photographer.translations.approach)}
+              >
+                <Translated
+                  paragraphs
+                  className="space-y-3 text-caption leading-relaxed text-ink-soft"
+                  original={photographer.approach}
+                  translation={photographer.translations.approach}
+                />
+              </TranslationBlock>
             </div>
           ) : null}
 
