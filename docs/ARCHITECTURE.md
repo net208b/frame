@@ -457,7 +457,7 @@ the URL would need a proxy route, which this abstraction does not have.
 | --- | --- |
 | `src/app/` | Routes, layouts, `globals.css`. Every page sits under `src/app/[locale]/`, one folder per route segment, with `loading.tsx`, `error.tsx` and `not-found.tsx` beside the page they belong to. What stays outside that segment is what is not a page: `sitemap.ts`, `robots.ts`, `manifest.ts`, `icon.svg`, `global-error.tsx`, `api/` and the `auth/` route handlers, plus the root `layout.tsx` that holds the stylesheet |
 | `src/i18n/` | The locale set, the next-intl routing and navigation wrappers, and the per-request message configuration. Every internal link imports `Link` from `src/i18n/navigation` rather than `next/link` |
-| `src/messages/` | One message catalogue per language, `en.json` and `th.json`, in the same key order |
+| `src/messages/` | One message catalogue per language, `en.json` and `th.json`, in the same key order — asserted in CI by `scripts/assert-message-parity.mjs`, because one catalogue is loaded per request and there is no fallback language |
 | `src/components/ui/` | Primitives with no domain knowledge: `Button`, `Chip`, `Dialog`, `Field`, `states`, `SectionHead`, `Pagination` |
 | `src/components/layout/` | The shell: header, footer, nav, brand |
 | `src/components/system/` | Cross-cutting behaviour: notices, toasts, the report dialog |

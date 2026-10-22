@@ -55,6 +55,14 @@ jobs:
       - name: Reserved usernames match the trigger
         run: node scripts/assert-reserved-usernames.mjs
 
+      # One catalogue is loaded per request, so there is no fallback language: a
+      # key added to en.json and forgotten in th.json renders its own key path on
+      # the Thai page. Nothing else here reads the catalogues, and they are 2,500
+      # keys long, so this is the only check that keeps the two-language promise.
+      # Before the build, because it costs a second and the build costs minutes.
+      - name: Every message exists in both languages
+        run: node scripts/assert-message-parity.mjs
+
       - name: Lint
         run: npm run lint
 
