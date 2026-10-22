@@ -53,10 +53,19 @@ function alternateLanguages(base: string, path: string): Record<string, string> 
   return languages;
 }
 
-/** public/og-default.png: the FRAME mark, name and tagline at 1200 × 630. */
+/**
+ * public/og-default.png: the FRAME mark and name at 1200 × 630, with a tagline
+ * rendered INTO the picture.
+ *
+ * The alt text deliberately no longer quotes `SITE.tagline`. The tagline is a
+ * value that can be edited; the words in the image are pixels that cannot, so
+ * composing the alt from the config meant that changing the line made the alt
+ * describe something the picture does not say. What it describes now is the
+ * part of the card that is true whatever the tagline is.
+ */
 const DEFAULT_SHARE_IMAGE = {
   url: '/og-default.png',
-  alt: `${SITE.name} — ${SITE.tagline}`,
+  alt: `${SITE.name} — a global street photography community`,
 };
 
 /** public/frame-logo-512.png, for the Organization in structured data. */

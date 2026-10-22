@@ -63,7 +63,7 @@ const notoSansThai = Noto_Sans_Thai({
   variable: '--font-noto-thai',
 });
 
-const HOME_TITLE = `${SITE.name} — ${SITE.tagline}`;
+const HOME_TITLE = `${SITE.name} — ${SITE.titleTagline}`;
 
 interface LocaleLayoutProps {
   children: ReactNode;
