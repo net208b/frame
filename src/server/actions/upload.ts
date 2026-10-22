@@ -9,6 +9,7 @@ import { fail, ok, type ActionResult } from '@/lib/action-result';
 import { getViewer, getViewerSuspension, type Viewer } from '@/lib/auth';
 import { isDemoMode, UPLOAD_POLICY } from '@/lib/config';
 import { distanceMetres } from '@/lib/geo';
+import { FINGERPRINT_METHOD, fingerprint } from '@/lib/images/fingerprint';
 import { blurPlaceholder, buildVariants, verifyImageBytes } from '@/lib/images/process';
 import { readExif, type ExifReadout } from '@/lib/images/exif';
 import { assessCameraEvidence, type ExifVerdict } from '@/lib/images/exif-gate';
@@ -720,6 +721,15 @@ export async function attachVariants(
     blurDataUrl = null;
   }
 
+  // The perceptual fingerprint (0037), from the display derivative so the
+  // backfill script computes the same value from the public file. A failure
+  // is logged and the upload continues: the fingerprint is a hint for the
+  // review queue, and an upload with no hint still goes to a person.
+  await recordFingerprint(
+    photograph.id,
+    built.find((variant) => variant.name === 'display')?.bytes ?? original.bytes,
+  );
+
   const rows: VariantRow[] = [];
 
   for (const variant of built) {
@@ -971,6 +981,73 @@ async function recordExifCheck(
       }`,
     );
     return false;
+  }
+}
+
+/**
+ * Store the perceptual fingerprint, as the service role (0037). Never throws:
+ * a photograph without one simply produces no match signal, and the queue
+ * still shows it to a person.
+ */
+async function recordFingerprint(photographId: string, bytes: Uint8Array): Promise<void> {
+  try {
+    const dhash = await fingerprint(bytes);
+    const { error } = await createAdminClient().from('photograph_fingerprints').upsert(
+      { photograph_id: photographId, dhash, method: FINGERPRINT_METHOD, computed_at: new Date().toISOString() },
+      { onConflict: 'photograph_id' },
+    );
+    if (error) {
+      console.error(`FRAME upload: recording the fingerprint for ${photographId} failed — ${error.message}`);
+    }
+  } catch (error) {
+    console.error(
+      `FRAME upload: the fingerprint for ${photographId} could not be computed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}
+
+/**
+ * Published photographs this one looks like, as signals (0037). High
+ * severity, so `publishIfCleared` holds the upload for a person — but the
+ * wording keeps to what a fingerprint can actually say. It cannot tell which
+ * frame came first or a crop from a copy, and a member re-uploading their own
+ * work matches their own work, which the message says rather than hides.
+ */
+interface SimilarRow {
+  match_slug: string;
+  match_title: string;
+  match_username: string;
+  same_owner: boolean;
+  distance: number;
+}
+
+async function fingerprintSignals(photographId: string): Promise<UploadSignal[]> {
+  try {
+    const { data, error } = await createAdminClient().rpc('similar_photographs', {
+      p_photograph_ids: [photographId],
+      p_max_distance: UPLOAD_POLICY.perceptualMatchMaxDistance,
+    });
+    if (error) {
+      console.error(`FRAME upload: comparing fingerprints for ${photographId} failed — ${error.message}`);
+      return [];
+    }
+    return ((data ?? []) as SimilarRow[]).map((match) => ({
+      kind: 'perceptual-hash-match' as const,
+      severity: 'high' as const,
+      message: match.same_owner
+        ? `Looks like “${match.match_title}”, already published by this member — ${match.distance} of 64 bits differ. A re-upload of their own work, or a near-duplicate frame.`
+        : `Looks like “${match.match_title}” by @${match.match_username} — ${match.distance} of 64 bits differ. Put the two side by side; the fingerprint cannot say which came first.`,
+      relatedLabel: `/photographs/${match.match_slug}`,
+    }));
+  } catch (error) {
+    console.error(
+      `FRAME upload: the fingerprint comparison for ${photographId} could not run — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return [];
   }
 }
 
@@ -1329,6 +1406,7 @@ export async function publishPhotograph(
   const height = displaySize?.height ?? photograph.imageHeight;
 
   const signals = await filmSignals(photograph.id, payload.film);
+  signals.push(...(await fingerprintSignals(photograph.id)));
   signals.push(...reviewSignals({
     exif: payload.exif,
     capture: payload.capture,

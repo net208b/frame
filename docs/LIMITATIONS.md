@@ -194,55 +194,46 @@ publication, and the copyright policy at `/legal/copyright` describes the
 counter-notice process. Provenance standards such as C2PA would be a genuine
 improvement and are a project of their own.
 
-### Perceptual hashing is promised in the UI and does not exist
+### Perceptual hashing is a near-duplicate hint, and no more
 
-**What.** This is the most serious honesty gap in the repository.
-[`src/app/legal/copyright/page.tsx`](../src/app/legal/copyright/page.tsx) tells
-readers: "FRAME computes a perceptual fingerprint of each upload and shows a
-moderator when a new photograph closely resembles one already on the site."
-`UploadSignal` declares a `perceptual-hash-match` kind,
-`src/components/moderation/SignalBadge.tsx` labels it "Similar image on file",
-`SuspiciousUploadQueue` renders a dedicated explanation when one is present, and
-the bundled demo dataset contains an example of it.
+**What.** Since migration `0037` every stored photograph has a 64-bit difference
+hash (`photograph_fingerprints`, computed by `src/lib/images/fingerprint.ts`
+from the display derivative), and `similar_photographs()` returns the published
+frames within a Hamming distance of a given one. The server calls it before
+publishing and turns any match into a high-severity `perceptual-hash-match`
+signal, so the upload waits for a moderator, who sees the match in the queue
+with the two frames a click apart. Until `0037` this check was described on
+`/legal/copyright` and did not exist; the copy there was already written for
+what the check can and cannot do, and needed no change.
 
-**No code computes a hash. No column stores one.**
-`grep -rin "phash\|perceptual\|hamming" supabase/ src/lib/images/ src/server/`
-returns nothing at all. `grep -rl "perceptual" src/` returns five files, and not
-one of them computes anything: the policy copy quoted above, the union member in
-`src/types/domain.ts`, the label in `SignalBadge.tsx`, the explanation in
-`SuspiciousUploadQueue.tsx`, and one fabricated signal in
-`src/lib/data/demo/moderation.ts`.
+**Why it is only a hint.** A dHash records the broad distribution of light on a
+9×8 grid. That survives a re-export, a resize and a recompress, which is what
+makes it find a re-upload — and it is all it records. A crop changes the grid;
+a mirrored frame reverses every comparison; a heavy edit moves the light. None
+of those will match. Nor can the hash say which of two frames came first, or
+tell a member re-uploading their own work (which it will flag, and say so) from
+somebody taking it. And it only knows about FRAME: a photograph copied from
+anywhere else is invisible to it by construction.
 
-**Why.** The surrounding apparatus — the signal kind, the badge, the queue
-treatment and the policy copy — was built for it, and the computation was not.
+**What could go wrong.** A moderator reading a match as proof, or a near miss as
+proof of originality. The queue's wording and the caveat under the signals are
+written against that. The ceiling, `UPLOAD_POLICY.perceptualMatchMaxDistance`
+(10 of 64 bits), is a judgement: lower misses re-uploads, higher sends honest
+coincidences to a person. It has not been tuned on real traffic, because there
+is not yet any.
 
-**What could go wrong.** A published policy page describes a control that does
-not run. A photographer who uploads their work believing FRAME will notice if
-somebody re-uploads it has been told something untrue, and in a copyright
-dispute that sentence is the platform's own statement of what it does.
+**What would be more.** C2PA content credentials would carry provenance in the
+file rather than inferring it from the pixels, and are a project of their own.
+A second, rotation-tolerant hash would catch mirrored frames at the cost of
+more coincidental matches.
 
-**The fix.** One of two things, and the second is acceptable only as a stopgap:
-
-1. **Implement it.** A difference hash is a handful of lines on top of `sharp` —
-   resize to 9×8 greyscale, compare adjacent pixels, pack 64 bits — computed in
-   `buildVariants()`'s pass over the original and stored as
-   `photographs.perceptual_hash bigint`. Candidates come from a Hamming-distance
-   comparison, which Postgres can do with `bit_count(a # b)` on a `bit(64)`
-   column, and `attachVariants()` or `publishPhotograph()` derives the signal. The
-   policy page's framing — that the check is "close to blind", cannot tell which
-   upload came first, cannot tell a crop from a copy, and never removes anything
-   by itself — is already correct and would need no change.
-2. **Change the copy**, so the page describes the signals that do exist.
-
-Either is a small piece of work. Leaving both undone is not an option, because
-the current state is a false statement on a legal page.
-*Touches:* `src/lib/images/process.ts`, a new migration,
-`src/server/actions/upload.ts`, `src/lib/data/supabase-repository.ts` — or just
-`src/app/legal/copyright/page.tsx`.
+*Touches:* `supabase/migrations/0037_perceptual_fingerprints.sql`,
+`src/lib/images/fingerprint.ts`, `src/server/actions/upload.ts`,
+`src/lib/data/supabase-repository.ts`, `scripts/backfill-fingerprints.mjs`.
 
 ### A similarity score would be a review signal, not evidence
 
-**What.** Noted here so it is not lost if the above is implemented. A hash match
+**What.** A hash match
 cannot tell which of two uploads was made first, cannot distinguish a crop from a
 copy, and cannot distinguish a photographer re-uploading their own work from
 somebody taking it.

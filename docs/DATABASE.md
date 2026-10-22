@@ -189,6 +189,23 @@ Two groups of columns deserve attention:
   frame shows its settings — so that other film photographers, who can tell a
   scan from a phone filter, can read them.
 
+### `photograph_fingerprints`
+
+A 64-bit difference hash of each stored photograph, keyed one-to-one on
+`photograph_id` and written by the server with the service role at the moment
+the derivatives are stored (migration `0037`). `method` names the algorithm and
+its input (`dhash-9x8-display`), so a second hash can never be silently compared
+with the first.
+
+No public role may read it: the table has no policy and no grant, because a
+table that answers "is this image on FRAME" to anyone answers it for a frame
+still under review or already removed. The one way in is
+`similar_photographs(uuid[], integer)`, which returns the *published* frames
+within a Hamming distance of each given one — to a moderator, or to the server
+— and gives everyone else no rows. What comes back is a reason for a person to
+put two frames side by side, and nothing more; see
+[LIMITATIONS](LIMITATIONS.md#perceptual-hashing-is-a-near-duplicate-hint-and-no-more).
+
 ### `photograph_appreciations`
 
 `(photograph_id, profile_id)` with a unique constraint and nothing else of

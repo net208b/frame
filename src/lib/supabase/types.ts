@@ -350,6 +350,15 @@ export interface PhotoSeriesItemRow {
   caption: string | null;
 }
 
+/** 0037. Written by the server; readable by no public role. */
+export interface PhotographFingerprintRow {
+  photograph_id: string;
+  /** 64 characters of 0 and 1 — a bit(64) crosses PostgREST as a string. */
+  dhash: string;
+  method: 'dhash-9x8-display';
+  computed_at: string;
+}
+
 export interface PhotographExifCheckRow {
   photograph_id: string;
   verdict: 'camera' | 'film' | 'rejected';
@@ -813,6 +822,20 @@ export interface Database {
           },
         ];
       };
+      photograph_fingerprints: {
+        Row: PhotographFingerprintRow;
+        Insert: Insertable<PhotographFingerprintRow, 'photograph_id' | 'dhash'>;
+        Update: Partial<PhotographFingerprintRow>;
+        Relationships: [
+          {
+            foreignKeyName: 'photograph_fingerprints_photograph_id_fkey';
+            columns: ['photograph_id'];
+            isOneToOne: true;
+            referencedRelation: 'photographs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       collections: {
         Row: CollectionRow;
         Insert: Insertable<CollectionRow, 'slug' | 'owner_id' | 'title'>;
@@ -904,6 +927,22 @@ export interface Database {
       toggle_follow: {
         Args: { p_profile_id: string };
         Returns: Array<{ following: boolean; follower_count: number }>;
+      };
+      is_service_role: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      similar_photographs: {
+        Args: { p_photograph_ids: string[]; p_max_distance?: number };
+        Returns: Array<{
+          photograph_id: string;
+          match_id: string;
+          match_slug: string;
+          match_title: string;
+          match_username: string;
+          same_owner: boolean;
+          distance: number;
+        }>;
       };
       mark_notifications_read: {
         Args: { p_ids: string[] | null };
