@@ -50,6 +50,11 @@ export interface ProfileFormValues {
   collaboration: string;
   critique: string;
   gear: string;
+  /** One city per line, as the field shows them. */
+  favouriteCities: string;
+  approach: string;
+  /** http(s) or mailto:, or '' for "not given". */
+  contactUrl: string;
 }
 
 export function ProfileForm({
@@ -277,6 +282,38 @@ export function ProfileForm({
             length: PROFILE_LIMITS.gearItemLength,
           })}
           error={errorFor('gear')}
+        />
+
+        <TextAreaField
+          label={t('profile.favouriteCities')}
+          name="favouriteCities"
+          rows={3}
+          defaultValue={initial.favouriteCities}
+          hint={t('profile.favouriteCitiesHint', {
+            count: PROFILE_LIMITS.favouriteCities,
+            length: PROFILE_LIMITS.favouriteCityLength,
+          })}
+          error={errorFor('favouriteCities')}
+        />
+
+        <TextAreaField
+          label={t('profile.approach')}
+          name="approach"
+          rows={4}
+          defaultValue={initial.approach}
+          hint={t('profile.approachHint', { length: PROFILE_LIMITS.approach })}
+          error={errorFor('approach')}
+        />
+
+        {/* One link, and it leaves FRAME: there is no inbox here and this does
+            not add one. The hint says so, because a field called "contact"
+            otherwise reads as a message box. */}
+        <TextField
+          label={t('profile.contactUrl')}
+          name="contactUrl"
+          defaultValue={initial.contactUrl}
+          hint={t('profile.contactUrlHint')}
+          error={errorFor('contactUrl')}
         />
 
         <Button type="submit" size="lg" loading={pending}>

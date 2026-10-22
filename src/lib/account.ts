@@ -30,6 +30,12 @@ export interface OwnSettings {
   /** The photograph standing at the top of the profile, if they chose one. */
   coverPhotographId: string | null;
   usualGear: string[];
+  /** Cities the member keeps returning to, in their own words (0040). */
+  favouriteCities: string[];
+  /** How they go about the work (0040). */
+  approach: string | null;
+  /** One way to reach them, outside FRAME (0040). */
+  contactUrl: string | null;
   /**
    * How the account was made: `email` for the Join form, otherwise the
    * provider's id. Read from app metadata, which only the identity service can
@@ -59,6 +65,9 @@ interface ProfileRow {
   critique_preference: string | null;
   cover_photograph_id: string | null;
   usual_gear: string[] | null;
+  favourite_cities: string[] | null;
+  approach: string | null;
+  contact_url: string | null;
   username_changed_at: string | null;
   is_suspended: boolean;
 }
@@ -76,6 +85,7 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
       .select(
         `username, display_name, avatar_url, biography, based_in, country_code, website, social_links,
          style_tags, collaboration_status, critique_preference, cover_photograph_id, usual_gear,
+         favourite_cities, approach, contact_url,
          username_changed_at, is_suspended`,
       )
       .eq('id', auth.user.id)
@@ -112,6 +122,9 @@ export async function getOwnSettings(): Promise<OwnSettings | null> {
     critique: row.critique_preference,
     coverPhotographId: row.cover_photograph_id,
     usualGear: row.usual_gear ?? [],
+    favouriteCities: row.favourite_cities ?? [],
+    approach: row.approach,
+    contactUrl: row.contact_url,
     createdWith,
     canChangeUsername:
       createdWith !== 'email' && row.username_changed_at === null && !row.is_suspended,

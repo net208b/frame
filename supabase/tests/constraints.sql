@@ -3490,6 +3490,109 @@ do $$ begin
 end $$;
 commit;
 
+-- -------------------------------------------- 0040: the profile extras
+-- Fixtures of this section's own, so nothing here depends on a row an earlier
+-- section may have deleted.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('c17e0000-0000-4000-8000-00000000000a', 'extras.member@example.test', '{"username":"extras_member"}')
+on conflict (id) do nothing;
+
+-- What the three columns accept. Written as one update of a real row rather
+-- than three, because that is how the form writes them.
+do $$
+begin
+  update public.profiles
+     set favourite_cities = array['Bangkok', 'Hanoi', 'Osaka'],
+         approach         = 'I walk the same three streets until they stop surprising me, then I walk them again.',
+         contact_url      = 'https://example.test/commissions'
+   where id = 'c17e0000-0000-4000-8000-00000000000a';
+
+  if not exists (
+    select 1 from public.profiles
+     where id = 'c17e0000-0000-4000-8000-00000000000a'
+       and cardinality(favourite_cities) = 3
+       and approach is not null
+       and contact_url = 'https://example.test/commissions'
+  ) then
+    raise exception 'EXTRAS BUG  a profile could not store the three fields 0040 adds';
+  end if;
+  raise notice 'extras ok     a member may write favourite cities, an approach and a contact link';
+end $$;
+
+-- A mailto: address is admitted in this one field, because being reachable for
+-- work is the whole point of it.
+do $$
+begin
+  update public.profiles set contact_url = 'mailto:someone@example.test'
+   where id = 'c17e0000-0000-4000-8000-00000000000a';
+  raise notice 'extras ok     a mailto: address is accepted as a contact link';
+end $$;
+
+-- And what they refuse. Each of these is a value the form also refuses; the
+-- point of the constraint is that the database refuses it even when the form
+-- is not the thing writing.
+select public.test_rejects('a seventh favourite city',
+  $$update public.profiles
+       set favourite_cities = array['a','b','c','d','e','f','g']
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+select public.test_rejects('the same favourite city twice',
+  $$update public.profiles
+       set favourite_cities = array['Bangkok','Bangkok']
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+select public.test_rejects('a favourite city longer than the bound',
+  $$update public.profiles
+       set favourite_cities = array[repeat('x', 81)]
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+select public.test_rejects('an approach longer than 600 characters',
+  $$update public.profiles set approach = repeat('x', 601)
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+-- The one that matters: the value becomes an href on a public page.
+select public.test_rejects('a javascript: contact link',
+  $$update public.profiles set contact_url = 'javascript:alert(1)'
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+select public.test_rejects('a contact link that is not a URL at all',
+  $$update public.profiles set contact_url = 'call me'
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+select public.test_rejects('a mailto: with nothing that looks like an address',
+  $$update public.profiles set contact_url = 'mailto:nobody'
+     where id = 'c17e0000-0000-4000-8000-00000000000a'$$, '23514');
+
+-- Closing an account strips the member's own words, and these three are the
+-- member's own words. A column added without that line would outlive the
+-- account that wrote it.
+do $$
+declare v_scrubbed text;
+begin
+  select pg_get_functiondef(p.oid) into v_scrubbed
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'delete_own_account';
+
+  if v_scrubbed is null then
+    raise exception 'EXTRAS BUG  delete_own_account() is not defined';
+  end if;
+
+  if v_scrubbed not like '%favourite_cities%'
+     or v_scrubbed not like '%approach%'
+     or v_scrubbed not like '%contact_url%' then
+    raise exception 'EXTRAS BUG  delete_own_account() does not strip the three fields 0040 adds';
+  end if;
+
+  -- The same check in the other direction: 0017's column must still be there,
+  -- since redefining this function is how it would quietly be dropped.
+  if v_scrubbed not like '%cover_photograph_id%' then
+    raise exception 'EXTRAS BUG  delete_own_account() stopped stripping cover_photograph_id';
+  end if;
+
+  raise notice 'extras ok     closing an account still strips every field the member wrote';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

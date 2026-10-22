@@ -193,6 +193,22 @@ export interface PhotographerProfile extends PhotographerSummary {
   cover: ProfileCover | null;
   /** Gear the member chose to show. Absent when they have not filled it in. */
   usualGear: string[];
+  /**
+   * Cities the member keeps returning to, in their own words (0040).
+   *
+   * Free text rather than a reference to a city hub: a city somebody loves may
+   * have no approved place on FRAME at all, and saying so should not require
+   * one.
+   */
+  favouriteCities: string[];
+  /** How the member goes about the work, in their own words (0040). */
+  approach: string | null;
+  /**
+   * One way to reach the member, OUTSIDE FRAME (0040) — http(s), or a mailto:
+   * they typed themselves. Not messaging: FRAME has no inbox and this is not
+   * one, it is a link the member chose to publish.
+   */
+  contactUrl: string | null;
   photographCount: number;
   appreciationsReceived: number;
   locationsContributed: number;

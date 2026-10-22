@@ -198,6 +198,9 @@ export default async function SettingsPage({
                 critique: settings.critique ?? '',
                 coverPhotographId: settings.coverPhotographId ?? '',
                 gear: settings.usualGear.join('\n'),
+                favouriteCities: settings.favouriteCities.join('\n'),
+                approach: settings.approach ?? '',
+                contactUrl: settings.contactUrl ?? '',
               }}
             />
           </div>

@@ -41,6 +41,26 @@ import type { PhotographerProfile } from '@/types/domain';
  * `javascript:` and `data:` values are script injection dressed as a website.
  * Anything that is not plain http(s) is dropped rather than linked.
  */
+/**
+ * The contact link, read the same way the website is — and `mailto:` as well,
+ * which is the one field that admits it (0040). A stored value that is neither
+ * is dropped rather than linked: the same belt-and-braces as `externalWebsite`,
+ * since the column's CHECK already refuses it.
+ */
+function contactLink(value: string): { href: string; label: string } | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+
+  if (url.protocol === 'mailto:') {
+    return { href: url.toString(), label: decodeURIComponent(url.pathname) };
+  }
+  return externalWebsite(value);
+}
+
 function externalWebsite(value: string): { href: string; label: string } | null {
   let url: URL;
   try {
@@ -104,6 +124,7 @@ export async function ProfileHeader({
   const memberSince = formatMonthYear(photographer.memberSince, locale);
   const website = photographer.website ? externalWebsite(photographer.website) : null;
   const biography = photographer.biography ? paragraphs(photographer.biography) : [];
+  const contact = photographer.contactUrl ? contactLink(photographer.contactUrl) : null;
 
   /*
    * The flag goes in front of the member's own "based in" line rather than
@@ -228,6 +249,42 @@ export async function ProfileHeader({
             </TranslationBlock>
           ) : null}
 
+          {/* Labelled, unlike the biography: an unlabelled second paragraph
+              reads as more biography, and this answers a different question —
+              not who they are but how they go about it. Member prose, so it is
+              translated with the original kept available, exactly as the
+              biography above it is. */}
+          {photographer.approach ? (
+            <div className="mt-6 max-w-[58ch]">
+              <h2 className="text-eyebrow uppercase text-muted">{t('approach.label')}</h2>
+              {/* Not machine-translated, unlike the biography above it. 0035
+                  lists which (subject, field) pairs may carry a translation,
+                  and adding this one is a migration of its own rather than
+                  something to assume — so for now it reads in the language it
+                  was written in, like `basedIn` and the gear list do. */}
+              <div className="mt-2 space-y-3 text-caption leading-relaxed text-ink-soft">
+                {paragraphs(photographer.approach).map((block, index) => (
+                  <p key={index}>{block}</p>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {photographer.favouriteCities.length > 0 ? (
+            <div className="mt-6">
+              <h2 className="text-eyebrow uppercase text-muted">
+                {t('favouriteCities.label')}
+              </h2>
+              {/* Plain text, not links: these are the member's own words, and a
+                  city they keep going back to may have no approved place on
+                  FRAME at all. Linking each one would promise a page that may
+                  not exist. */}
+              <p className="mt-2 text-caption text-ink-soft">
+                {photographer.favouriteCities.join(' · ')}
+              </p>
+            </div>
+          ) : null}
+
           {photographer.styles.length > 0 ? (
             <ul className="mt-6 flex flex-wrap gap-2">
               {photographer.styles.map((style) => (
@@ -283,6 +340,22 @@ export async function ProfileHeader({
                   <ArrowUpRight aria-hidden className="size-3.5 shrink-0" />
                 </a>
                 <p className="mt-1 text-meta text-muted-soft">{t('websiteNote')}</p>
+              </div>
+            ) : null}
+
+            {contact ? (
+              <div className="min-w-0">
+                <a
+                  href={contact.href}
+                  rel="nofollow noopener noreferrer"
+                  className="inline-flex max-w-full items-center gap-1.5 text-caption font-semibold text-ink transition-colors duration-150 hover:text-muted"
+                >
+                  <span className="truncate">{contact.label}</span>
+                  <ArrowUpRight aria-hidden className="size-3.5 shrink-0" />
+                </a>
+                {/* Said plainly: this leaves FRAME. There is no inbox here, and
+                    a link labelled "contact" otherwise reads as one. */}
+                <p className="mt-1 text-meta text-muted-soft">{t('contact.note')}</p>
               </div>
             ) : null}
 
