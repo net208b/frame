@@ -14,6 +14,11 @@ import { NO_TRANSLATIONS, translationsFor } from '@/lib/data/translations';
 import { boundingBoxAround, distanceMetres, publishableCoordinates } from '@/lib/geo';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
 import { trendingScore } from '@/lib/ranking';
+import {
+  STYLE_LANDING_SLUGS,
+  styleFilter,
+  type StyleLandingSlug,
+} from '@/lib/style-landing';
 import { createClient } from '@/lib/supabase/server';
 import type { Tables } from '@/lib/supabase/types';
 import {
@@ -1164,6 +1169,47 @@ export async function publishedPhotographSlugs(): Promise<string[]> {
   );
 
   return rows.map((row) => toText(row.slug)).filter((value): value is string => value !== null);
+}
+
+/**
+ * Which style landing pages have something to show.
+ *
+ * One exact count per slug rather than a sampled scan of `category`: there are
+ * three of them, PostgREST cannot return a distinct set anyway, and a sampled
+ * answer would quietly drop a style whose only frames sit past the sample — so
+ * the page would say "nothing here" about a style that has work. Counts are
+ * cheap and `head: true` reads no rows.
+ *
+ * Read through the public client, like the other sitemap sources: this answer
+ * decides what is published to crawlers, so it must be what a signed-out
+ * visitor can see, not what the reader happens to be allowed to see.
+ */
+export async function styleLandingSlugsWithContent(): Promise<string[]> {
+  const client = publicClient();
+
+  const counted = await Promise.all(
+    STYLE_LANDING_SLUGS.map(async (slug) => {
+      const filter = styleFilter(slug);
+      const outcome = await client
+        .from('photographs')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'published')
+        .eq('category', filter.category);
+
+      if (outcome.error) {
+        console.error(
+          `FRAME repository: counting published photographs for the style "${slug}" failed — ${outcome.error.message}`,
+        );
+        // Absent rather than present: a style whose count could not be read is
+        // withheld from the sitemap, which costs a crawl and claims nothing.
+        return null;
+      }
+
+      return (outcome.count ?? 0) > 0 ? slug : null;
+    }),
+  );
+
+  return counted.filter((slug): slug is StyleLandingSlug => slug !== null);
 }
 
 export async function portfolio(photographerId: string): Promise<PhotographDetail[]> {

@@ -73,6 +73,18 @@ export async function getGearFacets(): Promise<GearFacets> {
   return demo.demoGearFacets();
 }
 
+/**
+ * Which `/discover/style/[style]` landing pages have published work behind
+ * them, for the sitemap and for the honest empty state on the page itself.
+ *
+ * A style with nothing to show is a real page that says so, and is withheld
+ * from the sitemap rather than offered to a crawler as a destination.
+ */
+export async function getStyleSlugsWithContent(): Promise<string[]> {
+  if (useLive()) return live.styleLandingSlugsWithContent();
+  return demo.demoStyleLandingSlugsWithContent();
+}
+
 /* ------------------------------------------------------------------------ */
 /* Photographs                                                               */
 /* ------------------------------------------------------------------------ */

@@ -7,6 +7,7 @@ import {
   getPhotographSlugs,
   getPhotographerUsernames,
   getPublicCollectionSlugs,
+  getStyleSlugsWithContent,
 } from '@/lib/data/repository';
 
 import { LEGAL_DOCUMENTS, LEGAL_LAST_REVIEWED } from './[locale]/legal/policy';
@@ -45,7 +46,7 @@ import { LEGAL_DOCUMENTS, LEGAL_LAST_REVIEWED } from './[locale]/legal/policy';
  *
  * Two languages double the number of URLs in this file, which doubles the cost
  * of getting the filtering wrong — so the filtering is not repeated here. Every
- * entry is still derived from exactly the four repository functions above and
+ * entry is still derived from exactly the five repository functions above and
  * the two static lists below, and `expand` only ever adds a prefix to a path
  * that one of them produced. It cannot turn a private URL into a public one,
  * and it cannot invent a path. Anything new belongs in one of those sources,
@@ -93,11 +94,12 @@ function expand(base: string, entries: readonly LocaleFreeEntry[]): MetadataRout
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
 
-  const [photographs, locations, photographers, collections] = await Promise.all([
+  const [photographs, locations, photographers, collections, styles] = await Promise.all([
     getPhotographSlugs(),
     getLocationSlugs(),
     getPhotographerUsernames(),
     getPublicCollectionSlugs(),
+    getStyleSlugsWithContent(),
   ]);
 
   const landing: LocaleFreeEntry[] = [
@@ -108,6 +110,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: '/collections', changeFrequency: 'weekly', priority: 0.6 },
     { path: '/community', changeFrequency: 'monthly', priority: 0.5 },
   ];
+
+  // The style landing pages, and only the ones with published work behind
+  // them: `getStyleSlugsWithContent` filters at the repository, so an empty
+  // style is never offered to a crawler as a destination. The page itself is
+  // `noIndex` in exactly the same case, so the sitemap and the page agree.
+  const styleEntries: LocaleFreeEntry[] = styles.map((slug) => ({
+    path: `/discover/style/${slug}`,
+    changeFrequency: 'daily',
+    priority: 0.8,
+  }));
 
   const legal: LocaleFreeEntry[] = LEGAL_DOCUMENTS.map((policy) => ({
     path: `/legal/${policy.slug}`,
@@ -145,6 +157,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return expand(base, [
     ...landing,
+    ...styleEntries,
     ...photographEntries,
     ...locationEntries,
     ...photographerEntries,

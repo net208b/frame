@@ -28,6 +28,17 @@ const COLUMNS = [
     ],
   },
   {
+    // The style landing pages. They are in the sitemap, but a page reachable
+    // only from a sitemap is a page nothing links to, and the footer is where
+    // this kind of link belongs: the header stays at three.
+    heading: 'styles',
+    links: [
+      { href: '/discover/style/street', key: 'styleStreet' },
+      { href: '/discover/style/night', key: 'styleNight' },
+      { href: '/discover/style/documentary', key: 'styleDocumentary' },
+    ],
+  },
+  {
     heading: 'community',
     links: [
       { href: '/community', key: 'community' },
@@ -62,7 +73,7 @@ export async function SiteFooter() {
 
   return (
     <footer className="mt-14 border-t border-line">
-      <div className="site-container grid gap-10 py-11 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] md:gap-8">
+      <div className="site-container grid gap-10 py-11 md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(0,1fr))] lg:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))] md:gap-8">
         <div>
           <Link
             href="/"
