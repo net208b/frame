@@ -4,7 +4,8 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CommunityCta } from '@/components/home/CommunityCta';
 import { CuratedGallery } from '@/components/home/CuratedGallery';
-import { FeaturedPhotographers } from '@/components/home/FeaturedPhotographers';
+import { AppreciatedPhotographers } from '@/components/home/AppreciatedPhotographers';
+import { FeaturedPhotographerBand } from '@/components/community/FeaturedPhotographerBand';
 import { FromTheEditors } from '@/components/home/FromTheEditors';
 import { CityMap } from '@/components/home/CityMap';
 import { Hero } from '@/components/home/Hero';
@@ -17,7 +18,8 @@ import {
   getDiscoverFeed,
   getOwnPhotographedLocationIds,
   getFeature,
-  getFeaturedPhotographers,
+  getFeaturedPhotographer,
+  getMostAppreciatedPhotographers,
   getFeatures,
   getLocations,
   getMapPins,
@@ -34,7 +36,7 @@ const LATEST_SIZE = 12;
 const TRENDING_LOCATION_COUNT = 3;
 /** The opening band only needs a handful of pins; /map carries the full set. */
 const CITY_MAP_PINS = 12;
-const FEATURED_PHOTOGRAPHER_COUNT = 4;
+const APPRECIATED_PHOTOGRAPHER_COUNT = 4;
 
 /**
  * The title stays in English in both languages: it is the product name and the
@@ -68,12 +70,15 @@ export default async function HomePage({ params }: HomePageProps) {
   const { locale } = await readLocaleParams(params);
   setRequestLocale(locale);
 
-  const [editorsPicks, latest, stats, photographers, locationPage, pins, viewer, place, t] =
+  const [editorsPicks, latest, stats, photographers, chosen, locationPage, pins, viewer, place, t] =
     await Promise.all([
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'editors', pageSize: CURATED_SIZE })),
       getDiscoverFeed(normaliseDiscoverQuery({ sort: 'recent', pageSize: LATEST_SIZE })),
       getPlatformStats(),
-      getFeaturedPhotographers(FEATURED_PHOTOGRAPHER_COUNT),
+      getMostAppreciatedPhotographers(APPRECIATED_PHOTOGRAPHER_COUNT),
+      // The editorial choice (0046), beside the ranking and never mixed into
+      // it: one row, read in the same round of requests as everything else.
+      getFeaturedPhotographer(),
       getLocations({ page: 1 }),
       getMapPins(),
       getViewer(),
@@ -153,7 +158,12 @@ export default async function HomePage({ params }: HomePageProps) {
         locale={locale}
       />
 
-      <FeaturedPhotographers photographers={photographers} locale={locale} />
+      {/* The editorial choice above the ranking, for the reason the
+          /community page gives: a leaderboard directly above a chosen
+          photographer reads as the reason they were chosen. */}
+      <FeaturedPhotographerBand photographer={chosen} className="mt-14" />
+
+      <AppreciatedPhotographers photographers={photographers} locale={locale} />
 
       <CommunityCta signedIn={viewer !== null} locale={locale} />
     </div>

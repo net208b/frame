@@ -144,7 +144,9 @@ const DUPLICATE_SCAN_LIMIT = 3_000;
 const DUPLICATE_PAIR_LIMIT = 40;
 const COLLECTION_LIST_LIMIT = 60;
 const COLLECTION_ITEM_LIMIT = 200;
-const FEATURED_POOL = 200;
+// The window of most-appreciated published photographs the appreciation
+// band is computed from. Not an editorial list — see editorialFeature.
+const APPRECIATION_POOL = 200;
 
 /* ------------------------------------------------------------------------ */
 /* Result unwrapping                                                        */
@@ -478,6 +480,9 @@ type ProfileDetailColumns = Nullable<
     | 'created_at'
     | 'follower_count'
     | 'following_count'
+    | 'editorial_feature'
+    | 'feature_note'
+    | 'featured_at'
   >
 > & {
   cover?: ProfileCoverColumns | ProfileCoverColumns[] | null;
@@ -561,7 +566,8 @@ const PROFILE_COVER_FIELDS = `cover:photographs!cover_photograph_id(
 const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, country_code,
   style_tags, collaboration_status, critique_preference, social_links, usual_gear,
   favourite_cities, approach, contact_url, role,
-  member_since, created_at, follower_count, following_count, ${PROFILE_COVER_FIELDS}`;
+  member_since, created_at, follower_count, following_count,
+  editorial_feature, feature_note, featured_at, ${PROFILE_COVER_FIELDS}`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
 // `exif_source` is here because 0015 grants exactly this column list to anon
 // and authenticated — the raw position columns beside it are not readable at
@@ -2204,6 +2210,15 @@ async function buildProfiles(
       followingCount: toNumber(row.following_count) ?? 0,
       memberSince: toText(row.member_since) ?? toText(row.created_at) ?? '',
       role: oneOf(['member', 'moderator', 'admin'] as const, row.role, 'member'),
+      // The note is not decoration: the band's whole claim is that somebody
+      // chose and said why, so a feature with no words is treated as no
+      // feature at all. The database already refuses that pair
+      // (profiles_feature_is_whole); this is the same rule stated where the UI
+      // reads it, so a row written before the constraint existed — or by a
+      // future migration that loosens it — cannot render an unexplained badge.
+      editorialFeature: row.editorial_feature === true && toText(row.feature_note) !== null,
+      featureNote: toText(row.feature_note),
+      featuredAt: toText(row.featured_at),
     });
   }
 
@@ -2244,20 +2259,25 @@ export async function photographerByUsername(
  * Computed from a bounded window of the most-appreciated published
  * photographs. When nothing has been published yet this returns an empty list
  * rather than falling back to "newest members", because presenting new accounts
- * as featured ones would be a quiet fiction.
+ * as chosen ones would be a quiet fiction.
+ *
+ * RENAMED in 0046, from `featuredPhotographers`. It never meant featured: it
+ * is a ranking, and a second, genuinely editorial band now exists beside it.
+ * One word had to stop meaning two things, and the leaderboard is the one that
+ * was using the word loosely.
  */
-export async function featuredPhotographers(limit = 4): Promise<PhotographerProfile[]> {
+export async function mostAppreciatedPhotographers(limit = 4): Promise<PhotographerProfile[]> {
   const supabase = await createClient();
   const wanted = Math.max(1, Math.min(24, Math.floor(limit) || 4));
 
   const topPhotographs = unwrapList<{ owner_id: string | null; appreciation_count: number | null }>(
-    'reading the featured photographers pool',
+    'reading the most-appreciated photographers pool',
     await supabase
       .from('photographs')
       .select('owner_id, appreciation_count')
       .eq('status', 'published')
       .order('appreciation_count', { ascending: false })
-      .limit(FEATURED_POOL),
+      .limit(APPRECIATION_POOL),
   );
 
   const totals = new Map<string, number>();
@@ -2275,7 +2295,7 @@ export async function featuredPhotographers(limit = 4): Promise<PhotographerProf
   if (ranked.length === 0) return [];
 
   const rows = unwrapList<ProfileDetailColumns>(
-    'reading featured photographer profiles',
+    'reading the most-appreciated profiles',
     await supabase
       .from('profiles')
       .select(PROFILE_DETAIL_FIELDS)
@@ -2288,6 +2308,42 @@ export async function featuredPhotographers(limit = 4): Promise<PhotographerProf
   return profiles.sort(
     (a, b) => (order.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.id) ?? Number.MAX_SAFE_INTEGER),
   );
+}
+
+/**
+ * The photographer an editor chose, or null.
+ *
+ * One at a time, newest choice first: `editorial_feature` is a flag rather than
+ * a single row somewhere, so several members can carry it, and the band shows
+ * the most recent. The others keep the label on their own profile — nothing is
+ * withdrawn by somebody else being chosen — and the console lists all of them.
+ *
+ * Suspended accounts are excluded here as well as in
+ * set_featured_photographer(): an account can be suspended AFTER being
+ * featured, and the band would otherwise point at a page
+ * profiles_select_visible hides.
+ */
+export async function featuredPhotographer(): Promise<PhotographerProfile | null> {
+  const supabase = await createClient();
+
+  const rows = unwrapList<ProfileDetailColumns>(
+    'reading the featured photographer',
+    await supabase
+      .from('profiles')
+      .select(PROFILE_DETAIL_FIELDS)
+      .eq('editorial_feature', true)
+      .eq('is_suspended', false)
+      .not('feature_note', 'is', null)
+      .order('featured_at', { ascending: false, nullsFirst: false })
+      .limit(1),
+  );
+  if (rows.length === 0) return null;
+
+  const [profile] = await buildProfiles(supabase, rows);
+  // `editorialFeature` is recomputed in buildProfiles from the flag AND the
+  // note, so a row that somehow has one without the other resolves to no band
+  // rather than an empty one.
+  return profile?.editorialFeature ? profile : null;
 }
 
 /**

@@ -9,7 +9,16 @@ import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import type { PhotographerProfile } from '@/types/domain';
 
-export async function FeaturedPhotographers({
+/**
+ * The home page's photographer band: the members whose published work has
+ * drawn the most appreciation, which is what its own description says.
+ *
+ * RENAMED in 0046, from `FeaturedPhotographers`. It was never a feature —
+ * `FeaturedPhotographerBand` is — and a component whose name claimed an
+ * editorial choice while rendering a count was how the two ideas got confused
+ * in the first place.
+ */
+export async function AppreciatedPhotographers({
   photographers,
   locale,
   className,

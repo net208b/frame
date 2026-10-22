@@ -221,6 +221,22 @@ export interface PhotographerProfile extends PhotographerSummary {
   /** Month precision only — the exact signup day is not public. */
   memberSince: string;
   role: ProfileRole;
+  /**
+   * An editor chose to feature this photographer (0046).
+   *
+   * NOT the appreciation band, which is a count and is described as one. This
+   * is a person deciding, and `featureNote` is why — the note is what makes
+   * the difference visible, so the band never renders without it.
+   *
+   * Unwritable from the client at any privilege: the three fields come from
+   * set_featured_photographer() and profiles_guard_privileged_columns() refuses
+   * them to every session, a moderator's included.
+   */
+  editorialFeature: boolean;
+  /** The editor's own words. Null exactly when `editorialFeature` is false. */
+  featureNote: string | null;
+  /** When the choice was made. Orders the band, newest first. */
+  featuredAt: string | null;
 }
 
 /* ------------------------------------------------------------------------ */

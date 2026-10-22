@@ -361,9 +361,24 @@ export async function getPortfolio(photographerId: string): Promise<PhotographDe
   return demo.demoPortfolio(photographerId);
 }
 
-export async function getFeaturedPhotographers(limit = 4): Promise<PhotographerProfile[]> {
-  if (useLive()) return live.featuredPhotographers(limit);
-  return demo.demoFeaturedPhotographers(limit);
+/**
+ * The appreciation ranking. RENAMED in 0046 from `getFeaturedPhotographers`,
+ * which it never was: it is a count, and the band that renders it says so.
+ */
+export async function getMostAppreciatedPhotographers(limit = 4): Promise<PhotographerProfile[]> {
+  if (useLive()) return live.mostAppreciatedPhotographers(limit);
+  return demo.demoMostAppreciatedPhotographers(limit);
+}
+
+/**
+ * The photographer an editor chose, with the editor's reason, or null (0046).
+ *
+ * Separate from the ranking above on purpose: this one is a decision somebody
+ * made and signed, and the label on it has to mean that and nothing else.
+ */
+export async function getFeaturedPhotographer(): Promise<PhotographerProfile | null> {
+  if (useLive()) return live.featuredPhotographer();
+  return demo.demoFeaturedPhotographer();
 }
 
 /**

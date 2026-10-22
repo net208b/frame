@@ -4156,6 +4156,320 @@ begin
   raise notice 'style ok      styles are readable and nothing else changed hands';
 end $$;
 
+-- ======================================================================
+-- 0046 — a featured photographer
+-- ======================================================================
+-- The band is an editorial claim, so what is asserted here is not that the
+-- columns exist but that NOBODY can write them except the one function, and
+-- that the function refuses an unexplained choice.
+
+-- --------------------------------------------------------- the whole-or-nothing rule
+-- These run as the superuser, with no session, so the guard trigger returns
+-- early and the CHECK is what is being tested — on its own.
+select public.test_rejects('a profile featured with no date',
+  $$update public.profiles
+       set editorial_feature = true, feature_note = 'Why.', featured_at = null
+     where id = '22222222-2222-4222-8222-222222222222'$$, '23514');
+
+select public.test_rejects('a profile featured with no reason',
+  $$update public.profiles
+       set editorial_feature = true, feature_note = null, featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$, '23514');
+
+select public.test_rejects('a profile featured with a blank reason',
+  $$update public.profiles
+       set editorial_feature = true, feature_note = '   ', featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$, '23514');
+
+select public.test_rejects('an editor''s note left behind after unfeaturing',
+  $$update public.profiles
+       set editorial_feature = false, feature_note = 'Stale words.', featured_at = null
+     where id = '22222222-2222-4222-8222-222222222222'$$, '23514');
+
+select public.test_rejects('a feature date with no feature',
+  $$update public.profiles
+       set editorial_feature = false, feature_note = null, featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$, '23514');
+
+-- The positive controls, both ways round.
+select public.test_accepts('a whole feature: flag, reason and moment',
+  $$update public.profiles
+       set editorial_feature = true, feature_note = 'Patient work in one city.', featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$);
+
+select public.test_accepts('and a whole absence of one',
+  $$update public.profiles
+       set editorial_feature = false, feature_note = null, featured_at = null
+     where id = '22222222-2222-4222-8222-222222222222'$$);
+
+select public.test_rejects('an editor''s note longer than 400 characters',
+  format($$update public.profiles
+             set editorial_feature = true, feature_note = %L, featured_at = now()
+           where id = '22222222-2222-4222-8222-222222222222'$$, repeat('x', 401)), '23514');
+
+-- ------------------------------------------- nobody writes these columns directly
+-- The hole 0046 closes. profiles_update_own lets a member write their own row,
+-- so without the guard the three columns would have been theirs to set.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '22222222-2222-4222-8222-222222222222';
+
+-- The positive control: the policy does still let a member edit their own row.
+select public.test_accepts('a member editing their own biography',
+  $$update public.profiles set biography = 'Still writing.'
+     where id = '22222222-2222-4222-8222-222222222222'$$);
+
+select public.test_rejects('a member featuring themselves',
+  $$update public.profiles
+       set editorial_feature = true, feature_note = 'I am excellent.', featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+
+-- Each column on its own, because a guard that only checks the flag would let
+-- the note and the date through, and the note is what the band displays.
+select public.test_rejects('a member writing their own feature note',
+  $$update public.profiles set feature_note = 'Chosen by me.'
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+
+select public.test_rejects('a member writing their own feature date',
+  $$update public.profiles set featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+commit;
+
+-- A moderator may write anybody's profile row (profiles_update_moderator), and
+-- is refused these columns just the same: the route is the function, which
+-- records the decision. A direct write would leave no trail.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('a moderator writing the feature columns directly',
+  $$update public.profiles
+       set editorial_feature = true, feature_note = 'By hand.', featured_at = now()
+     where id = '22222222-2222-4222-8222-222222222222'$$, '42501');
+commit;
+
+do $$
+declare v_flag boolean; v_note text; v_at timestamptz;
+begin
+  select editorial_feature, feature_note, featured_at into v_flag, v_note, v_at
+    from public.profiles where id = '22222222-2222-4222-8222-222222222222';
+  if v_flag or v_note is not null or v_at is not null then
+    raise exception 'GUARD BUG  a refused write still left the profile featured (%, %, %)', v_flag, v_note, v_at;
+  end if;
+  raise notice 'feature ok    no refused write left anything behind';
+end $$;
+
+-- ------------------------------------------------- set_featured_photographer
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '22222222-2222-4222-8222-222222222222';
+select public.test_rejects('a member calling the function on themselves',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true, 'Me again.')$$, '42501');
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+
+select public.test_rejects('an editor featuring somebody without saying why',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true, '   ')$$, '22023');
+
+select public.test_rejects('an editor featuring somebody with no note at all',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true)$$, '22023');
+
+select public.test_rejects('an editor featuring a profile that does not exist',
+  $$select public.set_featured_photographer(
+      '99999999-9999-4999-8999-999999999999', true, 'Nobody.')$$, 'P0002');
+
+select public.test_accepts('an editor featuring a photographer, with a reason',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true,
+      'Three years in one district, and it shows.')$$);
+commit;
+
+do $$
+declare v_flag boolean; v_note text; v_at timestamptz; v_actions integer; v_notes integer;
+begin
+  select editorial_feature, feature_note, featured_at into v_flag, v_note, v_at
+    from public.profiles where id = '22222222-2222-4222-8222-222222222222';
+  if not v_flag or v_at is null or v_note <> 'Three years in one district, and it shows.' then
+    raise exception 'FEATURE BUG  the function left (%, %, %)', v_flag, v_note, v_at;
+  end if;
+
+  -- The trail. An editorial choice is as accountable as a removal.
+  select count(*) into v_actions from public.moderation_actions
+   where subject_type = 'profile' and decision = 'feature'
+     and subject_id = '22222222-2222-4222-8222-222222222222'
+     and moderator_id = '33333333-3333-4333-8333-333333333333';
+  if v_actions <> 1 then
+    raise exception 'FEATURE BUG  the decision was not recorded (% rows)', v_actions;
+  end if;
+
+  -- And the photographer is told, with a link to their own page.
+  select count(*) into v_notes from public.notifications
+   where recipient_id = '22222222-2222-4222-8222-222222222222'
+     and kind = 'featured' and subject_type = 'profile';
+  if v_notes <> 1 then
+    raise exception 'FEATURE BUG  the photographer was told % times, not once', v_notes;
+  end if;
+  raise notice 'feature ok    the flag, the reason, the trail and one notification';
+end $$;
+
+-- Asking for what is already so, in the same words, is not a change: the
+-- photographer is not told twice.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('featuring somebody who is already featured, unchanged',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true,
+      'Three years in one district, and it shows.')$$);
+commit;
+
+do $$
+declare v_notes integer;
+begin
+  select count(*) into v_notes from public.notifications
+   where recipient_id = '22222222-2222-4222-8222-222222222222'
+     and kind = 'featured' and subject_type = 'profile';
+  if v_notes <> 1 then
+    raise exception 'FEATURE BUG  an unchanged re-feature told them again (% in all)', v_notes;
+  end if;
+  raise notice 'feature ok    an unchanged re-feature tells nobody anything';
+end $$;
+
+-- A suspended account is hidden everywhere, so it cannot be featured.
+update public.profiles set is_suspended = true, suspended_reason = 'Testing.'
+ where id = '22222222-2222-4222-8222-222222222222';
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('an editor featuring a suspended account',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true, 'Hidden, and featured.')$$, '42501');
+commit;
+
+update public.profiles set is_suspended = false, suspended_reason = null
+ where id = '22222222-2222-4222-8222-222222222222';
+
+-- Unfeaturing clears all three together, and leaves its own trail.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_accepts('an editor unfeaturing a photographer',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', false)$$);
+commit;
+
+do $$
+declare v_flag boolean; v_note text; v_at timestamptz; v_actions integer;
+begin
+  select editorial_feature, feature_note, featured_at into v_flag, v_note, v_at
+    from public.profiles where id = '22222222-2222-4222-8222-222222222222';
+  if v_flag or v_note is not null or v_at is not null then
+    raise exception 'FEATURE BUG  unfeaturing left (%, %, %)', v_flag, v_note, v_at;
+  end if;
+  select count(*) into v_actions from public.moderation_actions
+   where subject_type = 'profile' and decision = 'unfeature'
+     and subject_id = '22222222-2222-4222-8222-222222222222';
+  if v_actions <> 1 then
+    raise exception 'FEATURE BUG  the removal was not recorded (% rows)', v_actions;
+  end if;
+  raise notice 'feature ok    unfeaturing clears all three and is recorded too';
+end $$;
+
+-- ----------------------------------------------------------- who may call it
+-- Asserted by what it ANSWERS as well as by the grant: 0042 taught that
+-- Supabase grants EXECUTE on a new public function to anon by default, so a
+-- grant-shape check alone passed locally and was false on production.
+do $$
+begin
+  if has_function_privilege('anon',
+       'public.set_featured_photographer(uuid, boolean, text)', 'EXECUTE') then
+    raise exception 'GRANT GAP  anon may execute set_featured_photographer';
+  end if;
+  if not has_function_privilege('authenticated',
+       'public.set_featured_photographer(uuid, boolean, text)', 'EXECUTE') then
+    raise exception 'GRANT GAP  a signed-in editor may not execute set_featured_photographer';
+  end if;
+  raise notice 'feature ok    only a signed-in session may call the function';
+end $$;
+
+begin;
+set local role anon;
+select public.test_rejects('a reader with no session calling the function',
+  $$select public.set_featured_photographer(
+      '22222222-2222-4222-8222-222222222222', true, 'Anyone at all.')$$);
+commit;
+
+-- ------------------------------------------------ the moderation vocabulary
+-- 0046 replaces this CHECK, and a CHECK is replaced whole. Every word the
+-- trail already recorded is named here, so a future restatement that drops one
+-- fails loudly instead of breaking a moderation route in production.
+do $$
+declare v_def text; v_word text;
+begin
+  select pg_get_constraintdef(oid) into v_def from pg_constraint
+   where conrelid = 'public.moderation_actions'::regclass
+     and conname = 'moderation_actions_decision_allowed';
+  foreach v_word in array array[
+    'approve', 'reject', 'request_changes', 'remove_content', 'suspend_account',
+    'dismiss', 'change_role', 'delete', 'merge', 'feature', 'unfeature'] loop
+    if v_def not like '%''' || v_word || '''%' then
+      raise exception 'DECISION GAP  "%" is no longer an allowed decision', v_word;
+    end if;
+  end loop;
+  raise notice 'feature ok    every moderation decision still has its word';
+end $$;
+
+-- ------------------------------------------------------------- who may read it
+-- Every column of a profile is readable; the three new ones joined a list that
+-- was already complete, through an additive grant.
+do $$
+declare v_withheld text;
+begin
+  select string_agg(column_name, ', ' order by column_name) into v_withheld
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'profiles'
+     and not has_column_privilege('anon', 'public.profiles', column_name, 'SELECT');
+  if v_withheld is not null then
+    raise exception 'GRANT GAP  a profile column stopped being readable: %', v_withheld;
+  end if;
+  if not (has_column_privilege('anon', 'public.profiles', 'editorial_feature', 'SELECT')
+          and has_column_privilege('anon', 'public.profiles', 'feature_note', 'SELECT')
+          and has_column_privilege('anon', 'public.profiles', 'featured_at', 'SELECT')) then
+    raise exception 'GRANT GAP  the feature is not readable';
+  end if;
+  raise notice 'feature ok    the band and its reason are public';
+end $$;
+
+-- ------------------------------------------------- the guard kept everything
+-- 0046 rebuilt profiles_guard_privileged_columns, and the escape hatch inside
+-- it is what change_username() and delete_own_account() depend on. Rebuilding
+-- from 0006 or 0010 instead of the live definition would have dropped it
+-- silently, and the one username change a member is allowed would have started
+-- failing. Asserted through the behaviour, not by reading the text.
+do $$
+declare v_def text;
+begin
+  select pg_get_functiondef(p.oid) into v_def from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'profiles_guard_privileged_columns';
+  if v_def like '%SECURITY DEFINER%' then
+    raise exception 'GUARD DRIFT  the guard became SECURITY DEFINER, which it never was';
+  end if;
+  if v_def not like '%frame.profile_write%' then
+    raise exception 'GUARD DRIFT  the privileged-write escape is gone; change_username() cannot work';
+  end if;
+  if v_def not like '%username_changed_at%' then
+    raise exception 'GUARD DRIFT  0011''s username_changed_at line is gone';
+  end if;
+  raise notice 'feature ok    the rebuilt guard kept 0011''s escape and its restored columns';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

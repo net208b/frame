@@ -10,7 +10,7 @@ import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import {
   getDiscoverFeed,
-  getFeaturedPhotographers,
+  getMostAppreciatedPhotographers,
   getLocations,
   getPhotographer,
   getPhotographerUsernames,
@@ -116,7 +116,7 @@ function matchesName(person: PhotographerProfile, needle: string): boolean {
 async function findPhotographers(needle: string): Promise<PhotographerProfile[]> {
   const [usernames, pool] = await Promise.all([
     getPhotographerUsernames(),
-    getFeaturedPhotographers(PEOPLE_POOL),
+    getMostAppreciatedPhotographers(PEOPLE_POOL),
   ]);
 
   const found = new Map<string, PhotographerProfile>();

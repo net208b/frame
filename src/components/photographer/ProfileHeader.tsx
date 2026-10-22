@@ -1,4 +1,4 @@
-import { ArrowUpRight, Handshake, MessageSquareQuote } from 'lucide-react';
+import { ArrowUpRight, BadgeCheck, Handshake, MessageSquareQuote } from 'lucide-react';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Image from 'next/image';
 
@@ -233,6 +233,33 @@ export async function ProfileHeader({
               </>
             ) : null}
           </p>
+
+          {/*
+            The editorial label (0046), above the biography and below the name,
+            with the editors' reason beside it. The reason is NOT optional and
+            not collapsed behind anything: a badge on its own is a claim with
+            nothing behind it, and this page is where somebody checks what the
+            claim was. Marked up as a quotation, because the words are the
+            editors' and not this member's — everything else in this header is
+            theirs.
+
+            Never translated, for the same reason the biography is translated
+            WITH its original kept: attributed writing stays in the language it
+            was written in. Here there is no author to offer the original to,
+            so it simply stands as written.
+          */}
+          {photographer.editorialFeature && photographer.featureNote ? (
+            <div className="mt-6 max-w-[58ch] rounded-panel border border-line bg-surface-sunken p-5">
+              <p className="inline-flex items-center gap-1.5 text-meta font-semibold text-ink-soft">
+                <BadgeCheck className="size-3.5" aria-hidden />
+                {t('featured.label')}
+              </p>
+              <blockquote className="mt-2.5 text-caption leading-relaxed text-ink-soft">
+                {photographer.featureNote}
+              </blockquote>
+              <p className="mt-2.5 text-meta text-muted">{t('featured.by')}</p>
+            </div>
+          ) : null}
 
           {photographer.biography && biography.length > 0 ? (
             <TranslationBlock

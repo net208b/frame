@@ -16,7 +16,18 @@ import type { PhotographerProfile } from '@/types/domain';
 const avatar = (photoId: string) =>
   `https://images.unsplash.com/${photoId}?auto=format&fit=crop&w=192&q=80`;
 
-export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
+/**
+ * The records as written. 0046's three editorial fields are filled in below
+ * rather than typed into all six, so a field added to the domain type does not
+ * mean six edits to a dataset whose point is the prose.
+ */
+type DemoPhotographerRecord = Omit<
+  PhotographerProfile,
+  'editorialFeature' | 'featureNote' | 'featuredAt'
+> &
+  Partial<Pick<PhotographerProfile, 'featureNote' | 'featuredAt'>>;
+
+const DEMO_PHOTOGRAPHER_RECORDS: DemoPhotographerRecord[] = [
   {
     id: '7a1c1e6e-0000-4000-8000-000000000001',
     username: 'kenjiwatanabe',
@@ -46,6 +57,12 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
     followingCount: 20,
     memberSince: '2024-03-01',
     role: 'member',
+    // One demo record carries a feature, so the band and its label can be
+    // reviewed in a preview deployment. The editor's note is the band: a
+    // record with a date and no words would render nothing.
+    featureNote:
+      'Four years on the same four streets, and he still comes back with something none of us saw.',
+    featuredAt: '2026-10-01T09:00:00.000Z',
   },
   {
     id: '7a1c1e6e-0000-4000-8000-000000000002',
@@ -204,6 +221,24 @@ export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = [
     role: 'moderator',
   },
 ];
+
+/**
+ * A feature is a flag, a reason and a moment together, or it is nothing — the
+ * same rule `profiles_feature_is_whole` enforces in the database, applied here
+ * so the demo cannot show a band the live site would refuse to write.
+ */
+export const DEMO_PHOTOGRAPHERS: PhotographerProfile[] = DEMO_PHOTOGRAPHER_RECORDS.map(
+  (record) => {
+    const note = record.featureNote?.trim() ?? null;
+    const featured = note !== null && note !== '' && Boolean(record.featuredAt);
+    return {
+      ...record,
+      editorialFeature: featured,
+      featureNote: featured ? note : null,
+      featuredAt: featured ? (record.featuredAt ?? null) : null,
+    };
+  },
+);
 
 /** The moderator account used by the demo moderation dashboard. */
 export const DEMO_MODERATOR = DEMO_PHOTOGRAPHERS[5]!;
