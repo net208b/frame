@@ -955,15 +955,26 @@ interface PhotographQuery {
  * only one of them is a map that quietly ignores a filter the reader can see is
  * on, so the pairs are named here rather than spelled out at each use.
  */
+/**
+ * A value compared with `ilike` but meant exactly: the three characters LIKE
+ * reads as patterns are escaped, so a lens called "35mm f/1.4 (II)" matches
+ * itself and a typed `%` cannot turn an exact comparison into a scan.
+ */
+function escapeLikeValue(value: string): string {
+  return value.replace(/[\\%_]/g, (character) => `\\${character}`);
+}
+
 function gearTextFilters(filters: {
   cameraBrand?: string | null;
   cameraModel?: string | null;
   lensBrand?: string | null;
+  lensModel?: string | null;
 }): Array<[column: string, value: string]> {
   const pairs: Array<[column: string, value: string]> = [];
   if (filters.cameraBrand) pairs.push(['camera_brand_text', filters.cameraBrand]);
   if (filters.cameraModel) pairs.push(['camera_model_text', filters.cameraModel]);
   if (filters.lensBrand) pairs.push(['lens_brand_text', filters.lensBrand]);
+  if (filters.lensModel) pairs.push(['lens_model_text', filters.lensModel]);
   return pairs;
 }
 
@@ -992,8 +1003,13 @@ async function fetchPhotographRows(
   if (options.excludeId) query = query.neq('id', options.excludeId);
   if (options.editorsOnly) query = query.eq('editors_pick', true);
 
+  // `ilike` with no wildcards rather than `eq`: the facet offers the
+  // catalogue's spelling (0043), and the row it has to match may hold the
+  // member's — "Sony" selecting a frame whose text says "SONY ". The value is
+  // bounded and wildcard characters in it are escaped, so this is an exact
+  // comparison that ignores case, not a search.
   for (const [column, value] of gearFilters) {
-    query = query.eq(`photograph_metadata.${column}`, value);
+    query = query.ilike(`photograph_metadata.${column}`, escapeLikeValue(value));
   }
 
   if (place.length > 0) {
@@ -1088,26 +1104,43 @@ export async function discoverFeed(query: DiscoverQuery): Promise<Paginated<Phot
  * produce options that match nothing, which is worse than a shorter list. The
  * sample is bounded; a materialised view is the fix at scale.
  */
+interface GearCatalogueName {
+  name: string | null;
+}
+
+interface GearFacetRow {
+  camera_brand_text: string | null;
+  camera_model_text: string | null;
+  lens_brand_text: string | null;
+  lens_model_text: string | null;
+  camera_brands: GearCatalogueName | GearCatalogueName[] | null;
+  camera_models: GearCatalogueName | GearCatalogueName[] | null;
+  lens_brands: GearCatalogueName | GearCatalogueName[] | null;
+  lens_models: GearCatalogueName | GearCatalogueName[] | null;
+}
+
 export async function gearFacets(): Promise<GearFacets> {
   const supabase = await createClient();
 
-  const rows = unwrapList<
-    Nullable<
-      Pick<
-        Tables<'photograph_metadata'>,
-        'camera_brand_text' | 'camera_model_text' | 'lens_brand_text'
-      >
-    >
-  >(
+  // The catalogue's own name is embedded beside each typed one (0043 fills the
+  // four id columns, and keeps filling them with a trigger). The facet counts
+  // by the catalogue name where a row resolved and by the typed text where it
+  // did not — so "SONY" and "Sony" stop being two brands, while a camera the
+  // catalogue has never heard of is still offered exactly as it was written.
+  const rows = unwrapList<GearFacetRow>(
     'reading gear facets',
     await supabase
       .from('photograph_metadata')
-      .select('camera_brand_text, camera_model_text, lens_brand_text, photographs!inner(status)')
+      .select(
+        `camera_brand_text, camera_model_text, lens_brand_text, lens_model_text,
+         camera_brands(name), camera_models(name), lens_brands(name), lens_models(name),
+         photographs!inner(status)`,
+      )
       .eq('photographs.status', 'published')
       .limit(FACET_SAMPLE_LIMIT),
   );
 
-  const tally = (pick: (row: (typeof rows)[number]) => string | null): GearOption[] => {
+  const tally = (pick: (row: GearFacetRow) => string | null): GearOption[] => {
     const counts = new Map<string, number>();
     for (const row of rows) {
       const label = pick(row);
@@ -1119,10 +1152,17 @@ export async function gearFacets(): Promise<GearFacets> {
       .sort((a, b) => b.photographCount - a.photographCount || a.label.localeCompare(b.label));
   };
 
+  /** The catalogue's spelling, or the member's where nothing matched. */
+  const canonical = (
+    catalogue: GearCatalogueName | GearCatalogueName[] | null | undefined,
+    typed: unknown,
+  ): string | null => toText(firstOf<GearCatalogueName>(catalogue ?? null)?.name) ?? toText(typed);
+
   return {
-    cameraBrands: tally((row) => toText(row.camera_brand_text)),
-    cameraModels: tally((row) => toText(row.camera_model_text)),
-    lensBrands: tally((row) => toText(row.lens_brand_text)),
+    cameraBrands: tally((row) => canonical(row.camera_brands, row.camera_brand_text)),
+    cameraModels: tally((row) => canonical(row.camera_models, row.camera_model_text)),
+    lensBrands: tally((row) => canonical(row.lens_brands, row.lens_brand_text)),
+    lensModels: tally((row) => canonical(row.lens_models, row.lens_model_text)),
   };
 }
 
@@ -1726,7 +1766,10 @@ export async function discoverMapPins(query: DiscoverQuery): Promise<MapPin[]> {
   if (query.category) request = request.eq('photographs.category', query.category);
 
   for (const [column, value] of gearFilters) {
-    request = request.eq(`photographs.photograph_metadata.${column}`, value);
+    request = request.ilike(
+      `photographs.photograph_metadata.${column}`,
+      escapeLikeValue(value),
+    );
   }
 
   // The place filter reads the location's own columns here, where the feed

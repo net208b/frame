@@ -895,6 +895,11 @@ export interface DiscoverQuery {
   cameraBrand?: string | null;
   cameraModel?: string | null;
   lensBrand?: string | null;
+  /**
+   * The lens model (0043). Last of the four gear filters because its column was
+   * the one 0005 left unindexed — the index arrived with this filter.
+   */
+  lensModel?: string | null;
   sort: SortOption;
   page: number;
   pageSize: number;
@@ -929,4 +934,9 @@ export interface GearFacets {
   cameraBrands: GearOption[];
   cameraModels: GearOption[];
   lensBrands: GearOption[];
+  /**
+   * Lens models (0043). Last of the four because it is the one whose column
+   * 0005 left unindexed — the index arrived with the facet, not before it.
+   */
+  lensModels: GearOption[];
 }

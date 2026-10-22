@@ -62,6 +62,13 @@ export function GearFilter({
     });
   }
 
+  function onLensBrandChange(event: ChangeEvent<HTMLSelectElement>) {
+    // A lens model belongs to a lens brand, so keeping the old model alongside
+    // a new brand would quietly produce an empty gallery — the same reasoning
+    // as the camera pair below.
+    navigate({ lensBrand: event.target.value || null, lensModel: null });
+  }
+
   function onCameraBrandChange(event: ChangeEvent<HTMLSelectElement>) {
     // A model belongs to a brand, so keeping the old model alongside a new
     // brand would quietly produce an empty gallery.
@@ -124,7 +131,20 @@ export function GearFilter({
           anyLabel={t('gear.anyLensBrand')}
           options={facets.lensBrands}
           value={query.lensBrand ?? null}
-          onChange={(event) => navigate({ lensBrand: event.target.value || null })}
+          onChange={onLensBrandChange}
+          emptyHint={t('gear.emptyHint')}
+          formatOption={(option) =>
+            t('gear.option', { label: option.label, count: option.photographCount })
+          }
+        />
+        <GearSelect
+          label={t('gear.lensModel')}
+          name="lensModel"
+          anyLabel={t('gear.anyLensModel')}
+          options={facets.lensModels}
+          value={query.lensModel ?? null}
+          onChange={(event) => navigate({ lensModel: event.target.value || null })}
+          hint={t('gear.lensModelHint')}
           emptyHint={t('gear.emptyHint')}
           formatOption={(option) =>
             t('gear.option', { label: option.label, count: option.photographCount })
@@ -146,6 +166,7 @@ export function GearFilter({
               cameraBrand: null,
               cameraModel: null,
               lensBrand: null,
+              lensModel: null,
               page: 1,
             })}
             className="text-meta font-semibold text-ink underline underline-offset-4 transition-opacity duration-150 hover:opacity-65"
@@ -186,7 +207,7 @@ function GearSelect({
   formatOption,
 }: {
   label: string;
-  name: 'cameraBrand' | 'cameraModel' | 'lensBrand';
+  name: 'cameraBrand' | 'cameraModel' | 'lensBrand' | 'lensModel';
   anyLabel: string;
   options: GearOption[];
   value: string | null;

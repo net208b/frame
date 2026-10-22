@@ -26,7 +26,10 @@ import type { CaptureSettings } from '@/types/domain';
  */
 
 /** Discover reads its filters from the query string; see DiscoverQuery. */
-function discoverHref(filter: 'cameraBrand' | 'cameraModel' | 'lensBrand', value: string): string {
+function discoverHref(
+  filter: 'cameraBrand' | 'cameraModel' | 'lensBrand' | 'lensModel',
+  value: string,
+): string {
   const params = new URLSearchParams({ [filter]: value });
   return `/discover?${params.toString()}`;
 }
@@ -47,7 +50,7 @@ function Row({
 }
 
 function FilterLink({ filter, value }: {
-  filter: 'cameraBrand' | 'cameraModel' | 'lensBrand';
+  filter: 'cameraBrand' | 'cameraModel' | 'lensBrand' | 'lensModel';
   value: string;
 }) {
   return (
@@ -187,9 +190,14 @@ export async function CaptureSpecs({
               <FilterLink filter="lensBrand" value={lensBrand} />
             </Row>
           ) : null}
-          {/* Lens models are not a Discover facet, so this one is plain text
-              rather than a link that would filter on nothing. */}
-          {lensModel ? <Row term={t('capture.lens')}>{lensModel}</Row> : null}
+          {/* A Discover facet since 0043, so this is a link like the three
+              above it. It was plain text for as long as filtering by it would
+              have filtered on nothing. */}
+          {lensModel ? (
+            <Row term={t('capture.lens')}>
+              <FilterLink filter="lensModel" value={lensModel} />
+            </Row>
+          ) : null}
           {focalLengthMm !== null ? (
             <Row term={t('capture.focalLength')}>
               <span className="tabular-nums">{focalLengthMm} mm</span>
