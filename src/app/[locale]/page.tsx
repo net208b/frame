@@ -41,7 +41,7 @@ const FEATURED_PHOTOGRAPHER_COUNT = 4;
  * tagline, and neither is translated anywhere in FRAME. The description is
  * prose about what the site is, so it is translated — see `home.meta`.
  */
-const HOME_TITLE = `${SITE.name} — ${SITE.tagline}`;
+const HOME_TITLE = `${SITE.name} — ${SITE.titleTagline}`;
 
 interface HomePageProps {
   params: LocaleParams;

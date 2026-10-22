@@ -13,7 +13,25 @@
 
 export const SITE = {
   name: 'FRAME',
-  tagline: 'Discover places. Capture moments.',
+  // Three clauses, and the third is the one that was missing: what FRAME is for
+  // after the photograph is made. It is the owner's line, kept in English in
+  // both languages like the product name — see the note in `[locale]/page.tsx`.
+  //
+  // This is the line read whole: the footer wordmark, the web manifest,
+  // llms.txt and the WebSite alternateName in structured data.
+  tagline: 'Discover the World. Capture the Moment. Connect Through Photography.',
+  /**
+   * The same line, cut to what a document title can carry.
+   *
+   * `FRAME — ` plus the full tagline is 76 characters, and a search result
+   * truncates at roughly 60: the third clause would have been cut mid-word in
+   * the one place a stranger reads the brand first. So the title keeps the two
+   * clauses that survive the fold, and every surface with room for all three
+   * still shows all three. It lives here, beside the line it shortens, because
+   * two files build the home title and a second copy in each of them is a
+   * second thing to forget.
+   */
+  titleTagline: 'Discover the World. Capture the Moment.',
   description:
     'A community for street photographers. Discover photographs, explore the real places behind them, and learn how each frame was made.',
   locale: 'en',
