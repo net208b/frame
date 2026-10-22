@@ -225,6 +225,20 @@ export async function getMapPins(): Promise<MapPin[]> {
 }
 
 /**
+ * The places behind a Discover view — the same filter the feed is given, drawn
+ * as pins instead of as a gallery.
+ *
+ * `sort` and `page` are ignored: a map has no ordering and no first page, so
+ * this answers with every matching place rather than with one page of them.
+ * Coordinates come through the same pin path as {@link getMapPins}, so a place
+ * that withholds them is absent here too.
+ */
+export async function getDiscoverMapPins(query: DiscoverQuery): Promise<MapPin[]> {
+  if (useLive()) return live.discoverMapPins(query);
+  return demo.demoDiscoverMapPins(query);
+}
+
+/**
  * One photographer's footprints: every place they have published a frame from.
  *
  * Separate from {@link getMapPins} because the number on each pin is their own

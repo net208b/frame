@@ -9,9 +9,12 @@ import {
   activeGearFilterCount,
   buildDiscoverHref,
   DEFAULT_DISCOVER_SORT,
+  DEFAULT_DISCOVER_VIEW,
+  type DiscoverHrefState,
+  type DiscoverViewState,
 } from '@/lib/discover-query';
 import { cn } from '@/lib/utils';
-import type { DiscoverQuery, GearFacets, GearOption } from '@/types/domain';
+import type { GearFacets, GearOption } from '@/types/domain';
 
 /**
  * Filter by the equipment that made the frame.
@@ -36,7 +39,7 @@ export function GearFilter({
   facets,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   facets: GearFacets;
   className?: string;
 }) {
@@ -51,7 +54,7 @@ export function GearFilter({
     facets.cameraModels.length > 0 ||
     facets.lensBrands.length > 0;
 
-  function navigate(next: Partial<DiscoverQuery>) {
+  function navigate(next: DiscoverHrefState) {
     startTransition(() => {
       // Changing a filter always returns to the first page: page three of a
       // narrower result set is usually nowhere.
@@ -82,6 +85,11 @@ export function GearFilter({
       {query.place ? <input type="hidden" name="place" value={query.place} /> : null}
       {query.sort !== DEFAULT_DISCOVER_SORT ? (
         <input type="hidden" name="sort" value={query.sort} />
+      ) : null}
+      {/* The view travels with the submit too, so applying a gear filter from
+          the map without JavaScript answers with the map. */}
+      {query.view !== DEFAULT_DISCOVER_VIEW ? (
+        <input type="hidden" name="view" value={query.view} />
       ) : null}
 
       <div className="grid gap-x-5 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -19,8 +19,10 @@ export default function DiscoverLoading() {
       <div className="mt-8 border-y border-line py-6 lg:mt-10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
           <div className="flex flex-wrap gap-2">
-            {['w-24', 'w-20', 'w-28', 'w-16', 'w-32', 'w-24', 'w-28'].map((width) => (
-              <Skeleton key={width} className={`h-9 ${width} rounded-pill`} />
+            {/* Keyed by position, not by the width: two chips are the same
+                width, and React warns on — and may drop — a duplicate key. */}
+            {['w-24', 'w-20', 'w-28', 'w-16', 'w-32', 'w-24', 'w-28'].map((width, index) => (
+              <Skeleton key={index} className={`h-9 ${width} rounded-pill`} />
             ))}
           </div>
           <Skeleton className="h-11 w-full rounded-pill lg:w-[19rem] lg:shrink-0" />
@@ -28,8 +30,8 @@ export default function DiscoverLoading() {
 
         <div className="mt-6 border-t border-line pt-5">
           <div className="flex flex-wrap gap-x-6 gap-y-2.5">
-            {['w-28', 'w-32', 'w-20', 'w-24'].map((width) => (
-              <Skeleton key={width} className={`h-4 ${width} rounded-sm`} />
+            {['w-28', 'w-32', 'w-20', 'w-24'].map((width, index) => (
+              <Skeleton key={index} className={`h-4 ${width} rounded-sm`} />
             ))}
           </div>
           <Skeleton className="mt-4 h-3 w-[26rem] max-w-full rounded-sm" />

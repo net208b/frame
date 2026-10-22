@@ -4,14 +4,24 @@ import { Suspense } from 'react';
 
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { DiscoverToolbar } from '@/components/discover/DiscoverToolbar';
+import { MapExplorer } from '@/components/map/MapExplorer';
+import { SELECTED_PARAM } from '@/components/map/map-style';
 import { MasonryGallery } from '@/components/photo/MasonryGallery';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { EmptyState, GallerySkeleton } from '@/components/ui/states';
+import { getViewer } from '@/lib/auth';
 import type { Locale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
-import { getDiscoverFeed, getGearFacets, normaliseDiscoverQuery } from '@/lib/data/repository';
+import {
+  getDiscoverFeed,
+  getDiscoverMapPins,
+  getGearFacets,
+  getOwnPhotographedLocationIds,
+  normaliseDiscoverQuery,
+  type MapPin,
+} from '@/lib/data/repository';
 import {
   activeDiscoverFilterCount,
   buildClearedDiscoverHref,
@@ -19,12 +29,15 @@ import {
   discoverViewKey,
   isFilteredDiscoverView,
   parseDiscoverSearchParams,
+  parseDiscoverView,
   type DiscoverSearchParams,
+  type DiscoverViewState,
 } from '@/lib/discover-query';
+import { visitorPlace } from '@/lib/geo/visitor';
 import { buildMetadata } from '@/lib/seo';
 import { taxonomyLabels } from '@/lib/taxonomy';
 import { formatCount } from '@/lib/utils';
-import type { DiscoverQuery, Paginated, PhotographDetail } from '@/types/domain';
+import type { Paginated, PhotographDetail } from '@/types/domain';
 
 interface DiscoverPageProps {
   params: LocaleParams;
@@ -37,6 +50,7 @@ export async function generateMetadata({
 }: DiscoverPageProps): Promise<Metadata> {
   const [{ locale }, resolvedSearchParams] = await Promise.all([readLocaleParams(params), searchParams]);
   const query = normaliseDiscoverQuery(parseDiscoverSearchParams(resolvedSearchParams));
+  const view = parseDiscoverView(resolvedSearchParams);
   const filtered = isFilteredDiscoverView(query);
 
   // `generateMetadata` runs outside the render that calls `setRequestLocale`,
@@ -63,10 +77,15 @@ export async function generateMetadata({
     description: filtered
       ? t('meta.filteredDescription', { subject, sort: taxonomy.sortInline(query.sort) })
       : t('meta.description'),
+    // The gallery is the canonical address for a set of photographs. The map
+    // draws the same set, so it points at the gallery rather than competing
+    // with it for the same content.
     path: buildDiscoverHref(query),
     // Filters, orderings and pages multiply into thousands of near-identical
-    // views. Indexing them would bury the pages worth finding.
-    noIndex: filtered,
+    // views. Indexing them would bury the pages worth finding. The map is a way
+    // of looking at a result set rather than a document, so it is never indexed
+    // even when nothing is filtering.
+    noIndex: filtered || view === 'map',
   });
 }
 
@@ -75,15 +94,26 @@ export default async function DiscoverPage({ params, searchParams }: DiscoverPag
   setRequestLocale(locale);
 
   const t = await getTranslations({ locale, namespace: 'discover' });
-  const query = normaliseDiscoverQuery(parseDiscoverSearchParams(resolvedSearchParams));
+  const state: DiscoverViewState = {
+    ...normaliseDiscoverQuery(parseDiscoverSearchParams(resolvedSearchParams)),
+    view: parseDiscoverView(resolvedSearchParams),
+  };
 
-  // Both reads start before either is awaited, so they overlap rather than
-  // queue. The feed is handed to the gallery below, which awaits it inside its
-  // own Suspense boundary; attaching a handler here keeps a failed read from
-  // being reported as an unhandled rejection in the case where the facets read
-  // rejects first and the gallery is therefore never rendered.
-  const feed = getDiscoverFeed(query);
-  feed.catch(() => {});
+  // Only the view being shown is read. The map is one query and the gallery is
+  // another, and fetching both so that a toggle feels instant would double the
+  // cost of every visit to Discover for the one reader in some number who
+  // switches.
+  //
+  // Whichever it is starts before the facets are awaited, so the two overlap
+  // rather than queue; it is awaited inside the Suspense boundary below.
+  // Attaching a handler here keeps a failed read from being reported as an
+  // unhandled rejection in the case where the facets read rejects first and the
+  // boundary is therefore never rendered.
+  const feed = state.view === 'gallery' ? getDiscoverFeed(state) : null;
+  const pins = state.view === 'map' ? getDiscoverMapPins(state) : null;
+  feed?.catch(() => {});
+  pins?.catch(() => {});
+
   const facets = await getGearFacets();
 
   return (
@@ -94,21 +124,103 @@ export default async function DiscoverPage({ params, searchParams }: DiscoverPag
         <p className="mt-4 text-lead text-muted">{t('lead')}</p>
       </header>
 
-      <DiscoverToolbar query={query} facets={facets} className="mt-8 lg:mt-10" />
+      <DiscoverToolbar query={state} facets={facets} className="mt-8 lg:mt-10" />
 
-      {/* Keyed on the view, so changing a filter replaces the gallery with a
-          skeleton instead of leaving the previous results on screen. */}
+      {/* Keyed on the view, so changing a filter — or the view itself —
+          replaces what is below with a skeleton instead of leaving the previous
+          results on screen. */}
       <Suspense
-        key={discoverViewKey(query)}
+        key={discoverViewKey(state)}
         fallback={
           <div className="mt-10">
             <GallerySkeleton count={8} />
           </div>
         }
       >
-        <DiscoverResults query={query} feed={feed} locale={locale} />
+        {pins ? (
+          <DiscoverMap
+            pins={pins}
+            locale={locale}
+            selectedSlug={firstValue(resolvedSearchParams[SELECTED_PARAM])}
+          />
+        ) : (
+          <DiscoverResults query={state} feed={feed ?? getDiscoverFeed(state)} locale={locale} />
+        )}
       </Suspense>
     </div>
+  );
+}
+
+/** A query string can repeat a key; the first value wins. */
+function firstValue(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value.at(0) : value;
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/* ------------------------------------------------------------------------ */
+/* The map of a view                                                         */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * The same filtered set, drawn as the places it was made at.
+ *
+ * Deliberately the same `MapExplorer` the /map page renders, with the same pin
+ * cards and the same place panel: this is a second way of reading one result
+ * set, not a second map to learn. The selected pin stays in `?selected=`, which
+ * the explorer writes with the history API, so it sits alongside the filters in
+ * the address rather than replacing them.
+ *
+ * What is NOT here is paging. A map has no page two — it carries every place
+ * the filter matches — so the gallery's pagination is absent rather than
+ * present and inert.
+ */
+async function DiscoverMap({
+  pins: pinsPromise,
+  locale,
+  selectedSlug,
+}: {
+  pins: Promise<MapPin[]>;
+  locale: Locale;
+  selectedSlug: string | null;
+}) {
+  const t = await getTranslations({ locale, namespace: 'discover' });
+
+  const [pins, place, viewer] = await Promise.all([pinsPromise, visitorPlace(), getViewer()]);
+  // Only for a signed-in member, and only their own: the ring on a pin says
+  // "you have photographed here", and nobody is shown anybody else's.
+  const ownLocationIds = viewer ? await getOwnPhotographedLocationIds(viewer.id) : [];
+
+  return (
+    <section aria-labelledby="discover-map-heading" className="mt-10">
+      <h2 id="discover-map-heading" className="sr-only">
+        {t('view.mapHeading')}
+      </h2>
+
+      <p role="status" className="text-caption font-semibold text-ink tabular-nums">
+        {pins.length > 0
+          ? t('view.mapSummary', { count: pins.length, formatted: formatCount(pins.length, locale) })
+          : t('view.mapEmpty')}
+      </p>
+
+      {/* The explorer is rendered even with nothing to draw, as on the /map
+          page: it opens on the reader's own city and says on top of itself that
+          there is nothing here, which is more use than an empty panel where a
+          map should be. What it says, though, is this page's to say — the /map
+          page's "nothing on file has a publishable position" would be untrue
+          here, where the places exist and a filter is what excluded them. */}
+      <MapExplorer
+        className="mt-7"
+        pins={pins}
+        ownLocationIds={ownLocationIds}
+        initialSelectedSlug={selectedSlug}
+        fallbackCamera={{ centre: place.centre, zoom: place.zoom }}
+        nothingToDraw={{
+          title: t('view.mapEmptyTitle'),
+          description: t('view.mapEmptyBody'),
+        }}
+      />
+    </section>
   );
 }
 
@@ -121,7 +233,7 @@ async function DiscoverResults({
   feed,
   locale,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   feed: Promise<Paginated<PhotographDetail>>;
   locale: Locale;
 }) {
@@ -207,7 +319,7 @@ async function EmptyResults({
   locale,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   filterCount: number;
   locale: Locale;
   className?: string;

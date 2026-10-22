@@ -6,9 +6,14 @@ import { CategoryFilter } from '@/components/discover/CategoryFilter';
 import { GearFilter } from '@/components/discover/GearFilter';
 import { PlaceSearchField } from '@/components/discover/PlaceSearchField';
 import { SortTabs } from '@/components/discover/SortTabs';
-import { activeDiscoverFilterCount, activeGearFilterCount } from '@/lib/discover-query';
+import { ViewToggle } from '@/components/discover/ViewToggle';
+import {
+  activeDiscoverFilterCount,
+  activeGearFilterCount,
+  type DiscoverViewState,
+} from '@/lib/discover-query';
 import { cn } from '@/lib/utils';
-import type { DiscoverQuery, GearFacets } from '@/types/domain';
+import type { GearFacets } from '@/types/domain';
 
 /**
  * The Discover controls.
@@ -18,13 +23,19 @@ import type { DiscoverQuery, GearFacets } from '@/types/domain';
  * filters — useful to a few people, noise to everyone else — stay behind one
  * disclosure that says how many of them are on. Finding a photograph should not
  * start with reading a control panel.
+ *
+ * Every filter here narrows both views. The ordering does not: a map has no
+ * first row, so in the map view the sort tabs give way to the one thing a
+ * reader of a map needs told — that a photograph with no approved place, or one
+ * whose place keeps its coordinates to itself, is not on it. The ordering is
+ * still in the URL, so coming back to the gallery comes back to it.
  */
 export async function DiscoverToolbar({
   query,
   facets,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   facets: GearFacets;
   className?: string;
 }) {
@@ -43,7 +54,14 @@ export async function DiscoverToolbar({
       </div>
 
       <div className="mt-6 border-t border-line pt-5">
-        <SortTabs query={query} />
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
+          {query.view === 'map' ? (
+            <p className="max-w-prose text-meta text-muted">{t('view.mapNote')}</p>
+          ) : (
+            <SortTabs query={query} />
+          )}
+          <ViewToggle query={query} />
+        </div>
 
         {/* A details element rather than a popover: it opens with the keyboard,
             survives a page without JavaScript, and stays open while a gear

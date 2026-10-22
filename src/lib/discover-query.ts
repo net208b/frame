@@ -18,9 +18,17 @@ import {
  *
  * Both functions are pure, and parsing never throws — a hand-edited or stale
  * URL falls back to the default view rather than failing the request.
+ *
+ * `view` is the one key here that is not a filter. It decides whether the
+ * result set is drawn as a gallery or as a map, which is why it is deliberately
+ * *not* a field of {@link DiscoverQuery}: that type is what the repository is
+ * asked for, and how the answer is drawn is no business of a query. It still
+ * travels through the same two builders, because a chip, a sort tab, a
+ * removable pill or a page link that dropped it would throw the reader out of
+ * the map the moment they narrowed what they were looking at.
  */
 
-/** Query-string keys. Deliberately the field names of DiscoverQuery. */
+/** Query-string keys. Deliberately the field names of DiscoverQuery, plus `view`. */
 const KEYS = {
   category: 'category',
   place: 'place',
@@ -29,7 +37,29 @@ const KEYS = {
   lensBrand: 'lensBrand',
   sort: 'sort',
   page: 'page',
+  view: 'view',
 } as const;
+
+/**
+ * How the filtered result set is drawn.
+ *
+ * `gallery` is the default and is omitted from the URL, the same convention
+ * `/community?view=…` already follows: one view is the page's canonical
+ * address, and the others name themselves.
+ */
+export const DISCOVER_VIEWS = ['gallery', 'map'] as const;
+
+export type DiscoverView = (typeof DISCOVER_VIEWS)[number];
+
+export const DEFAULT_DISCOVER_VIEW: DiscoverView = 'gallery';
+
+/** A parsed Discover query together with how it is being drawn. */
+export interface DiscoverViewState extends DiscoverQuery {
+  view: DiscoverView;
+}
+
+/** What the two builders accept: any part of a query, and optionally a view. */
+export type DiscoverHrefState = Partial<DiscoverQuery> & { view?: DiscoverView | null };
 
 export const DEFAULT_DISCOVER_SORT: SortOption = 'recent';
 
@@ -97,6 +127,12 @@ function readSort(value: string | string[] | undefined): SortOption {
   return SORT_OPTIONS.find((option) => option === raw) ?? DEFAULT_DISCOVER_SORT;
 }
 
+function readView(value: string | string[] | undefined): DiscoverView {
+  const raw = firstValue(value)?.trim().toLowerCase();
+  if (!raw) return DEFAULT_DISCOVER_VIEW;
+  return DISCOVER_VIEWS.find((view) => view === raw) ?? DEFAULT_DISCOVER_VIEW;
+}
+
 function readPage(value: string | string[] | undefined): number {
   const raw = firstValue(value);
   if (!raw) return 1;
@@ -127,6 +163,18 @@ export function parseDiscoverSearchParams(searchParams: DiscoverSearchParams): D
   };
 }
 
+/**
+ * Read how the result set should be drawn.
+ *
+ * Separate from {@link parseDiscoverSearchParams} on purpose: that function's
+ * answer is handed to the repository, and the view is not something the
+ * repository is asked for. An unknown value is the gallery, for the same reason
+ * an unknown category is dropped — the usual source is an old shared link.
+ */
+export function parseDiscoverView(searchParams: DiscoverSearchParams): DiscoverView {
+  return readView(searchParams[KEYS.view]);
+}
+
 /* ------------------------------------------------------------------------ */
 /* Query -> URL                                                              */
 /* ------------------------------------------------------------------------ */
@@ -141,10 +189,10 @@ export function parseDiscoverSearchParams(searchParams: DiscoverSearchParams): D
  * explicit, because "which page am I on" is occasionally the thing being kept.
  */
 export function buildDiscoverHref(
-  query: Partial<DiscoverQuery>,
-  overrides: Partial<DiscoverQuery> = {},
+  query: DiscoverHrefState,
+  overrides: DiscoverHrefState = {},
 ): string {
-  const merged: Partial<DiscoverQuery> = { ...query, ...overrides };
+  const merged: DiscoverHrefState = { ...query, ...overrides };
   const params = new URLSearchParams();
 
   // Values are re-validated on the way out: a caller holding a stale category
@@ -165,6 +213,14 @@ export function buildDiscoverHref(
   const sort = merged.sort ? SORT_OPTIONS.find((option) => option === merged.sort) : undefined;
   if (sort && sort !== DEFAULT_DISCOVER_SORT) params.set(KEYS.sort, sort);
 
+  // Emitted here, which is what keeps the map from collapsing back into the
+  // gallery: every link on the page — the category chips, the sort tabs, the
+  // gear selects, the removable pills, the pagination — is built by this
+  // function, so the view survives a click on any of them. The default is
+  // omitted, so the plain gallery stays `/discover`.
+  const view = merged.view ? DISCOVER_VIEWS.find((option) => option === merged.view) : undefined;
+  if (view && view !== DEFAULT_DISCOVER_VIEW) params.set(KEYS.view, view);
+
   const page = merged.page ?? 1;
   if (Number.isFinite(page) && page > 1) {
     params.set(KEYS.page, String(Math.min(Math.floor(page), MAX_DISCOVER_PAGE)));
@@ -177,12 +233,17 @@ export function buildDiscoverHref(
   return search ? `/discover?${search}` : '/discover';
 }
 
-/** The same view with one filter removed, back at the first page. */
+/**
+ * The same view with one filter removed, back at the first page.
+ *
+ * `query` is forwarded whole, so the view is among the things kept: removing a
+ * filter while looking at the map leaves the reader on the map.
+ */
 export function buildDiscoverHrefWithout(
-  query: Partial<DiscoverQuery>,
+  query: DiscoverHrefState,
   key: DiscoverFilterKey,
 ): string {
-  const cleared: Partial<DiscoverQuery> = { page: 1 };
+  const cleared: DiscoverHrefState = { page: 1 };
 
   // Written out rather than computed, so the key stays typed.
   switch (key) {
@@ -208,9 +269,13 @@ export function buildDiscoverHrefWithout(
   return buildDiscoverHref(query, cleared);
 }
 
-/** Every filter dropped, keeping the ordering the viewer chose. */
-export function buildClearedDiscoverHref(query: Partial<DiscoverQuery>): string {
-  return buildDiscoverHref({ sort: query.sort ?? DEFAULT_DISCOVER_SORT, page: 1 });
+/** Every filter dropped, keeping the ordering and the view the viewer chose. */
+export function buildClearedDiscoverHref(query: DiscoverHrefState): string {
+  return buildDiscoverHref({
+    sort: query.sort ?? DEFAULT_DISCOVER_SORT,
+    view: query.view ?? DEFAULT_DISCOVER_VIEW,
+    page: 1,
+  });
 }
 
 /* ------------------------------------------------------------------------ */
@@ -261,8 +326,10 @@ export function isFilteredDiscoverView(query: DiscoverQuery): boolean {
 /**
  * A stable identity for a view, used as the Suspense key so changing a filter
  * replaces the gallery with a skeleton instead of leaving the old results on
- * screen while the new ones load.
+ * screen while the new ones load. The view is part of that identity, so
+ * switching between the gallery and the map remounts rather than re-using the
+ * previous one's tree.
  */
-export function discoverViewKey(query: DiscoverQuery): string {
+export function discoverViewKey(query: DiscoverHrefState): string {
   return buildDiscoverHref(query);
 }

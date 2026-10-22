@@ -5,9 +5,14 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useId, useState, useTransition, type FormEvent } from 'react';
 
 import { useRouter } from '@/i18n/navigation';
-import { buildDiscoverHref, DEFAULT_DISCOVER_SORT, GEAR_FILTER_KEYS } from '@/lib/discover-query';
+import {
+  buildDiscoverHref,
+  DEFAULT_DISCOVER_SORT,
+  DEFAULT_DISCOVER_VIEW,
+  GEAR_FILTER_KEYS,
+  type DiscoverViewState,
+} from '@/lib/discover-query';
 import { cn } from '@/lib/utils';
-import type { DiscoverQuery } from '@/types/domain';
 
 /**
  * Place search, as a real form.
@@ -30,7 +35,7 @@ export function PlaceSearchField({
   query,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   className?: string;
 }) {
   const router = useRouter();
@@ -86,6 +91,12 @@ export function PlaceSearchField({
       {query.category ? <input type="hidden" name="category" value={query.category} /> : null}
       {query.sort !== DEFAULT_DISCOVER_SORT ? (
         <input type="hidden" name="sort" value={query.sort} />
+      ) : null}
+      {/* Without this, searching a place from the map would answer with the
+          gallery — the one place a missing hidden field is invisible until
+          somebody browses without JavaScript. */}
+      {query.view !== DEFAULT_DISCOVER_VIEW ? (
+        <input type="hidden" name="view" value={query.view} />
       ) : null}
       {GEAR_FILTER_KEYS.map((key) =>
         query[key] ? <input key={key} type="hidden" name={key} value={query[key] ?? ''} /> : null,

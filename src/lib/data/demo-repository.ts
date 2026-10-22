@@ -72,7 +72,14 @@ function toSummary(location: LocationDetail): LocationSummary {
 /* Discover                                                                  */
 /* ------------------------------------------------------------------------ */
 
-export function demoDiscover(query: DiscoverQuery): Paginated<PhotographDetail> {
+/**
+ * The photographs a Discover view matches, unordered and unpaged.
+ *
+ * Its own function because two views ask the question: the gallery, which then
+ * sorts and slices, and the map, which wants the places behind the whole match
+ * rather than behind one page of it. One filter, so the two cannot disagree.
+ */
+function demoDiscoverMatches(query: DiscoverQuery): PhotographDetail[] {
   let items = [...DEMO_PHOTOGRAPHS];
 
   if (query.category) {
@@ -104,7 +111,11 @@ export function demoDiscover(query: DiscoverQuery): Paginated<PhotographDetail> 
     items = items.filter((photo) => photo.capture.lensBrand === query.lensBrand);
   }
 
-  const sorted = sortPhotographs(items, query.sort);
+  return items;
+}
+
+export function demoDiscover(query: DiscoverQuery): Paginated<PhotographDetail> {
+  const sorted = sortPhotographs(demoDiscoverMatches(query), query.sort);
   return paginate(sorted, query.page, query.pageSize || PAGE_SIZE.gallery);
 }
 
@@ -296,6 +307,23 @@ export function demoMapPins() {
 }
 
 export type DemoMapPin = ReturnType<typeof demoMapPins>[number];
+
+/**
+ * The places behind a Discover view.
+ *
+ * The same answer the live query gives: every place where a matching
+ * photograph was made, with the place's own count on the pin. A match with no
+ * place contributes no pin, which is why the map can hold fewer frames than
+ * the gallery and why the page says so.
+ */
+export function demoDiscoverMapPins(query: DiscoverQuery): DemoMapPin[] {
+  const matched = new Set(
+    demoDiscoverMatches(query)
+      .map((photo) => photo.location?.id)
+      .filter((id): id is string => typeof id === 'string'),
+  );
+  return demoMapPins().filter((pin) => matched.has(pin.id));
+}
 
 /**
  * Pins for one photographer's own map: the places *they* have published from.

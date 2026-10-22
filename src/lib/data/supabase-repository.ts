@@ -905,15 +905,33 @@ interface PhotographQuery {
   editorsOnly?: boolean;
 }
 
+/**
+ * The gear columns a Discover view filters on, as column/value pairs.
+ *
+ * One list, because two readers apply it: the feed below, and
+ * {@link discoverMapPins}, which has to narrow a place by the same photographs
+ * the gallery would have shown. A gear filter added to Discover and applied to
+ * only one of them is a map that quietly ignores a filter the reader can see is
+ * on, so the pairs are named here rather than spelled out at each use.
+ */
+function gearTextFilters(filters: {
+  cameraBrand?: string | null;
+  cameraModel?: string | null;
+  lensBrand?: string | null;
+}): Array<[column: string, value: string]> {
+  const pairs: Array<[column: string, value: string]> = [];
+  if (filters.cameraBrand) pairs.push(['camera_brand_text', filters.cameraBrand]);
+  if (filters.cameraModel) pairs.push(['camera_model_text', filters.cameraModel]);
+  if (filters.lensBrand) pairs.push(['lens_brand_text', filters.lensBrand]);
+  return pairs;
+}
+
 async function fetchPhotographRows(
   supabase: Awaited<ReturnType<typeof createClient>>,
   options: PhotographQuery,
 ): Promise<PhotographJoined[]> {
   const place = options.place ? sanitiseSearchTerm(options.place) : '';
-  const gearFilters: Array<[column: string, value: string]> = [];
-  if (options.cameraBrand) gearFilters.push(['camera_brand_text', options.cameraBrand]);
-  if (options.cameraModel) gearFilters.push(['camera_model_text', options.cameraModel]);
-  if (options.lensBrand) gearFilters.push(['lens_brand_text', options.lensBrand]);
+  const gearFilters = gearTextFilters(options);
 
   let query = supabase
     .from('photographs')
@@ -1455,29 +1473,35 @@ interface PhotographerPinRow {
   location: PhotographerPinLocation | PhotographerPinLocation[] | null;
 }
 
-export async function mapPins(): Promise<MapPin[]> {
-  const supabase = await createClient();
+/**
+ * The select a pin is built from.
+ *
+ * `matchingOnly` makes the photographs embed an inner join, which is the whole
+ * difference between the two maps: the map of every place keeps a place with no
+ * published frame, because the map draws it as a bare dot, while the map of a
+ * Discover view must drop any place where nothing matches. `innerMetadata` adds
+ * the nested join a gear filter needs to be expressible at all.
+ */
+function mapPinSelect(options: { matchingOnly?: boolean; innerMetadata?: boolean } = {}): string {
+  const photographs = options.matchingOnly ? 'photographs!inner' : 'photographs';
+  const metadata = options.innerMetadata ? ', photograph_metadata!inner(photograph_id)' : '';
+  return `${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates, pin_precision,
+    categories, ${photographs}(id, slug, title, category, appreciation_count, published_at,
+      photograph_images(${IMAGE_FIELDS}), profiles!owner_id(${PROFILE_SUMMARY_FIELDS})${metadata})`;
+}
 
-  const rows = unwrapList<MapPinJoined>(
-    'reading map pins',
-    await supabase
-      .from('locations')
-      .select(
-        `${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates, pin_precision,
-         categories, photographs(id, slug, title, category, appreciation_count, published_at,
-           photograph_images(${IMAGE_FIELDS}), profiles!owner_id(${PROFILE_SUMMARY_FIELDS}))`,
-      )
-      .eq('status', 'approved')
-      .eq('withhold_coordinates', false)
-      .eq('photographs.status', 'published')
-      // Newest first, and more than one of them: a pin shows the latest frame
-      // from the place with the ones before it stacked behind. The order is the
-      // product rule — see `MapPin.recentImageUrls`.
-      .order('published_at', { ascending: false, referencedTable: 'photographs' })
-      .limit(MAP_PIN_PHOTOGRAPH_SAMPLE, { referencedTable: 'photographs' })
-      .limit(MAP_PIN_LIMIT),
-  );
-
+/**
+ * Place rows to pins, which is where every coordinate rule is applied.
+ *
+ * Shared by both maps rather than written twice, because this is the only place
+ * `publishableCoordinates` is consulted for a pin: a place that withholds its
+ * coordinates is dropped here, and a sensitive one is rounded here. A second
+ * copy of this loop is a second chance to forget that.
+ */
+async function mapPinRows(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: MapPinJoined[],
+): Promise<MapPin[]> {
   const pins: MapPin[] = [];
   for (const row of rows) {
     const summary = mapLocationSummary(row);
@@ -1523,6 +1547,87 @@ export async function mapPins(): Promise<MapPin[]> {
   // The selected pin opens a LocationCard, which names the place.
   await attachLocationNames(supabase, pins);
   return pins;
+}
+
+export async function mapPins(): Promise<MapPin[]> {
+  const supabase = await createClient();
+
+  const rows = unwrapList<MapPinJoined>(
+    'reading map pins',
+    await supabase
+      .from('locations')
+      .select(mapPinSelect())
+      .eq('status', 'approved')
+      .eq('withhold_coordinates', false)
+      .eq('photographs.status', 'published')
+      // Newest first, and more than one of them: a pin shows the latest frame
+      // from the place with the ones before it stacked behind. The order is the
+      // product rule — see `MapPin.recentImageUrls`.
+      .order('published_at', { ascending: false, referencedTable: 'photographs' })
+      .limit(MAP_PIN_PHOTOGRAPH_SAMPLE, { referencedTable: 'photographs' })
+      .limit(MAP_PIN_LIMIT),
+  );
+
+  return mapPinRows(supabase, rows);
+}
+
+/**
+ * The places behind a Discover view — its map rendering.
+ *
+ * Starts from `locations` and narrows by the photographs made there, which is
+ * one query rather than "which photographs match" followed by "pins for those
+ * places": the second form would have to send up to {@link MAP_PIN_LIMIT}
+ * place ids back as a URL filter, and a few hundred uuids is already a request
+ * nothing will accept.
+ *
+ * `sort` and `page` are deliberately ignored. They order and slice a gallery;
+ * a map has no first page, so this answers with every place the filter matches
+ * rather than with the places on whichever page the reader happened to be on.
+ * The filters that *do* narrow — category, place, gear — are applied exactly as
+ * the feed applies them, and the embedded photographs are the matching ones, so
+ * the frame stacked on a pin is a frame the reader asked to see.
+ *
+ * What a pin still reports is the place's own total `photographCount`, because
+ * the card a pin opens is a card about the place. The count of matches is said
+ * once, by the page, for the view as a whole.
+ */
+export async function discoverMapPins(query: DiscoverQuery): Promise<MapPin[]> {
+  const supabase = await createClient();
+
+  const place = query.place ? sanitiseSearchTerm(query.place) : '';
+  const gearFilters = gearTextFilters(query);
+
+  let request = supabase
+    .from('locations')
+    .select(mapPinSelect({ matchingOnly: true, innerMetadata: gearFilters.length > 0 }))
+    .eq('status', 'approved')
+    .eq('withhold_coordinates', false)
+    .eq('photographs.status', 'published');
+
+  if (query.category) request = request.eq('photographs.category', query.category);
+
+  for (const [column, value] of gearFilters) {
+    request = request.eq(`photographs.photograph_metadata.${column}`, value);
+  }
+
+  // The place filter reads the location's own columns here, where the feed
+  // reaches them through the photograph's location embed. Same three columns,
+  // same `ilike`, so a term that narrows the gallery narrows the map.
+  if (place.length > 0) {
+    request = request.or(
+      `name.ilike.*${place}*,city.ilike.*${place}*,country.ilike.*${place}*`,
+    );
+  }
+
+  const rows = unwrapList<MapPinJoined>(
+    'reading the map of a discover view',
+    await request
+      .order('published_at', { ascending: false, referencedTable: 'photographs' })
+      .limit(MAP_PIN_PHOTOGRAPH_SAMPLE, { referencedTable: 'photographs' })
+      .limit(MAP_PIN_LIMIT),
+  );
+
+  return mapPinRows(supabase, rows);
 }
 
 /**

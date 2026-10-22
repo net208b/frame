@@ -1,10 +1,10 @@
 import { getTranslations } from 'next-intl/server';
 
 import { Link } from '@/i18n/navigation';
-import { buildDiscoverHref } from '@/lib/discover-query';
+import { buildDiscoverHref, type DiscoverViewState } from '@/lib/discover-query';
 import { taxonomyLabels } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
-import { SORT_OPTIONS, type DiscoverQuery } from '@/types/domain';
+import { SORT_OPTIONS } from '@/types/domain';
 
 /**
  * The four orderings, with the rule for the current one written underneath.
@@ -22,7 +22,7 @@ export async function SortTabs({
   query,
   className,
 }: {
-  query: DiscoverQuery;
+  query: DiscoverViewState;
   className?: string;
 }) {
   const t = await getTranslations('discover');

@@ -264,6 +264,17 @@
       "groupLabel": "Sort photographs",
       "orderedBy": "Ordered by {sort}"
     },
+    "view": {
+      "groupLabel": "How to show these photographs",
+      "gallery": "Gallery",
+      "map": "Map",
+      "mapHeading": "These photographs on the map",
+      "mapSummary": "{count, plural, one {{formatted} place holds these photographs} other {{formatted} places hold these photographs}}",
+      "mapEmpty": "No place on the map holds these photographs.",
+      "mapEmptyTitle": "No place matches this view",
+      "mapEmptyBody": "Nothing with a position FRAME may publish matches these filters. Clearing one of them, or switching to the gallery, may show photographs that are not on the map.",
+      "mapNote": "The map draws the places these photographs were made at, so it can hold fewer of them than the gallery: a photograph with no approved place is not on it, and a place that keeps its coordinates private has no pin. Ordering is a gallery idea and is kept for when you go back to it."
+    },
     "place": {
       "label": "Search photographs by place",
       "placeholder": "City, country or place",
