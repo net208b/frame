@@ -2592,6 +2592,33 @@ async function suspiciousUploads(
     }
   }
 
+  // Published frames each queued upload looks like (0037), once for the whole
+  // queue. The RPC admits a moderator and gives anyone else no rows, so this
+  // is also what keeps the fingerprint comparison off every other page.
+  const matchesById = new Map<string, UploadSignal[]>();
+  if (queuedIds.length > 0) {
+    const { data: matches, error: matchesError } = await supabase.rpc('similar_photographs', {
+      p_photograph_ids: queuedIds,
+      p_max_distance: UPLOAD_POLICY.perceptualMatchMaxDistance,
+    });
+    if (matchesError) {
+      console.error(`FRAME data: comparing fingerprints for the review queue failed — ${matchesError.message}`);
+    } else {
+      for (const match of matches ?? []) {
+        const list = matchesById.get(match.photograph_id) ?? [];
+        list.push({
+          kind: 'perceptual-hash-match',
+          severity: 'high',
+          message: match.same_owner
+            ? `Looks like “${match.match_title}”, already published by this member — ${match.distance} of 64 bits differ. A re-upload of their own work, or a near-duplicate frame.`
+            : `Looks like “${match.match_title}” by @${match.match_username} — ${match.distance} of 64 bits differ. Put the two side by side; the fingerprint cannot say which came first.`,
+          relatedLabel: `/photographs/${match.match_slug}`,
+        });
+        matchesById.set(match.photograph_id, list);
+      }
+    }
+  }
+
   const uploadsPerOwner = new Map<string, string[]>();
   for (const row of rows) {
     const owner = mapPhotographerSummary(firstOf<ProfileColumns>(row.profiles));
@@ -2640,6 +2667,10 @@ async function suspiciousUploads(
           toText(contentCheck?.note) ?? 'No automated content check was recorded, so it needs a person.',
       });
     }
+
+    // A possible re-upload is the second thing to read: it is why the server
+    // held the frame, and the caveat under the signals says what it cannot mean.
+    signals.push(...(matchesById.get(id) ?? []));
 
     const width = toNumber(row.image_width);
     const height = toNumber(row.image_height);

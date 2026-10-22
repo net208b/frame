@@ -306,6 +306,39 @@ async function PhotographersView({
         </section>
       </div>
 
+      {/*
+        The rules a photograph is held to, and why each one is there. This is
+        the page a member lands on after the upload form has refused a file or
+        put it in a queue, so every rule is stated with its reason rather than
+        as a line in a list — and the one about copies says exactly what the
+        fingerprint can and cannot do, because /legal/copyright makes the same
+        promise and the two must not disagree.
+      */}
+      <section className="mt-20">
+        <h2 className="text-section font-bold">{t('rules.title')}</h2>
+        <p className="mt-3 max-w-[58ch] text-body leading-relaxed text-muted">{t('rules.lead')}</p>
+
+        <dl className="mt-8 grid gap-x-16 gap-y-8 md:grid-cols-2">
+          {(['camera', 'review', 'rights', 'copies'] as const).map((rule) => (
+            <div key={rule} className="max-w-[58ch] border-l border-line pl-5">
+              <dt className="text-title font-bold">{t(`rules.${rule}.title`)}</dt>
+              <dd className="mt-2 text-body leading-relaxed text-ink-soft">
+                {t.rich(`rules.${rule}.body`, {
+                  copyright: (chunks) => (
+                    <Link
+                      href="/legal/copyright"
+                      className="font-semibold text-ink underline decoration-line-strong underline-offset-4 transition-colors duration-150 hover:decoration-ink"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
       <section className="on-ink mt-20 rounded-panel bg-ink-surface px-7 py-12 md:px-14 md:py-16">
         <div className="max-w-[46ch]">
           <Eyebrow onInk>{t('join.eyebrow')}</Eyebrow>

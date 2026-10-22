@@ -210,6 +210,16 @@ export const UPLOAD_POLICY = {
   maxUploadsPerHour: 6,
   maxPendingUploads: 30,
   /**
+   * How many of a fingerprint's 64 bits may differ before two photographs
+   * are shown to a moderator as a possible match (0037). Ten is the usual
+   * near-duplicate cutoff for a difference hash: the same export at two
+   * sizes lands within two or three, unrelated frames land near thirty-two.
+   * Lower finds fewer re-uploads; higher sends more honest coincidences to a
+   * person. Passed to similar_photographs() so the database never holds its
+   * own copy of the number.
+   */
+  perceptualMatchMaxDistance: 10,
+  /**
    * An avatar, which is posted to a server action rather than sent straight to
    * storage with a grant. Two megabytes is the ceiling on that request body
    * (`serverActions.bodySizeLimit`), and the browser shrinks a picture to a
