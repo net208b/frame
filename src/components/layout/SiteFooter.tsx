@@ -42,6 +42,7 @@ const COLUMNS = [
     heading: 'community',
     links: [
       { href: '/community', key: 'community' },
+      { href: '/photographers', key: 'photographers' },
       { href: '/join', key: 'join' },
       { href: '/upload', key: 'upload' },
     ],

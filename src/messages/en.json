@@ -125,6 +125,7 @@
       "styleNight": "Night",
       "styleDocumentary": "Documentary",
       "community": "Community",
+      "photographers": "Photographers",
       "join": "Join FRAME",
       "upload": "Upload",
       "terms": "Terms",
@@ -759,6 +760,20 @@
   },
   "profile": {
     "metaTitle": "{name} (@{username})",
+    "directory": {
+      "eyebrow": "Who is here",
+      "heading": "The photographers",
+      "lead": "Everyone who has joined FRAME. Each card carries what that member has published, where they have worked and what they shoot with.",
+      "ordering": "Ordered by who joined most recently. Not by appreciation — this is a list of people, not a ranking of them.",
+      "metaTitle": "Photographers",
+      "metaDescription": "The photographers publishing on FRAME: what each has published, where they have worked and what they shoot with.",
+      "noneTitle": "Nobody has joined yet",
+      "noneBody": "FRAME is new. The first accounts will appear here as soon as they are created.",
+      "noneAction": "Join FRAME",
+      "pastEndTitle": "Nothing on this page",
+      "pastEndBody": "There are fewer photographers than this page number needs. The first page has everyone.",
+      "pastEndAction": "Back to the first page"
+    },
     "metaDescription": "{name} photographs streets and the places behind them on FRAME.",
     "metaDescriptionBasedIn": "{name} photographs streets and the places behind them on FRAME, based in {city}.",
     "memberSince": "Member since {month}",
@@ -870,7 +885,8 @@
       "title": "The most appreciated photographers",
       "description": "Ranked by the appreciations their published photographs have received, nothing else.",
       "emptyTitle": "No photographers to show yet",
-      "emptyDescription": "This list is built from published photographs, so it fills up as members publish their first frames."
+      "emptyDescription": "This list is built from published photographs, so it fills up as members publish their first frames.",
+      "allPhotographers": "See every photographer"
     },
     "appreciation": {
       "title": "What an appreciation means",

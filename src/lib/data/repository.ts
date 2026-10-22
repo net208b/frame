@@ -337,6 +337,20 @@ export async function getFeaturedPhotographers(limit = 4): Promise<PhotographerP
   return demo.demoFeaturedPhotographers(limit);
 }
 
+/**
+ * The photographer directory: who is here, newest first, paged.
+ *
+ * A browse rather than a leaderboard — never ordered by appreciation (§7.4).
+ * It is a new repository query, not the search route's private helper.
+ */
+export async function getPhotographerDirectory(
+  page = 1,
+  pageSize = PAGE_SIZE.profile,
+): Promise<Paginated<PhotographerProfile>> {
+  if (useLive()) return live.photographerDirectory(page, pageSize);
+  return demo.demoPhotographerDirectory(page, pageSize);
+}
+
 export async function getPhotographerUsernames(): Promise<string[]> {
   if (useLive()) return live.photographerUsernames();
   return demo.demoPhotographerUsernames();
