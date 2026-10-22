@@ -35,6 +35,7 @@ const KEYS = {
   cameraBrand: 'cameraBrand',
   cameraModel: 'cameraModel',
   lensBrand: 'lensBrand',
+  lensModel: 'lensModel',
   sort: 'sort',
   page: 'page',
   view: 'view',
@@ -79,10 +80,11 @@ export type DiscoverFilterKey =
   | 'place'
   | 'cameraBrand'
   | 'cameraModel'
-  | 'lensBrand';
+  | 'lensBrand'
+  | 'lensModel';
 
 /** The gear filters, as one list, so "how many are active" is defined once. */
-export const GEAR_FILTER_KEYS = ['cameraBrand', 'cameraModel', 'lensBrand'] as const;
+export const GEAR_FILTER_KEYS = ['cameraBrand', 'cameraModel', 'lensBrand', 'lensModel'] as const;
 
 /**
  * One filter currently narrowing the gallery.
@@ -157,6 +159,7 @@ export function parseDiscoverSearchParams(searchParams: DiscoverSearchParams): D
     cameraBrand: readText(searchParams[KEYS.cameraBrand], MAX_GEAR_LENGTH),
     cameraModel: readText(searchParams[KEYS.cameraModel], MAX_GEAR_LENGTH),
     lensBrand: readText(searchParams[KEYS.lensBrand], MAX_GEAR_LENGTH),
+    lensModel: readText(searchParams[KEYS.lensModel], MAX_GEAR_LENGTH),
     sort: readSort(searchParams[KEYS.sort]),
     page: readPage(searchParams[KEYS.page]),
     pageSize: PAGE_SIZE.gallery,
@@ -262,7 +265,12 @@ export function buildDiscoverHrefWithout(
       cleared.cameraModel = null;
       break;
     case 'lensBrand':
+      // A model only means anything alongside its brand, as for cameras.
       cleared.lensBrand = null;
+      cleared.lensModel = null;
+      break;
+    case 'lensModel':
+      cleared.lensModel = null;
       break;
   }
 

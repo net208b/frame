@@ -146,6 +146,7 @@ export function demoGearFacets(): GearFacets {
     cameraBrands: count((photo) => photo.capture.cameraBrand),
     cameraModels: count((photo) => photo.capture.cameraModel),
     lensBrands: count((photo) => photo.capture.lensBrand),
+    lensModels: count((photo) => photo.capture.lensModel),
   };
 }
 

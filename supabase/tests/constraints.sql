@@ -3854,6 +3854,134 @@ begin
   raise notice 'opens ok      anon and authenticated may count an open';
 end $$;
 
+-- ------------------------------------- 0043: gear meets its catalogue
+-- Fixtures of this section's own, including catalogue rows with a known
+-- spelling so the matching can be tested against something definite.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('9ea50000-0000-4000-8000-00000000000a', 'gear.member@example.test', '{"username":"gear_member"}')
+on conflict (id) do nothing;
+
+insert into public.camera_brands (id, name, slug) values
+  ('9ea50000-0000-4000-8000-000000000101', 'Testcam', 'testcam-brand')
+on conflict (id) do nothing;
+insert into public.camera_models (id, brand_id, name, slug) values
+  ('9ea50000-0000-4000-8000-000000000102', '9ea50000-0000-4000-8000-000000000101',
+   'TC-900', 'testcam-tc-900')
+on conflict (id) do nothing;
+insert into public.lens_brands (id, name, slug) values
+  ('9ea50000-0000-4000-8000-000000000103', 'Testlens', 'testlens-brand')
+on conflict (id) do nothing;
+insert into public.lens_models (id, brand_id, name, slug) values
+  ('9ea50000-0000-4000-8000-000000000104', '9ea50000-0000-4000-8000-000000000103',
+   'Nokton-T 40mm f/1.2', 'testlens-nokton-t-40')
+on conflict (id) do nothing;
+
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at,
+   rights_confirmed_at, image_width, image_height)
+values
+  ('9ea50000-0000-4000-8000-000000000001', 'gear-frame', '9ea50000-0000-4000-8000-00000000000a',
+   'A frame with gear', 'A tram stop in the rain, shot from across the street.',
+   'street', 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+-- Typed the way a member actually types it: shouted, and with a trailing space.
+do $$
+declare v_brand uuid; v_model uuid; v_lens_brand uuid; v_lens_model uuid;
+begin
+  insert into public.photograph_metadata
+    (photograph_id, camera_brand_text, camera_model_text, lens_brand_text, lens_model_text)
+  values
+    ('9ea50000-0000-4000-8000-000000000001', 'TESTCAM ', 'tc-900', 'TESTLENS', 'nokton-t 40mm f/1.2 ')
+  on conflict (photograph_id) do update
+    set camera_brand_text = excluded.camera_brand_text,
+        camera_model_text = excluded.camera_model_text,
+        lens_brand_text   = excluded.lens_brand_text,
+        lens_model_text   = excluded.lens_model_text;
+
+  select camera_brand_id, camera_model_id, lens_brand_id, lens_model_id
+    into v_brand, v_model, v_lens_brand, v_lens_model
+    from public.photograph_metadata
+   where photograph_id = '9ea50000-0000-4000-8000-000000000001';
+
+  if v_brand is distinct from '9ea50000-0000-4000-8000-000000000101'::uuid then
+    raise exception 'GEAR GAP  "TESTCAM " did not resolve to the Testcam brand row (%)', v_brand;
+  end if;
+  if v_model is distinct from '9ea50000-0000-4000-8000-000000000102'::uuid then
+    raise exception 'GEAR GAP  "tc-900" did not resolve to the model row (%)', v_model;
+  end if;
+  if v_lens_brand is distinct from '9ea50000-0000-4000-8000-000000000103'::uuid then
+    raise exception 'GEAR GAP  the lens brand did not resolve (%)', v_lens_brand;
+  end if;
+  if v_lens_model is distinct from '9ea50000-0000-4000-8000-000000000104'::uuid then
+    raise exception 'GEAR GAP  the lens model did not resolve (%)', v_lens_model;
+  end if;
+
+  raise notice 'gear ok       typed gear resolves to the catalogue whatever its case or spacing';
+end $$;
+
+-- The typed text is never altered. It is what the member wrote.
+do $$
+declare v_text text;
+begin
+  select camera_brand_text into v_text from public.photograph_metadata
+   where photograph_id = '9ea50000-0000-4000-8000-000000000001';
+  if v_text <> 'TESTCAM ' then
+    raise exception 'GEAR BUG  the typed camera brand was rewritten to "%"', v_text;
+  end if;
+  raise notice 'gear ok       the typed text is left exactly as it was written';
+end $$;
+
+-- Gear the catalogue has never heard of keeps its text and gets no id, rather
+-- than being forced to pretend it matched something.
+do $$
+declare v_id uuid; v_text text;
+begin
+  update public.photograph_metadata
+     set camera_brand_text = 'A camera nobody has catalogued'
+   where photograph_id = '9ea50000-0000-4000-8000-000000000001';
+
+  select camera_brand_id, camera_brand_text into v_id, v_text
+    from public.photograph_metadata
+   where photograph_id = '9ea50000-0000-4000-8000-000000000001';
+
+  if v_id is not null then
+    raise exception 'GEAR BUG  an unlisted camera brand was given the id %', v_id;
+  end if;
+  if v_text <> 'A camera nobody has catalogued' then
+    raise exception 'GEAR BUG  an unlisted camera brand lost its text';
+  end if;
+  raise notice 'gear ok       unlisted gear keeps its words and gains no id';
+end $$;
+
+-- Editing a value the id did not come from must not cost the catalogue row.
+do $$
+declare v_model uuid;
+begin
+  update public.photograph_metadata set aperture = 2.0
+   where photograph_id = '9ea50000-0000-4000-8000-000000000001';
+
+  select camera_model_id into v_model from public.photograph_metadata
+   where photograph_id = '9ea50000-0000-4000-8000-000000000001';
+  if v_model is distinct from '9ea50000-0000-4000-8000-000000000102'::uuid then
+    raise exception 'GEAR BUG  editing the aperture cleared the camera model id';
+  end if;
+  raise notice 'gear ok       editing another field leaves the catalogue links alone';
+end $$;
+
+-- And the index the facet needs, which 0005 left out.
+do $$
+begin
+  if not exists (
+    select 1 from pg_indexes
+     where schemaname = 'public' and indexname = 'photograph_metadata_lens_model_idx'
+  ) then
+    raise exception 'GEAR GAP  lens_model_id has no index, so the lens facet is a scan';
+  end if;
+  raise notice 'gear ok       lens_model_id is indexed';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;
