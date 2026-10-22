@@ -42,6 +42,13 @@ export interface PhotoMarkerOptions {
   own?: boolean;
   /** What a screen reader hears after the place's name when `own` is set. */
   ownLabel?: string;
+  /**
+   * The place's name in the reader's language, where a translation exists
+   * (0035). The caller resolves it because this module builds markup and has
+   * no locale of its own; without it the name is read as written, which is
+   * what every pin did before the map could translate one.
+   */
+  name?: string;
 }
 
 export function createPhotoMarkerElement(
@@ -59,10 +66,16 @@ export function createPhotoMarkerElement(
    * front of a name is one more string to keep in two languages for no
    * information. The count and the precision are on the card the button opens,
    * as text, in the reader's language.
+   *
+   * The name itself is in the reader's language too, when the place has a
+   * translated one. A sighted reader has read "Bang Kapi" on the card and in
+   * the list beside the map; a screen reader hearing บางกะปิ for the same pin
+   * was the one place the map still answered in the other language.
    */
+  const label = options.name ?? pin.name;
   element.setAttribute(
     'aria-label',
-    options.own && options.ownLabel ? `${pin.name}. ${options.ownLabel}` : pin.name,
+    options.own && options.ownLabel ? `${label}. ${options.ownLabel}` : label,
   );
   element.className = [
     'group relative grid size-11 place-items-center rounded-pill',
