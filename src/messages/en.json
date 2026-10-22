@@ -871,6 +871,15 @@
       "rateLimited": "That is a lot of following at once. Try again in a moment.",
       "notConfigured": "Following is unavailable in this deployment.",
       "unauthenticated": "Sign in to follow a photographer."
+    },
+    "approach": {
+      "label": "How they go about it"
+    },
+    "favouriteCities": {
+      "label": "Keeps going back to"
+    },
+    "contact": {
+      "note": "Opens outside FRAME"
     }
   },
   "community": {
@@ -1200,6 +1209,17 @@
       "commentBody": {
         "required": "Write something first.",
         "max": "Keep a comment to 1,000 characters."
+      },
+      "favouriteCities": {
+        "tooMany": "That is more cities than a profile shows. Keep the {count, plural, one {one} other {# }} you go back to most.",
+        "itemMax": "One of those city names is longer than {length} characters."
+      },
+      "approach": {
+        "max": "That is longer than {length} characters. The biography has more room."
+      },
+      "contactUrl": {
+        "invalid": "That is not a web address or an email address. A link has to start with http:// or https://, and an email address needs an @ and a domain.",
+        "max": "That address is longer than {length} characters."
       }
     },
     "actions": {
@@ -1299,7 +1319,13 @@
       "avatarRemoving": "Removing…",
       "submit": "Save profile",
       "submitPending": "Saving…",
-      "viewProfile": "See your profile"
+      "viewProfile": "See your profile",
+      "favouriteCities": "Cities you keep going back to",
+      "favouriteCitiesHint": "One per line, up to {count}. Your own words — a city does not need a place on FRAME for you to name it here.",
+      "approach": "How you go about it",
+      "approachHint": "Up to {length} characters. Not your biography: the one thing somebody should know about how you work.",
+      "contactUrl": "How to reach you",
+      "contactUrlHint": "One web address or email address, shown on your profile. It leaves FRAME — there are no messages here."
     },
     "photobook": {
       "heading": "Photobook",

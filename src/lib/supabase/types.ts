@@ -46,6 +46,10 @@ export interface ProfileRow extends Timestamps {
   /** One of the member's own published photographs (migration 0017). */
   cover_photograph_id: string | null;
   usual_gear: string[] | null;
+  /** 0040 — the member's own words about where they go, how they work and how to reach them. */
+  favourite_cities: string[] | null;
+  approach: string | null;
+  contact_url: string | null;
   role: 'member' | 'moderator' | 'admin';
   is_suspended: boolean;
   suspended_reason: string | null;

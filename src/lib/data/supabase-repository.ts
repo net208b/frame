@@ -469,6 +469,9 @@ type ProfileDetailColumns = Nullable<
     | 'critique_preference'
     | 'social_links'
     | 'usual_gear'
+    | 'favourite_cities'
+    | 'approach'
+    | 'contact_url'
     | 'role'
     | 'member_since'
     | 'created_at'
@@ -554,7 +557,8 @@ const PROFILE_COVER_FIELDS = `cover:photographs!cover_photograph_id(
   slug, alt_text, owner_id, status, photograph_images(${IMAGE_FIELDS}))`;
 
 const PROFILE_DETAIL_FIELDS = `${PROFILE_SUMMARY_FIELDS}, biography, website, country_code,
-  style_tags, collaboration_status, critique_preference, social_links, usual_gear, role,
+  style_tags, collaboration_status, critique_preference, social_links, usual_gear,
+  favourite_cities, approach, contact_url, role,
   member_since, created_at, follower_count, following_count, ${PROFILE_COVER_FIELDS}`;
 const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, photograph_count';
 // `exif_source` is here because 0015 grants exactly this column list to anon
@@ -2122,6 +2126,9 @@ async function buildProfiles(
       translations: NO_TRANSLATIONS,
       website: toText(row.website),
       countryCode: toText(row.country_code),
+      favouriteCities: toStringList(row.favourite_cities),
+      approach: toText(row.approach),
+      contactUrl: toText(row.contact_url),
       styles: toStringList(row.style_tags).filter(isPhotographyStyle),
       collaboration: oneOrNull(COLLABORATION_STATUSES, row.collaboration_status),
       critique: oneOrNull(CRITIQUE_PREFERENCES, row.critique_preference),

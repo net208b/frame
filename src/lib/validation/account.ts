@@ -34,6 +34,10 @@ export const PROFILE_LIMITS = {
   styles: MAX_PHOTOGRAPHY_STYLES,
   socialLinks: MAX_SOCIAL_LINKS,
   socialLinkLength: 200,
+  favouriteCities: 6,
+  favouriteCityLength: 80,
+  approach: 600,
+  contactUrl: 200,
 } as const;
 
 /** Blank means "not set", which the database stores as null rather than ''. */
@@ -127,6 +131,90 @@ const socialLinksSchema = z.string().transform((value, context) => {
   }
   return links;
 });
+
+/**
+ * One city per line, like the gear field, and for the same reason: a problem
+ * with the fourth line is reported against the field the form shows rather than
+ * against `favouriteCities.3`, which no input is called.
+ *
+ * Free text, not a reference to a city hub. A city somebody keeps going back to
+ * may have no approved place on FRAME at all, and saying so should not require
+ * one.
+ */
+const favouriteCitiesSchema = z.string().transform((value, context) => {
+  const seen = new Set<string>();
+  const cities: string[] = [];
+
+  for (const line of value.split(/\r?\n/)) {
+    const item = line.trim().replace(/\s+/g, ' ');
+    if (!item || seen.has(item.toLowerCase())) continue;
+    seen.add(item.toLowerCase());
+    cities.push(item);
+  }
+
+  if (cities.length > PROFILE_LIMITS.favouriteCities) {
+    context.addIssue({ code: 'custom', message: validationCode('favouriteCities.tooMany') });
+    return z.NEVER;
+  }
+  if (cities.some((city) => city.length > PROFILE_LIMITS.favouriteCityLength)) {
+    context.addIssue({ code: 'custom', message: validationCode('favouriteCities.itemMax') });
+    return z.NEVER;
+  }
+  return cities;
+});
+
+/**
+ * One way to be reached, or nothing.
+ *
+ * http(s) like every other link on a profile, and `mailto:` as well — this is
+ * the one field whose whole purpose is being reachable, and an address is how
+ * a photographer is reached about work. Nothing else: the value becomes an href
+ * on a public page, where `javascript:` is script. Migration 0040 refuses the
+ * same set, so a request that skips this form gains nothing.
+ */
+const contactUrlSchema = z
+  .string()
+  .trim()
+  .transform((value, context) => {
+    if (value === '') return null;
+
+    const invalid = () => {
+      context.addIssue({ code: 'custom', message: validationCode('contactUrl.invalid') });
+      return z.NEVER;
+    };
+
+    // A bare address is read as mailto:, because that is what somebody typing
+    // one into a "how to reach me" field means.
+    const candidate = /^[a-z][a-z0-9+.-]*:/i.test(value)
+      ? value
+      : value.includes('@') && !value.includes('/')
+        ? `mailto:${value}`
+        : `https://${value}`;
+
+    let url: URL;
+    try {
+      url = new URL(candidate);
+    } catch {
+      return invalid();
+    }
+
+    if (url.protocol === 'mailto:') {
+      // One address, with something that looks like a domain after the @ —
+      // the same shape 0040's CHECK accepts.
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(url.pathname)) return invalid();
+    } else if (url.protocol === 'http:' || url.protocol === 'https:') {
+      if (!url.hostname.includes('.')) return invalid();
+    } else {
+      return invalid();
+    }
+
+    const href = url.toString();
+    if (href.length > PROFILE_LIMITS.contactUrl) {
+      context.addIssue({ code: 'custom', message: validationCode('contactUrl.max') });
+      return z.NEVER;
+    }
+    return href;
+  });
 
 /** The country the member picked, or nothing. Unknown codes are refused. */
 const countryCodeSchema = z
@@ -237,6 +325,9 @@ export const profileSchema = z.object({
   critique: choiceOrBlank(CRITIQUE_PREFERENCES, 'critique.invalid'),
   coverPhotographId: coverSchema,
   gear: gearSchema,
+  favouriteCities: favouriteCitiesSchema,
+  approach: optionalText(PROFILE_LIMITS.approach, 'approach.max'),
+  contactUrl: contactUrlSchema,
 });
 
 export const changeUsernameSchema = z.object({

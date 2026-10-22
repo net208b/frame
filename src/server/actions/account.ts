@@ -150,6 +150,9 @@ export async function updateProfile(
     critique,
     coverPhotographId,
     gear,
+    favouriteCities,
+    approach,
+    contactUrl,
   } = parsed.data;
   const { error } = await supabase
     .from('profiles')
@@ -165,6 +168,9 @@ export async function updateProfile(
       critique_preference: critique,
       cover_photograph_id: coverPhotographId,
       usual_gear: gear,
+      favourite_cities: favouriteCities,
+      approach,
+      contact_url: contactUrl,
     })
     .eq('id', member.id);
 
