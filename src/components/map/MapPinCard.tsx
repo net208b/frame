@@ -1,7 +1,7 @@
 'use client';
 
 import { ArrowUpRight, CircleDashed, Heart, Images } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import Image from 'next/image';
 
 import { Link } from '@/i18n/navigation';
@@ -9,6 +9,7 @@ import { Avatar } from '@/components/photographer/Avatar';
 import { CategoryTag } from '@/components/photo/CategoryTag';
 import { LOCATION_POLICY } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
+import { translatedText } from '@/lib/translation/applies';
 import { cn } from '@/lib/utils';
 
 import { precisionParts } from './precision';
@@ -61,6 +62,7 @@ export function MapPinCard({
   className?: string;
 }) {
   const t = useTranslations('map');
+  const locale = useLocale();
 
   // Two at most behind the top frame: a third edge adds nothing a reader can
   // see and starts to look like a fan of cards.
@@ -115,7 +117,7 @@ export function MapPinCard({
           <div className="p-3.5">
             <div className="flex items-start justify-between gap-2">
               <p className="text-caption font-semibold text-balance group-hover:underline">
-                {pin.name}
+                {translatedText(pin.name, pin.translations.name, locale)}
               </p>
               <ArrowUpRight
                 aria-hidden

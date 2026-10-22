@@ -14,6 +14,7 @@ import { useResolvedTheme } from '@/components/system/use-theme';
 import { isMapConfigured } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
 import { basemapVariant, type BasemapLanguage } from '@/lib/map/basemap';
+import { translatedText } from '@/lib/translation/applies';
 import { cn } from '@/lib/utils';
 
 import { MapLoadFailure, MapUnavailable } from './MapUnavailable';
@@ -191,12 +192,18 @@ export function MapCanvas({
   // Read by the marker sync, which is created once: a Set for the lookup, and
   // the label a screen reader hears on a member's own pin. Kept current from
   // an effect, as onSelectRef is below, rather than written during render.
+  const locale = useLocale();
   const ownRef = useRef<Set<string>>(new Set(ownLocationIds ?? []));
   const ownLabelRef = useRef(t('canvas.yours'));
+  // The marker effect runs with no dependencies and reads what it needs
+  // through refs, so the reader's language arrives the same way the "yours"
+  // label does rather than by rebuilding every marker on a locale change.
+  const localeRef = useRef(locale);
   useEffect(() => {
     ownRef.current = new Set(ownLocationIds ?? []);
     ownLabelRef.current = t('canvas.yours');
-  }, [ownLocationIds, t]);
+    localeRef.current = locale;
+  }, [locale, ownLocationIds, t]);
   const onSelectRef = useRef(onSelect);
   const onVisibleChangeRef = useRef(onVisibleChange);
   // The selection is here as well as in the effect below because a rebuilt map
@@ -231,7 +238,7 @@ export function MapCanvas({
   // Narrowed rather than cast: the basemap has a Thai label set and an English
   // one, and a third locale added to the app would have to choose between them
   // here instead of failing at a tile request.
-  const language: BasemapLanguage = useLocale() === 'th' ? 'th' : 'en';
+  const language: BasemapLanguage = locale === 'th' ? 'th' : 'en';
   const styleUrl = mapStyleUrl(basemapVariant(theme, language));
   const attribution = mapAttribution();
 
@@ -288,7 +295,11 @@ export function MapCanvas({
         const { element, setSelected } = createPhotoMarkerElement(
           pin,
           () => onSelectRef.current?.(pin),
-          { own: ownRef.current.has(pin.id), ownLabel: ownLabelRef.current },
+          {
+            own: ownRef.current.has(pin.id),
+            ownLabel: ownLabelRef.current,
+            name: translatedText(pin.name, pin.translations.name, localeRef.current),
+          },
         );
 
         const marker = new maplibregl.Marker({ element })

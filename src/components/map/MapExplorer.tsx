@@ -9,6 +9,7 @@ import { Eyebrow } from '@/components/ui/SectionHead';
 import { EmptyState } from '@/components/ui/states';
 import { isMapConfigured } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
+import { translatedText } from '@/lib/translation/applies';
 import { cn, formatCount } from '@/lib/utils';
 import { PHOTO_CATEGORIES, type PhotoCategory } from '@/types/domain';
 
@@ -46,10 +47,28 @@ interface Filters {
 
 const NO_FILTERS: Filters = { query: '', categories: [] };
 
+/** The place's name as this reader reads it, translated where one exists. */
+function nameFor(pin: MapPin, locale: string): string {
+  return translatedText(pin.name, pin.translations.name, locale);
+}
+
+/**
+ * Both names are searched, not the one the reader is shown.
+  *
+  * A place keeps its name as written and may also have a translated one
+  * (0035), and either is a reasonable thing to type: a Thai reader looking at
+  * "Bang Kapi" in English may still search บางกะปิ, and an English reader who
+  * has only ever seen the English name must not come up empty against the
+  * Thai. The city and the country are not translatable at all — 0035's CHECK
+  * allows a location only `name` and `description` — so they appear once.
+  */
 function matchesQuery(pin: MapPin, query: string): boolean {
   const needle = query.trim().toLowerCase();
   if (needle.length === 0) return true;
-  return `${pin.name} ${pin.city} ${pin.country}`.toLowerCase().includes(needle);
+  const translated = pin.translations.name?.value ?? '';
+  return `${pin.name} ${translated} ${pin.city} ${pin.country}`
+    .toLowerCase()
+    .includes(needle);
 }
 
 function matchesFilters(pin: MapPin, filters: Filters): boolean {
@@ -184,13 +203,17 @@ export function MapExplorer({
   }, [filtered, visibleIds]);
 
   const listed = useMemo(() => {
+    // Sorted by the name the reader actually sees, so the list is in their
+    // alphabet rather than in the one each place was proposed in.
     const sorted = [...inView].sort(
-      (a, b) => b.photographCount - a.photographCount || a.name.localeCompare(b.name),
+      (a, b) =>
+        b.photographCount - a.photographCount ||
+        nameFor(a, locale).localeCompare(nameFor(b, locale), locale),
     );
     // A selected pin stays reachable even after the viewer has panned past it.
     if (!selectedPin || sorted.some((pin) => pin.id === selectedPin.id)) return sorted;
     return [selectedPin, ...sorted];
-  }, [inView, selectedPin]);
+  }, [inView, locale, selectedPin]);
 
   // "In view" is only true once the map has reported a viewport. The scope is
   // two whole messages rather than one sentence with a word swapped into it:
@@ -199,7 +222,7 @@ export function MapExplorer({
   const scopeLabel = visibleIds ? t('explorer.scopeInView') : t('explorer.scopePinned');
   const summaryCount = { count: listed.length, formatted: formatCount(listed.length, locale) };
   const summaryLabel = selectedPin
-    ? selectedPin.name
+    ? nameFor(selectedPin, locale)
     : visibleIds
       ? t('explorer.summaryInView', summaryCount)
       : t('explorer.summaryPinned', summaryCount);
@@ -449,7 +472,9 @@ function PanelList({
                 )}
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-body font-semibold">{pin.name}</span>
+                  <span className="block truncate text-body font-semibold">
+                    {nameFor(pin, locale)}
+                  </span>
                   <span className="block truncate text-meta text-muted">
                     {pin.city}, {pin.country}
                   </span>
