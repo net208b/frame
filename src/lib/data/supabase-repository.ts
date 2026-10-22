@@ -447,6 +447,7 @@ type PhotographColumns = Pick<
   | 'image_width'
   | 'image_height'
   | 'blur_data_url'
+  | 'styles'
 >;
 
 type ProfileColumns = Nullable<
@@ -572,6 +573,7 @@ const METADATA_FIELDS =
 const PHOTOGRAPH_OWN_FIELDS = `
   id, slug, title, alt_text, category, description, status, appreciation_count,
   published_at, created_at, public_captured_at, publish_captured_at, editors_pick,
+  styles,
   rights_confirmed_at, image_width, image_height, blur_data_url
 `;
 
@@ -797,6 +799,7 @@ function mapPhotograph(
     location: mapLocationSummary(firstOf<LocationSummaryColumns>(row.locations)),
     publishedAt: toText(row.published_at) ?? toText(row.created_at) ?? '',
     editorsPick: row.editors_pick === true,
+    styles: toStringList(row.styles).filter(isPhotographyStyle),
     description: toText(row.description),
     // Filled in by mapPhotographRows, which asks for the whole page's
     // translations in one query rather than one per photograph.
@@ -934,10 +937,13 @@ interface PhotographQuery {
   offset?: number;
   order?: 'recent' | 'appreciated';
   category?: PhotoCategory | null;
+  /** How the frame was made (0045). Containment, so GIN answers it. */
+  style?: PhotographyStyle | null;
   place?: string | null;
   cameraBrand?: string | null;
   cameraModel?: string | null;
   lensBrand?: string | null;
+  lensModel?: string | null;
   ownerId?: string | null;
   /** Several owners at once, for the following feed. An empty array matches nothing. */
   ownerIds?: readonly string[] | null;
@@ -998,6 +1004,9 @@ async function fetchPhotographRows(
     .eq('status', 'published');
 
   if (options.category) query = query.eq('category', options.category);
+  // `contains` on the array, which the GIN index in 0045 serves. One style at a
+  // time, as the chips offer it; the column holds up to five.
+  if (options.style) query = query.contains('styles', [options.style]);
   if (options.ownerId) query = query.eq('owner_id', options.ownerId);
   if (options.ownerIds) query = query.in('owner_id', [...options.ownerIds]);
   if (options.locationId) query = query.eq('location_id', options.locationId);
@@ -1044,10 +1053,12 @@ export async function discoverFeed(query: DiscoverQuery): Promise<Paginated<Phot
 
   const filters = {
     category: query.category ?? null,
+    style: query.style ?? null,
     place: query.place ?? null,
     cameraBrand: query.cameraBrand ?? null,
     cameraModel: query.cameraModel ?? null,
     lensBrand: query.lensBrand ?? null,
+    lensModel: query.lensModel ?? null,
   } satisfies Partial<PhotographQuery>;
 
   if (query.sort === 'trending') {
@@ -1766,6 +1777,7 @@ export async function discoverMapPins(query: DiscoverQuery): Promise<MapPin[]> {
     .eq('photographs.status', 'published');
 
   if (query.category) request = request.eq('photographs.category', query.category);
+  if (query.style) request = request.contains('photographs.styles', [query.style]);
 
   for (const [column, value] of gearFilters) {
     request = request.ilike(

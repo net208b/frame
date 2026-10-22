@@ -243,6 +243,8 @@ export interface PhotographRow extends Timestamps {
   image_width: number | null;
   image_height: number | null;
   blur_data_url: string | null;
+  /** 0045 — how the frame was made, from the shared style vocabulary. */
+  styles: string[] | null;
   removed_reason: string | null;
 }
 

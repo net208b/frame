@@ -124,6 +124,8 @@ export interface UploadDraftState {
   description: string;
   /** The photographer's account of what they were doing (0044). */
   explanation: string;
+  /** How the frame was made (0045), from the shared vocabulary. */
+  styles: string[];
   category: PhotoCategory | '';
   altText: string;
   placeMode: PlaceMode;
@@ -170,6 +172,7 @@ const INITIAL_STATE: UploadDraftState = {
   title: '',
   description: '',
   explanation: '',
+  styles: [],
   category: '',
   altText: '',
   placeMode: 'none',
@@ -521,6 +524,7 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldIssues
       title: state.title,
       description: state.description,
       explanation: state.explanation,
+      styles: state.styles,
       category: state.category,
       altText: state.altText,
     });
@@ -601,6 +605,7 @@ export interface PublishPayload {
   altText: string;
   description: string;
   explanation: string;
+  styles: string[];
   category: string;
   locationId: string | null;
   capturedAt: string | null;
@@ -632,6 +637,7 @@ export function publishPayload(state: UploadDraftState, photographId: string): P
     altText: state.altText,
     description: state.description,
     explanation: state.explanation,
+    styles: state.styles,
     category: state.category,
     // A proposed place is not a place yet, so the photograph publishes with no
     // location rather than with one that has not been reviewed.

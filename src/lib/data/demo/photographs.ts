@@ -601,6 +601,10 @@ function toDetail(raw: RawPhotograph): PhotographDetail {
     location: summariseLocation(raw.locationSlug),
     publishedAt: raw.publishedAt,
     editorsPick: Boolean(raw.editorsPick),
+    // The bundled dataset marks no styles: they are somebody else's frames,
+    // and deciding that one of them is "minimal" is a judgement about their
+    // work, not a fact about the file.
+    styles: [],
     description: raw.description,
     capture: {
       cameraBrand: raw.camera[0],

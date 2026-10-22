@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { UPLOAD_POLICY } from '@/lib/config';
 import { IMAGE_VARIANTS } from '@/lib/images/variants';
 import { formatFileSize } from '@/lib/utils';
-import { type ImageVariantName, PHOTO_CATEGORIES } from '@/types/domain';
+import { type ImageVariantName, PHOTO_CATEGORIES, PHOTOGRAPHY_STYLES } from '@/types/domain';
 
 import {
   choice,
@@ -255,6 +255,15 @@ export const publishPhotographSchema = z.object({
    * description and not inside `capture`.
    */
   explanation: optionalText({ label: 'Photography breakdown', max: 1_200 }),
+  /**
+   * How the frame was made (0045), from the same closed set a photographer uses
+   * for themselves. Anything outside it is dropped rather than refused: the
+   * only way to send one is to have edited the form by hand.
+   */
+  styles: z
+    .array(z.string())
+    .default([])
+    .transform((values) => PHOTOGRAPHY_STYLES.filter((style) => values.includes(style))),
   capture: captureSettingsSchema,
   editing: editingDetailsSchema,
   film: filmDetailsSchema,

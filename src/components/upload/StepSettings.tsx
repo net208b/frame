@@ -4,6 +4,8 @@ import { useTranslations } from 'next-intl';
 
 import { CheckboxField, TextAreaField, TextField } from '@/components/ui/Field';
 import { Notice } from '@/components/ui/states';
+import { cn } from '@/lib/utils';
+import { MAX_PHOTOGRAPHY_STYLES, PHOTOGRAPHY_STYLES } from '@/types/domain';
 
 import { useUploadFormat } from './format';
 import { PrefilledHint } from './StepGear';
@@ -75,6 +77,7 @@ const EXPLANATION_MAX = 1_200;
 
 export function StepSettings({ draft }: { draft: UploadDraft }) {
   const t = useTranslations('upload');
+  const common = useTranslations('common');
   const format = useUploadFormat();
   const { state, errors } = draft;
   const anyPrefilled = INPUTS.some((input) => draft.isPrefilled(input.field));
@@ -123,6 +126,44 @@ export function StepSettings({ draft }: { draft: UploadDraft }) {
           placeholder={t('settings.editingSoftwarePlaceholder')}
           autoComplete="off"
         />
+
+        {/* How the frame was made — the same eight words a photographer uses
+            for themselves in Settings, because "I shoot black and white" and
+            "this frame is black and white" are the same word. Not its subject:
+            that is the category, chosen in the previous step. */}
+        <fieldset className="min-w-0">
+          <legend className="text-caption font-semibold text-ink">
+            {t('settings.stylesLabel')}
+          </legend>
+          <p className="mt-1 text-meta text-muted">{t('settings.stylesHint')}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {PHOTOGRAPHY_STYLES.map((style) => {
+              const chosen = state.styles.includes(style);
+              return (
+                <button
+                  key={style}
+                  type="button"
+                  aria-pressed={chosen}
+                  onClick={() =>
+                    draft.update({
+                      styles: chosen
+                        ? state.styles.filter((value) => value !== style)
+                        : [...state.styles, style].slice(0, MAX_PHOTOGRAPHY_STYLES),
+                    })
+                  }
+                  className={cn(
+                    'rounded-pill border px-3 py-1.5 text-meta font-semibold transition-colors duration-150',
+                    chosen
+                      ? 'border-ink bg-ink text-on-ink'
+                      : 'border-line text-muted hover:border-line-strong hover:text-ink',
+                  )}
+                >
+                  {common(`photographyStyles.${style}`)}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
 
         {/* Before the shutter. It sits above the editing notes because that is
             the order the work happened in, and because a reader of the page

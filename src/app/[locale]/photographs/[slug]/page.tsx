@@ -276,7 +276,11 @@ export default async function PhotographPage({ params }: PageProps) {
 
         <div className="min-w-0 space-y-11">
           <PhotoHeadline photo={photo} />
-          <CaptureSpecs capture={photo.capture} explanation={photo.explanation} />
+          <CaptureSpecs
+            capture={photo.capture}
+            styles={photo.styles}
+            explanation={photo.explanation}
+          />
           <EditingNotes editing={photo.editing} capturedAt={photo.capturedAt} />
           <LocationPanel summary={photo.location} detail={locationDetail} />
           <PhotographerPanel photographer={photo.photographer} profile={photographerProfile} />

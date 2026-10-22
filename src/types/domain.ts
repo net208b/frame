@@ -387,6 +387,16 @@ export interface EditingDetails {
 export type PhotographExplanation = string | null;
 
 export interface PhotographDetail extends PhotographCard {
+  /**
+   * How the frame was made (0045), from the same closed set as a
+   * photographer's own `style_tags` — "this frame is black and white" and "I
+   * shoot black and white" are the same word.
+   *
+   * Not its subject: that is `category`, one value, and the two are different
+   * axes. A frame can be `street` by subject and `black-and-white, flash` by
+   * style, and neither answer substitutes for the other.
+   */
+  styles: PhotographyStyle[];
   description: string | null;
   /** The title, description and alt text in the other language (0035). */
   translations: Translations<'title' | 'description' | 'altText'>;
@@ -913,6 +923,8 @@ export interface DiscoverQuery {
    * the one 0005 left unindexed — the index arrived with this filter.
    */
   lensModel?: string | null;
+  /** How the frame was made (0045). One style at a time, as the chips offer it. */
+  style?: PhotographyStyle | null;
   sort: SortOption;
   page: number;
   pageSize: number;

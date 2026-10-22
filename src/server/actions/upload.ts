@@ -1486,6 +1486,7 @@ export async function publishPhotograph(
       description: payload.description,
       alt_text: payload.altText,
       category: payload.category,
+      styles: payload.styles,
       location_id: payload.locationId,
       captured_at: payload.capturedAt,
       publish_captured_at: publishCapturedAt,

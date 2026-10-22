@@ -4048,6 +4048,114 @@ begin
   raise notice 'breakdown ok  the account is public; only the private position stays withheld';
 end $$;
 
+-- ------------------------------ 0045: how a frame was made, not what of
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('5731e000-0000-4000-8000-00000000000a', 'style.member@example.test', '{"username":"style_member"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, styles, status, published_at,
+   rights_confirmed_at, image_width, image_height)
+values
+  ('5731e000-0000-4000-8000-000000000001', 'style-frame', '5731e000-0000-4000-8000-00000000000a',
+   'A frame with a style', 'A woman under a shop awning lit by a single strip light.',
+   'street', array['black-and-white','flash'], 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+
+-- The two axes stay two axes.
+do $$
+declare v_category text; v_styles text[];
+begin
+  select category, styles into v_category, v_styles
+    from public.photographs where id = '5731e000-0000-4000-8000-000000000001';
+  if v_category <> 'street' then
+    raise exception 'STYLE BUG  the subject changed to %', v_category;
+  end if;
+  if not (v_styles @> array['black-and-white','flash']) then
+    raise exception 'STYLE BUG  the styles did not store (%)', v_styles;
+  end if;
+  raise notice 'style ok      a frame carries a subject and a style, and they are different things';
+end $$;
+
+-- The vocabulary is closed, and it is 0016's.
+select public.test_rejects('a style outside the vocabulary',
+  $$update public.photographs set styles = array['vaporwave']
+     where id = '5731e000-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('a category value used as a style',
+  $$update public.photographs set styles = array['architecture']
+     where id = '5731e000-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('the same style twice',
+  $$update public.photographs set styles = array['film','film']
+     where id = '5731e000-0000-4000-8000-000000000001'$$, '23514');
+
+select public.test_rejects('a sixth style',
+  $$update public.photographs set styles = array['black-and-white','colour','film','candid','flash','minimal']
+     where id = '5731e000-0000-4000-8000-000000000001'$$, '23514');
+
+-- One vocabulary, shared with the photographer's own. A word allowed on a
+-- profile and refused on a photograph would be a second list pretending to be
+-- the first.
+do $$
+declare v_photo text; v_profile text; v_word text;
+begin
+  select pg_get_constraintdef(oid) into v_photo from pg_constraint
+   where conrelid = 'public.photographs'::regclass and conname = 'photographs_styles_allowed';
+  select pg_get_constraintdef(oid) into v_profile from pg_constraint
+   where conrelid = 'public.profiles'::regclass and conname = 'profiles_style_tags_allowed';
+
+  foreach v_word in array array['black-and-white','colour','film','candid','flash','minimal','geometry','layered'] loop
+    if v_photo not like '%' || v_word || '%' then
+      raise exception 'STYLE GAP  "%" is a photographer style but not a photograph style', v_word;
+    end if;
+    if v_profile not like '%' || v_word || '%' then
+      raise exception 'STYLE GAP  "%" left the photographer vocabulary', v_word;
+    end if;
+  end loop;
+  raise notice 'style ok      a photograph and a photographer choose from the same eight words';
+end $$;
+
+-- Both arrays are filtered on, so both need GIN.
+do $$
+declare v_missing text;
+begin
+  select string_agg(name, ', ') into v_missing from (
+    select 'photographs_styles_idx' as name
+     where not exists (select 1 from pg_indexes
+                        where schemaname='public' and indexname='photographs_styles_idx')
+    union all
+    select 'profiles_style_tags_idx'
+     where not exists (select 1 from pg_indexes
+                        where schemaname='public' and indexname='profiles_style_tags_idx')
+  ) as missing;
+  if v_missing is not null then
+    raise exception 'STYLE GAP  missing index(es): %', v_missing;
+  end if;
+  raise notice 'style ok      both style arrays are indexed for containment';
+end $$;
+
+-- Readable, and the two withheld columns are still the only withheld ones —
+-- an additive grant must not have disturbed the list.
+do $$
+declare v_withheld text;
+begin
+  if not (has_column_privilege('anon', 'public.photographs', 'styles', 'SELECT')
+          and has_column_privilege('authenticated', 'public.photographs', 'styles', 'SELECT')) then
+    raise exception 'GRANT GAP  a photograph''s styles are not readable';
+  end if;
+
+  select string_agg(column_name, ', ' order by column_name) into v_withheld
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'photographs'
+     and not has_column_privilege('anon', 'public.photographs', column_name, 'SELECT');
+
+  if v_withheld is distinct from 'captured_at, opens' then
+    raise exception 'GRANT GAP  the withheld photograph columns are now (%), not captured_at and opens', coalesce(v_withheld, 'none');
+  end if;
+  raise notice 'style ok      styles are readable and nothing else changed hands';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

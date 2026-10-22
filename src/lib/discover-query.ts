@@ -1,9 +1,11 @@
 import { PAGE_SIZE } from '@/lib/config';
 import {
   PHOTO_CATEGORIES,
+  PHOTOGRAPHY_STYLES,
   SORT_OPTIONS,
   type DiscoverQuery,
   type PhotoCategory,
+  type PhotographyStyle,
   type SortOption,
 } from '@/types/domain';
 
@@ -36,6 +38,7 @@ const KEYS = {
   cameraModel: 'cameraModel',
   lensBrand: 'lensBrand',
   lensModel: 'lensModel',
+  style: 'style',
   sort: 'sort',
   page: 'page',
   view: 'view',
@@ -77,6 +80,7 @@ export type DiscoverSearchParams = Record<string, string | string[] | undefined>
 
 export type DiscoverFilterKey =
   | 'category'
+  | 'style'
   | 'place'
   | 'cameraBrand'
   | 'cameraModel'
@@ -98,7 +102,8 @@ export const GEAR_FILTER_KEYS = ['cameraBrand', 'cameraModel', 'lensBrand', 'len
  */
 export type ActiveDiscoverFilter =
   | { key: 'category'; category: PhotoCategory }
-  | { key: Exclude<DiscoverFilterKey, 'category'>; value: string };
+  | { key: 'style'; style: PhotographyStyle }
+  | { key: Exclude<DiscoverFilterKey, 'category' | 'style'>; value: string };
 
 /* ------------------------------------------------------------------------ */
 /* URL -> query                                                              */
@@ -121,6 +126,12 @@ function readCategory(value: string | string[] | undefined): PhotoCategory | nul
   const raw = firstValue(value)?.trim().toLowerCase();
   if (!raw) return null;
   return PHOTO_CATEGORIES.find((category) => category === raw) ?? null;
+}
+
+function readStyle(value: string | string[] | undefined): PhotographyStyle | null {
+  const raw = firstValue(value)?.trim().toLowerCase();
+  if (!raw) return null;
+  return PHOTOGRAPHY_STYLES.find((style) => style === raw) ?? null;
 }
 
 function readSort(value: string | string[] | undefined): SortOption {
@@ -160,6 +171,7 @@ export function parseDiscoverSearchParams(searchParams: DiscoverSearchParams): D
     cameraModel: readText(searchParams[KEYS.cameraModel], MAX_GEAR_LENGTH),
     lensBrand: readText(searchParams[KEYS.lensBrand], MAX_GEAR_LENGTH),
     lensModel: readText(searchParams[KEYS.lensModel], MAX_GEAR_LENGTH),
+    style: readStyle(searchParams[KEYS.style]),
     sort: readSort(searchParams[KEYS.sort]),
     page: readPage(searchParams[KEYS.page]),
     pageSize: PAGE_SIZE.gallery,
@@ -204,6 +216,11 @@ export function buildDiscoverHref(
     ? (PHOTO_CATEGORIES.find((option) => option === merged.category) ?? null)
     : null;
   if (category) params.set(KEYS.category, category);
+
+  const style = merged.style
+    ? (PHOTOGRAPHY_STYLES.find((option) => option === merged.style) ?? null)
+    : null;
+  if (style) params.set(KEYS.style, style);
 
   const place = merged.place?.replace(/\s+/g, ' ').trim();
   if (place) params.set(KEYS.place, place.slice(0, MAX_PLACE_LENGTH));
@@ -253,6 +270,9 @@ export function buildDiscoverHrefWithout(
     case 'category':
       cleared.category = null;
       break;
+    case 'style':
+      cleared.style = null;
+      break;
     case 'place':
       cleared.place = null;
       break;
@@ -296,6 +316,9 @@ export function activeDiscoverFilters(query: DiscoverQuery): ActiveDiscoverFilte
 
   if (query.category) {
     filters.push({ key: 'category', category: query.category });
+  }
+  if (query.style) {
+    filters.push({ key: 'style', style: query.style });
   }
   if (query.place) {
     filters.push({ key: 'place', value: query.place });
