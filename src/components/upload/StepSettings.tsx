@@ -71,6 +71,7 @@ const INPUTS: ExposureInput[] = [
 
 const SOFTWARE_MAX = 80;
 const NOTES_MAX = 1_200;
+const EXPLANATION_MAX = 1_200;
 
 export function StepSettings({ draft }: { draft: UploadDraft }) {
   const t = useTranslations('upload');
@@ -121,6 +122,21 @@ export function StepSettings({ draft }: { draft: UploadDraft }) {
           hint={t('settings.editingSoftwareHint')}
           placeholder={t('settings.editingSoftwarePlaceholder')}
           autoComplete="off"
+        />
+
+        {/* Before the shutter. It sits above the editing notes because that is
+            the order the work happened in, and because a reader of the page
+            meets it in that order too: what you were doing, then what you did
+            to the file afterwards. */}
+        <TextAreaField
+          label={t('settings.explanationLabel')}
+          rows={4}
+          maxLength={EXPLANATION_MAX}
+          value={state.explanation}
+          onChange={(event) => draft.update({ explanation: event.target.value })}
+          error={errors.explanation}
+          hint={t('settings.explanationHint')}
+          placeholder={t('settings.explanationPlaceholder')}
         />
 
         <TextAreaField

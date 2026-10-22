@@ -467,6 +467,7 @@
     "capture": {
       "eyebrow": "In the camera",
       "title": "Capture settings",
+      "explanationTitle": "In the photographer’s words",
       "provenance": {
         "camera": "Every setting here is what the file itself recorded.",
         "edited": "Some of these were entered or corrected by the photographer, not read from the file."
@@ -1778,7 +1779,10 @@
       "captureDateNone": "This file does not say when it was taken, so there is no date to publish or withhold. The date FRAME shows on the photograph is the day it was published.",
       "captureDateBody": "Your camera recorded this frame as taken on {date}. A capture date can place a person somewhere on a particular evening, so FRAME leaves it out unless you ask for it. The camera carries no time zone, so the date is read as your camera’s own clock.",
       "captureDatePublish": "Publish the capture date, {date}",
-      "captureDateDescription": "Leave this unticked and the date stays off the photograph and out of its record."
+      "captureDateDescription": "Leave this unticked and the date stays off the photograph and out of its record.",
+      "explanationLabel": "What were you doing?",
+      "explanationHint": "Optional. What you were trying for, what you waited for, why these settings — the part no file can hold. Shown beside the numbers on your photograph.",
+      "explanationPlaceholder": "I waited twenty minutes for somebody to walk into the gap between the two columns."
     },
     "review": {
       "heading": "Check it over",
@@ -1963,7 +1967,8 @@
       "editingNotesInvalid": "The editing notes must be text.",
       "filmMax": "Keep this to {max} characters.",
       "filmInvalid": "This could not be read as text.",
-      "rightsConfirmedRequired": "Confirm the declaration below: FRAME cannot publish a photograph without it."
+      "rightsConfirmedRequired": "Confirm the declaration below: FRAME cannot publish a photograph without it.",
+      "explanationMax": "Keep this under {max} characters."
     },
     "exifGate": {
       "passTitle": "This file carries a camera record",

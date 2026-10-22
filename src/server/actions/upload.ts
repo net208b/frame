@@ -1441,6 +1441,7 @@ export async function publishPhotograph(
       iso: payload.capture.iso,
       editing_software: payload.editing.software,
       editing_notes: payload.editing.notes,
+      explanation: payload.explanation,
       // The member's film statements (0038). The wizard sends them empty for
       // a digital frame, and optionalText turns empty into null.
       film_stock: payload.film.stock,

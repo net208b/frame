@@ -3982,6 +3982,72 @@ begin
   raise notice 'gear ok       lens_model_id is indexed';
 end $$;
 
+-- ------------------------------- 0044: the photographer's own account
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('b4ea0000-0000-4000-8000-00000000000a', 'why.member@example.test', '{"username":"why_member"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at,
+   rights_confirmed_at, image_width, image_height)
+values
+  ('b4ea0000-0000-4000-8000-000000000001', 'why-frame', 'b4ea0000-0000-4000-8000-00000000000a',
+   'A frame with a reason', 'A man asleep on a bench with a newspaper over his face.',
+   'street', 'published', now(), now(), 1800, 1200)
+on conflict (id) do nothing;
+insert into public.photograph_metadata (photograph_id, explanation, editing_notes)
+values
+  ('b4ea0000-0000-4000-8000-000000000001',
+   'I waited twenty minutes for somebody to walk into the gap between the two columns.',
+   'Cropped to 4:5 and lifted the shadows a little.')
+on conflict (photograph_id) do update
+  set explanation = excluded.explanation, editing_notes = excluded.editing_notes;
+
+-- Before the shutter and after it are two different fields, and both survive.
+do $$
+declare v_explanation text; v_editing text;
+begin
+  select explanation, editing_notes into v_explanation, v_editing
+    from public.photograph_metadata
+   where photograph_id = 'b4ea0000-0000-4000-8000-000000000001';
+
+  if v_explanation is null or v_editing is null then
+    raise exception 'BREAKDOWN BUG  the account and the editing notes do not both survive';
+  end if;
+  if v_explanation = v_editing then
+    raise exception 'BREAKDOWN BUG  the two fields collapsed into one';
+  end if;
+  raise notice 'breakdown ok  what happened before the shutter is kept apart from after it';
+end $$;
+
+select public.test_rejects('an account longer than 1200 characters',
+  $$update public.photograph_metadata set explanation = repeat('x', 1201)
+     where photograph_id = 'b4ea0000-0000-4000-8000-000000000001'$$, '23514');
+
+-- It is written to be read, so every public role may read it — and the private
+-- position columns are still the only ones that may not.
+do $$
+declare v_withheld text;
+begin
+  if not (has_column_privilege('anon', 'public.photograph_metadata', 'explanation', 'SELECT')
+          and has_column_privilege('authenticated', 'public.photograph_metadata', 'explanation', 'SELECT')) then
+    raise exception 'GRANT GAP  the photographer''s account is not readable, so nobody can read what it was written for';
+  end if;
+
+  select string_agg(column_name, ', ' order by column_name) into v_withheld
+    from information_schema.columns
+   where table_schema = 'public' and table_name = 'photograph_metadata'
+     and not has_column_privilege('anon', 'public.photograph_metadata', column_name, 'SELECT');
+
+  -- Restating the grant list replaces it whole: a column dropped from it by
+  -- accident shows up here as newly withheld.
+  if v_withheld is distinct from 'exif_gps_consent, exif_gps_latitude, exif_gps_longitude' then
+    raise exception 'GRANT GAP  the withheld columns are now (%), not the three private position columns', coalesce(v_withheld, 'none');
+  end if;
+
+  raise notice 'breakdown ok  the account is public; only the private position stays withheld';
+end $$;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

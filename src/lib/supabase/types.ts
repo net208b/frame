@@ -277,6 +277,8 @@ export interface PhotographMetadataRow extends Timestamps {
   film_stock: string | null;
   film_camera: string | null;
   film_scanner: string | null;
+  /** 0044 — the photographer's account of what they were doing. */
+  explanation: string | null;
   exif_source: Json | null;
   exif_gps_latitude: number | null;
   exif_gps_longitude: number | null;

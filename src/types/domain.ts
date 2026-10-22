@@ -375,12 +375,25 @@ export interface EditingDetails {
   notes: string | null;
 }
 
+/**
+ * What the photographer was doing, in their own words (0044).
+ *
+ * Deliberately not part of {@link EditingDetails}: that is what happened after
+ * the shutter, this is before it. And deliberately not part of
+ * {@link CaptureSettings}, which is what the camera was set to — no file holds
+ * this. It is shown beside the numbers and never as proof that a photograph is
+ * good (§7.3).
+ */
+export type PhotographExplanation = string | null;
+
 export interface PhotographDetail extends PhotographCard {
   description: string | null;
   /** The title, description and alt text in the other language (0035). */
   translations: Translations<'title' | 'description' | 'altText'>;
   capture: CaptureSettings;
   editing: EditingDetails;
+  /** The photographer's account of what they were doing (0044). */
+  explanation: PhotographExplanation;
   /** Only present when EXIF held a date *and* the owner chose to publish it. */
   capturedAt: string | null;
   status: PublicationStatus;
