@@ -3432,6 +3432,64 @@ select public.test_rejects('a merged place pointing at nothing',
   $$update public.locations set merged_into_id = null
      where id = '3e49e000-0000-4000-8000-000000000002'$$, '23514');
 
+-- ------------------------------------ who may read an unpublished frame by name
+-- The photograph page reads a frame by slug with no status filter and lets
+-- row-level security answer: a visitor and every other member get nothing, the
+-- owner gets their own frame in any status, a moderator gets every frame. These
+-- are the rows 0007 hands out, stated for the one read that depends on them.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('d2af0000-0000-4000-8000-00000000000a', 'draft.owner@example.test', '{"username":"draft_owner"}'),
+  ('d2af0000-0000-4000-8000-00000000000b', 'draft.other@example.test', '{"username":"draft_other"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status)
+values
+  ('d2af0000-0000-4000-8000-000000000001', 'draft-by-name', 'd2af0000-0000-4000-8000-00000000000a',
+   'A frame still a draft', 'A shuttered arcade at dawn, the first shopkeeper rolling up a grille.',
+   'street', 'draft')
+on conflict (id) do nothing;
+
+create or replace function pg_temp.frames_by_slug(p_slug text) returns integer
+language sql as $$ select count(*)::integer from public.photographs where slug = p_slug $$;
+
+begin;
+set local role anon;
+do $$ begin
+  if pg_temp.frames_by_slug('draft-by-name') <> 0 then
+    raise exception 'VISIBILITY GAP  a visitor can read a draft by its address';
+  end if;
+end $$;
+commit;
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'd2af0000-0000-4000-8000-00000000000b';
+do $$ begin
+  if pg_temp.frames_by_slug('draft-by-name') <> 0 then
+    raise exception 'VISIBILITY GAP  another member can read somebody''s draft by its address';
+  end if;
+end $$;
+commit;
+begin;
+set local role authenticated;
+set local "app.current_user_id" = 'd2af0000-0000-4000-8000-00000000000a';
+do $$ begin
+  if pg_temp.frames_by_slug('draft-by-name') <> 1 then
+    raise exception 'VISIBILITY GAP  the owner cannot read their own draft by its address';
+  end if;
+end $$;
+commit;
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+do $$ begin
+  if pg_temp.frames_by_slug('draft-by-name') <> 1 then
+    raise exception 'VISIBILITY GAP  a moderator cannot read a draft by its address';
+  end if;
+  raise notice 'visibility ok  a draft by name: nothing for a visitor or another member, the frame for its owner and a moderator';
+end $$;
+commit;
+
 -- ------------------------------------------------------------------ summary
 do $$
 declare n_tables integer; n_unprotected integer; v_offenders text;

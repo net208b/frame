@@ -157,9 +157,10 @@ export default async function PhotographPage({ params }: PageProps) {
 
   if (!photo) notFound();
 
-  // Authorisation on the server, every time. The repository already restricts
-  // public reads to published rows; this is the check that stays correct if it
-  // ever stops doing so, and hiding the page in the UI would not be one.
+  // Authorisation on the server, every time. Row-level security already hands
+  // an unpublished row only to its owner and to moderators, so for anyone
+  // else `photo` is null above; this is the check that stays correct if that
+  // ever stops being so, and hiding the page in the UI would not be one.
   const isOwner = viewer !== null && viewer.id === photo.photographer.id;
   if (photo.status !== 'published' && !isOwner && !isModerator(viewer)) notFound();
 
