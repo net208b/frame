@@ -122,6 +122,8 @@ export interface UploadDraftState {
   filmDeclared: boolean;
   title: string;
   description: string;
+  /** The photographer's account of what they were doing (0044). */
+  explanation: string;
   category: PhotoCategory | '';
   altText: string;
   placeMode: PlaceMode;
@@ -167,6 +169,7 @@ const INITIAL_STATE: UploadDraftState = {
   filmDeclared: false,
   title: '',
   description: '',
+  explanation: '',
   category: '',
   altText: '',
   placeMode: 'none',
@@ -288,6 +291,8 @@ function describeIssue(field: string, issue: IssueLike): FieldIssue {
 
     case 'description':
       return { key: 'validation.descriptionMax', values: { max: max ?? 2_000 } };
+    case 'explanation':
+      return { key: 'validation.explanationMax', values: { max: max ?? 1_200 } };
 
     case 'proposedName':
       if (code === 'too_big' && max !== null) {
@@ -515,6 +520,7 @@ export function validateStep(step: StepId, state: UploadDraftState): FieldIssues
     const parsed = describeSchema.safeParse({
       title: state.title,
       description: state.description,
+      explanation: state.explanation,
       category: state.category,
       altText: state.altText,
     });
@@ -594,6 +600,7 @@ export interface PublishPayload {
   title: string;
   altText: string;
   description: string;
+  explanation: string;
   category: string;
   locationId: string | null;
   capturedAt: string | null;
@@ -624,6 +631,7 @@ export function publishPayload(state: UploadDraftState, photographId: string): P
     title: state.title,
     altText: state.altText,
     description: state.description,
+    explanation: state.explanation,
     category: state.category,
     // A proposed place is not a place yet, so the photograph publishes with no
     // location rather than with one that has not been reviewed.

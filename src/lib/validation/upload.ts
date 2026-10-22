@@ -248,6 +248,13 @@ export const publishPhotographSchema = z.object({
    * date is not consent to show it.
    */
   capturedAt: optionalInstant('Capture date'),
+  /**
+   * The photographer's own account of what they were doing — before the
+   * shutter, where `editing.notes` is after it (0044). A property of the
+   * photograph rather than of the camera, so it sits here beside the
+   * description and not inside `capture`.
+   */
+  explanation: optionalText({ label: 'Photography breakdown', max: 1_200 }),
   capture: captureSettingsSchema,
   editing: editingDetailsSchema,
   film: filmDetailsSchema,

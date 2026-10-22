@@ -521,6 +521,7 @@ type MetadataColumns = Nullable<
     | 'film_stock'
     | 'film_camera'
     | 'film_scanner'
+    | 'explanation'
     | 'exif_source'
   >
 >;
@@ -566,7 +567,7 @@ const LOCATION_SUMMARY_FIELDS = 'id, slug, name, city, country, country_code, ph
 // all. It is read to answer "are these the values the file carried", and for
 // nothing else; see `lib/images/provenance.ts`.
 const METADATA_FIELDS =
-  'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes, film_stock, film_camera, film_scanner, exif_source';
+  'camera_brand_text, camera_model_text, lens_brand_text, lens_model_text, focal_length_mm, aperture, shutter_speed, iso, editing_software, editing_notes, film_stock, film_camera, film_scanner, explanation, exif_source';
 
 const PHOTOGRAPH_OWN_FIELDS = `
   id, slug, title, alt_text, category, description, status, appreciation_count,
@@ -834,6 +835,7 @@ function mapPhotograph(
       software: toText(metadata?.editing_software),
       notes: toText(metadata?.editing_notes),
     },
+    explanation: toText(metadata?.explanation),
     // Capture dates are published only when the owner chose to publish them: a
     // timestamp is itself information about where somebody was and when. The
     // database decides that now (0028–0029): `public_captured_at` is null when

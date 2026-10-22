@@ -620,6 +620,10 @@ function toDetail(raw: RawPhotograph): PhotographDetail {
       // live site would have had to earn.
       provenance: 'unknown',
     },
+    // The bundled dataset carries no breakdown: the sample photographs are
+    // somebody else's work under the Unsplash licence, and writing an account
+    // of what they were thinking would be putting words in their mouth.
+    explanation: null,
     editing: {
       software: raw.editingSoftware,
       notes: raw.editingNotes,

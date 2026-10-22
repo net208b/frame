@@ -80,9 +80,17 @@ function formatAperture(aperture: number): string {
 
 export async function CaptureSpecs({
   capture,
+  explanation,
   className,
 }: {
   capture: CaptureSettings;
+  /**
+   * The photographer's own account of what they were doing (0044). Shown above
+   * the numbers, because it is the answer to the question the numbers only
+   * partly answer — and never styled as a caption under the frame, which would
+   * make it read as a description of what is in the picture.
+   */
+  explanation?: string | null;
   className?: string;
 }) {
   const t = await getTranslations('photo');
@@ -144,6 +152,25 @@ export async function CaptureSpecs({
 
       {provenanceLine && (hasGear || hasExposure) ? (
         <p className="mt-3 text-meta leading-relaxed text-muted">{provenanceLine}</p>
+      ) : null}
+
+      {/* Labelled, and in the photographer's voice: an unlabelled paragraph
+          here would read as FRAME describing the photograph. §7.3's rule is
+          that the numbers do not explain why a photograph is good — this is
+          the half that can, and it is still only one person's account. */}
+      {explanation ? (
+        <div className="mt-5 border-l border-line-strong pl-4">
+          <h3 className="text-eyebrow uppercase text-muted">{t('capture.explanationTitle')}</h3>
+          <div className="mt-2 space-y-3 text-caption leading-relaxed text-ink-soft">
+            {explanation
+              .split(/\n{2,}/)
+              .map((block) => block.trim())
+              .filter(Boolean)
+              .map((block, index) => (
+                <p key={index}>{block}</p>
+              ))}
+          </div>
+        </div>
       ) : null}
 
       {hasFilm ? (
