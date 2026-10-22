@@ -81,6 +81,7 @@ export function MapExplorer({
   pins,
   ownLocationIds,
   initialSelectedSlug = null,
+  selectionParam = SELECTED_PARAM,
   fallbackCamera,
   nothingToDraw,
   className,
@@ -90,6 +91,15 @@ export function MapExplorer({
   ownLocationIds?: readonly string[];
   /** Read from the query string on the server, so a shared link arrives whole. */
   initialSelectedSlug?: string | null;
+  /**
+   * Which query parameter the selected place is written to.
+   *
+   * The place index publishes it as `place` and that is the default. A page
+   * that already means something else by `place` — Discover, whose `place` is
+   * its text filter — passes its own key, or a pin click would write a slug
+   * into a filter and the server would read it back as a search term.
+   */
+  selectionParam?: string;
   /**
    * Where to open when there are no pins to frame — the reader's own city, from
    * `visitorPlace()`.
@@ -140,27 +150,27 @@ export function MapExplorer({
     setSelectedSlug(slug);
 
     const params = new URLSearchParams(window.location.search);
-    if (slug) params.set(SELECTED_PARAM, slug);
-    else params.delete(SELECTED_PARAM);
+    if (slug) params.set(selectionParam, slug);
+    else params.delete(selectionParam);
 
     const search = params.toString();
     const url = search.length > 0 ? `?${search}` : window.location.pathname;
     if (mode === 'push') window.history.pushState(null, '', url);
     else window.history.replaceState(null, '', url);
-  }, []);
+  }, [selectionParam]);
 
   // Back and forward move through selections, which is the whole point of
   // keeping the selection in the URL.
   useEffect(() => {
     const syncFromUrl = () => {
-      const value = new URLSearchParams(window.location.search).get(SELECTED_PARAM);
+      const value = new URLSearchParams(window.location.search).get(selectionParam);
       selectionRef.current = value;
       setSelectedSlug(value);
     };
 
     window.addEventListener('popstate', syncFromUrl);
     return () => window.removeEventListener('popstate', syncFromUrl);
-  }, []);
+  }, [selectionParam]);
 
   const filtered = useMemo(
     () => pins.filter((pin) => matchesFilters(pin, filters)),

@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { DiscoverToolbar } from '@/components/discover/DiscoverToolbar';
 import { MapExplorer } from '@/components/map/MapExplorer';
-import { SELECTED_PARAM } from '@/components/map/map-style';
+import { DISCOVER_SELECTED_PARAM } from '@/components/map/map-style';
 import { MasonryGallery } from '@/components/photo/MasonryGallery';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
@@ -141,7 +141,7 @@ export default async function DiscoverPage({ params, searchParams }: DiscoverPag
           <DiscoverMap
             pins={pins}
             locale={locale}
-            selectedSlug={firstValue(resolvedSearchParams[SELECTED_PARAM])}
+            selectedSlug={firstValue(resolvedSearchParams[DISCOVER_SELECTED_PARAM])}
           />
         ) : (
           <DiscoverResults query={state} feed={feed ?? getDiscoverFeed(state)} locale={locale} />
@@ -214,6 +214,9 @@ async function DiscoverMap({
         pins={pins}
         ownLocationIds={ownLocationIds}
         initialSelectedSlug={selectedSlug}
+        // Not `place`: that key is this page's text filter, and a pin writing a
+        // slug into it would come back as a search term on the next render.
+        selectionParam={DISCOVER_SELECTED_PARAM}
         fallbackCamera={{ centre: place.centre, zoom: place.zoom }}
         nothingToDraw={{
           title: t('view.mapEmptyTitle'),
