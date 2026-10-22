@@ -39,6 +39,7 @@ export async function ActiveFilters({
   // declared with `setRequestLocale` before rendering the toolbar.
   const t = await getTranslations('discover');
   const taxonomy = taxonomyLabels(await getTranslations('taxonomy'));
+  const common = await getTranslations('common');
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
@@ -47,10 +48,15 @@ export async function ActiveFilters({
       </span>
 
       {filters.map((filter) => {
-        // A category is named from the shared vocabulary; everything else is
-        // the viewer's own text and is shown back to them as they gave it.
+        // A category and a style are both named from a shared vocabulary — the
+        // style from `common.photographyStyles`, the same words a profile uses.
+        // Everything else is the viewer's own text, shown back as they gave it.
         const value =
-          filter.key === 'category' ? taxonomy.category(filter.category) : filter.value;
+          filter.key === 'category'
+            ? taxonomy.category(filter.category)
+            : filter.key === 'style'
+              ? common(`photographyStyles.${filter.style}`)
+              : filter.value;
 
         return (
           <Link

@@ -263,7 +263,10 @@
       "sectionLabel": "Gallery filters",
       "categoryGroupLabel": "Filter by category",
       "allCategories": "All frames",
-      "allCategoriesLabel": "All categories"
+      "allCategoriesLabel": "All categories",
+      "styleGroupLabel": "Filter by how it was made",
+      "allStyles": "Any style",
+      "allStylesLabel": "Photographs made any way"
     },
     "sort": {
       "groupLabel": "Sort photographs",
@@ -354,14 +357,16 @@
         "place": "Place",
         "cameraBrand": "Camera",
         "cameraModel": "Model",
-        "lensBrand": "Lens"
+        "lensBrand": "Lens",
+        "style": "Style"
       },
       "remove": {
         "category": "Remove the category filter {value}",
         "place": "Remove the place filter {value}",
         "cameraBrand": "Remove the camera filter {value}",
         "cameraModel": "Remove the camera model filter {value}",
-        "lensBrand": "Remove the lens filter {value}"
+        "lensBrand": "Remove the lens filter {value}",
+        "style": "Remove the {value} style filter"
       }
     },
     "empty": {
@@ -1782,7 +1787,9 @@
       "captureDateDescription": "Leave this unticked and the date stays off the photograph and out of its record.",
       "explanationLabel": "What were you doing?",
       "explanationHint": "Optional. What you were trying for, what you waited for, why these settings — the part no file can hold. Shown beside the numbers on your photograph.",
-      "explanationPlaceholder": "I waited twenty minutes for somebody to walk into the gap between the two columns."
+      "explanationPlaceholder": "I waited twenty minutes for somebody to walk into the gap between the two columns.",
+      "stylesLabel": "How was it made?",
+      "stylesHint": "Optional, up to five. The same words you can put on your profile — this is about this frame, not its subject."
     },
     "review": {
       "heading": "Check it over",

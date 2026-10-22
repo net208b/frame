@@ -48,13 +48,27 @@ function useLive(): boolean {
 /* Discover                                                                  */
 /* ------------------------------------------------------------------------ */
 
+/**
+ * Fill in the defaults for a partly-specified query.
+ *
+ * EVERY FILTER FIELD MUST BE NAMED HERE. This rebuilds the object field by
+ * field, so a filter the parser reads and this does not is silently dropped on
+ * the way to the repository — the URL says `?style=film`, the page shows
+ * everything, and nothing anywhere reports a problem. It happened twice: with
+ * `lensModel` (0043) and `style` (0045), and both looked like they worked
+ * because a database with one photograph in it answers an ignored filter and an
+ * applied one identically. The negative control is the only thing that tells
+ * them apart: ask for a value the row does NOT have and expect nothing back.
+ */
 export function normaliseDiscoverQuery(input: Partial<DiscoverQuery>): DiscoverQuery {
   return {
     category: input.category ?? null,
+    style: input.style ?? null,
     place: input.place ?? null,
     cameraBrand: input.cameraBrand ?? null,
     cameraModel: input.cameraModel ?? null,
     lensBrand: input.lensBrand ?? null,
+    lensModel: input.lensModel ?? null,
     sort: input.sort ?? 'recent',
     page: Math.max(1, input.page ?? 1),
     pageSize: input.pageSize ?? PAGE_SIZE.gallery,

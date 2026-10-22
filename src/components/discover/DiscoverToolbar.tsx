@@ -2,7 +2,7 @@ import { ChevronDown } from 'lucide-react';
 import { getTranslations } from 'next-intl/server';
 
 import { ActiveFilters } from '@/components/discover/ActiveFilters';
-import { CategoryFilter } from '@/components/discover/CategoryFilter';
+import { CategoryFilter, StyleFilter } from '@/components/discover/CategoryFilter';
 import { GearFilter } from '@/components/discover/GearFilter';
 import { PlaceSearchField } from '@/components/discover/PlaceSearchField';
 import { SortTabs } from '@/components/discover/SortTabs';
@@ -49,7 +49,12 @@ export async function DiscoverToolbar({
       className={cn('border-y border-line py-6', className)}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-        <CategoryFilter query={query} className="lg:flex-1" />
+        <div className="min-w-0 lg:flex-1">
+          <CategoryFilter query={query} />
+          {/* Under the categories, not among them: what a photograph is of and
+              how it was made are different questions, and they combine. */}
+          <StyleFilter query={query} className="mt-3" />
+        </div>
         <PlaceSearchField query={query} className="w-full lg:w-[19rem] lg:shrink-0" />
       </div>
 

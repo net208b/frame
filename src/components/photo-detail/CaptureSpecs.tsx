@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { Eyebrow } from '@/components/ui/SectionHead';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
-import type { CaptureSettings } from '@/types/domain';
+import type { CaptureSettings, PhotographyStyle } from '@/types/domain';
 
 /**
  * How the frame was made.
@@ -80,10 +80,13 @@ function formatAperture(aperture: number): string {
 
 export async function CaptureSpecs({
   capture,
+  styles = [],
   explanation,
   className,
 }: {
   capture: CaptureSettings;
+  /** How the frame was made (0045), shown as links into Discover. */
+  styles?: readonly PhotographyStyle[];
   /**
    * The photographer's own account of what they were doing (0044). Shown above
    * the numbers, because it is the answer to the question the numbers only
@@ -94,6 +97,7 @@ export async function CaptureSpecs({
   className?: string;
 }) {
   const t = await getTranslations('photo');
+  const common = await getTranslations('common');
 
   const {
     cameraBrand,
@@ -152,6 +156,24 @@ export async function CaptureSpecs({
 
       {provenanceLine && (hasGear || hasExposure) ? (
         <p className="mt-3 text-meta leading-relaxed text-muted">{provenanceLine}</p>
+      ) : null}
+
+      {/* How it was made, as links into Discover — the same words the
+          photographer may have on their own profile. Above the account, below
+          the provenance line: the shortest answer first. */}
+      {styles.length > 0 ? (
+        <ul className="mt-4 flex flex-wrap gap-2">
+          {styles.map((style) => (
+            <li key={style}>
+              <Link
+                href={`/discover?style=${style}`}
+                className="inline-block rounded-pill border border-line px-2.5 py-1 text-meta text-ink-soft transition-colors duration-150 hover:border-line-strong hover:text-ink"
+              >
+                {common(`photographyStyles.${style}`)}
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {/* Labelled, and in the photographer's voice: an unlabelled paragraph
