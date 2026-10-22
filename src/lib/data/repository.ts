@@ -139,6 +139,16 @@ export async function getNearbyLocations(
   return demo.demoNearbyLocations(location);
 }
 
+/** Approved places within `radiusMetres` of a point, nearest first. */
+export async function getLocationsNear(
+  point: { latitude: number; longitude: number },
+  radiusMetres: number,
+  limit: number,
+): Promise<Array<LocationSummary & { distanceMetres: number }>> {
+  if (useLive()) return live.locationsNear(point, radiusMetres, limit);
+  return demo.demoLocationsNear(point, radiusMetres, limit);
+}
+
 /**
  * A place as the map draws it.
  *

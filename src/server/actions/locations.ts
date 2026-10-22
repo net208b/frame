@@ -8,7 +8,7 @@ import {
 } from '@/lib/action-result';
 import { getViewer, getViewerSuspension } from '@/lib/auth';
 import { isDemoMode, LOCATION_POLICY } from '@/lib/config';
-import { getLocations } from '@/lib/data/repository';
+import { getLocations, getLocationsNear } from '@/lib/data/repository';
 import { boundingBoxAround, evaluateLocationSubmission } from '@/lib/geo';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { revalidateLocalisedPath } from '@/lib/revalidate';
@@ -184,6 +184,41 @@ export async function submitLocation(input: unknown): Promise<ActionResult<{ sub
     { submissionId },
     'Your proposed place is queued for review. A moderator reads every one before it appears on the map.',
   );
+}
+
+/** How many of the nearest places the proposal form offers before "propose anyway". */
+const NEAR_OFFER_LIMIT = 5;
+
+/**
+ * Approved places within the duplicate radius of a point, for the proposal
+ * form: the same places the moderator's duplicate scan would flag, shown to
+ * the member first so the duplicate is never proposed. A read with no rate
+ * limit, through the repository so demo mode answers from the bundled places.
+ */
+export async function approvedPlacesNear(
+  latitude: unknown,
+  longitude: unknown,
+): Promise<ActionResult<Array<LocationSummary & { distanceMetres: number }>>> {
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return ok([]);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return ok([]);
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return ok([]);
+
+  try {
+    const near = await getLocationsNear(
+      { latitude, longitude },
+      LOCATION_POLICY.duplicateRadiusMetres,
+      NEAR_OFFER_LIMIT,
+    );
+    return ok(near);
+  } catch (error) {
+    console.error(
+      `FRAME locations: reading approved places near ${latitude},${longitude} failed — ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    // Losing the offer costs a nudge, not the proposal.
+    return ok([]);
+  }
 }
 
 /**

@@ -1593,7 +1593,12 @@
       "proposalNoticeTitle": "What happens to a proposed place",
       "proposalNoticeBody": "Your proposal is queued for a moderator and does not appear on the map until one approves it. Your photograph does not wait for that: it publishes as soon as the automated checks clear it, with the place marked pending, and is credited to the location once it is approved.",
       "proposalNoticePrecision": "A published point is shown as submitted unless a moderator marks the place as sensitive, when it is coarsened — to {precision} or to about a kilometre — or withheld. Two proposals within {radius, number} m of each other are flagged as possible duplicates for a person to compare.",
-      "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them."
+      "noneChosen": "Publishing without a place is a perfectly good answer. Street photographs of somebody’s street are often better off without a pin on them.",
+      "nearbyHeading": "Already on FRAME near this point",
+      "nearbyLead": "These approved places are within {metres} m of the point you chose. If one of them is where you stood, use it — a second pin on the same corner is a duplicate the moderators would otherwise have to untangle.",
+      "nearbyDistance": "{metres, plural, one {# m away} other {# m away}}",
+      "nearbyUse": "Use this place",
+      "nearbyAnyway": "None of these? Carry on below and propose the place as it really is."
     },
     "gear": {
       "heading": "Camera and lens",
