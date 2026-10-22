@@ -21,15 +21,17 @@ import { Notice } from '@/components/ui/states';
 import { Link } from '@/i18n/navigation';
 import { getViewer, isModerator } from '@/lib/auth';
 import {
+  countPhotographOpen,
   getLocation,
   getMoreByPhotographer,
   getPhotograph,
   getPhotographer,
+  getPhotographOpenCounts,
   getPhotographsAtSameLocation,
   getPhotographThread,
 } from '@/lib/data/repository';
 import { buildMetadata, photographJsonLd } from '@/lib/seo';
-import { truncate } from '@/lib/utils';
+import { formatCount, truncate } from '@/lib/utils';
 import type { PublicationStatus } from '@/types/domain';
 
 /**
@@ -163,6 +165,18 @@ export default async function PhotographPage({ params }: PageProps) {
   // else `photo` is null above; this is the check that stays correct if that
   // ever stops being so, and hiding the page in the UI would not be one.
   const isOwner = viewer !== null && viewer.id === photo.photographer.id;
+
+  // Counted here, not in a client effect: a prefetch does not reach the server
+  // component, and an effect would have needed a route handler of its own. Void
+  // rather than awaited — the page does not wait for a number to go up, and a
+  // failure is logged, never shown. Published frames only, which the function
+  // enforces as well (0042).
+  if (photo.status === 'published') void countPhotographOpen(photo.slug);
+
+  // The owner's own number, read through the function that answers only for
+  // their own work. A visitor is never told, and nothing is asked for when
+  // nobody is signed in as the owner.
+  const openCount = isOwner ? (await getPhotographOpenCounts([photo.id])).get(photo.id) ?? 0 : null;
   if (photo.status !== 'published' && !isOwner && !isModerator(viewer)) notFound();
 
   const [sameLocation, byPhotographer, locationDetail, photographerProfile, thread] =
@@ -278,6 +292,19 @@ export default async function PhotographPage({ params }: PageProps) {
           {/* The owner manages their own work here; reporting it is for everyone else. */}
           {isOwner ? (
             <div className="border-t border-line pt-6">
+              {/* A number, and nothing else. FRAME keeps no record of who
+                  opened anything — /legal/privacy promises no behavioural
+                  profile — so this says how many times and stops. It is shown
+                  to the owner alone: the column is granted to no public role. */}
+              {openCount !== null ? (
+                <p className="mb-6 text-meta text-muted tabular-nums">
+                  {t('opens.count', {
+                    count: openCount,
+                    formatted: formatCount(openCount, locale),
+                  })}
+                </p>
+              ) : null}
+
               <DeletePhotograph
                 photographId={photo.id}
                 title={photo.title}

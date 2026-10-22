@@ -2398,13 +2398,25 @@ commit;
 
 -- Every other column stays readable, so the deliberate list in 0029 cannot
 -- quietly fall behind the table: a column added without a grant fails here.
+--
+-- Two columns are withheld on purpose, and each is named here with its reason
+-- rather than the list being widened quietly — a THIRD unexplained column still
+-- fails this check:
+--
+--   captured_at  the raw capture time (0028–0029). A timestamp is information
+--                about where somebody was and when; only the owner's chosen
+--                public_captured_at is published.
+--   opens        how often the photograph was opened (0042). The
+--                photographer's own view of their own work, read through
+--                photograph_open_counts(); whether anybody else should see it
+--                is the owner's decision, not a default.
 do $$
 declare v_missing text;
 begin
   select string_agg(column_name, ', ' order by column_name) into v_missing
     from information_schema.columns
    where table_schema = 'public' and table_name = 'photographs'
-     and column_name <> 'captured_at'
+     and column_name not in ('captured_at', 'opens')
      and not (has_column_privilege('anon', 'public.photographs', column_name, 'SELECT')
               and has_column_privilege('authenticated', 'public.photographs', column_name, 'SELECT'));
   if v_missing is not null then
@@ -3677,6 +3689,169 @@ begin
     raise exception 'TRANSLATION BUG  editing the approach also dropped the biography translation';
   end if;
   raise notice 'approach ok   editing the approach drops only its own translation';
+end $$;
+
+-- ------------------------------------------- 0042: counting an open
+-- Fixtures of this section's own.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('09e45000-0000-4000-8000-00000000000a', 'opens.member@example.test', '{"username":"opens_member"}')
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, status, published_at,
+   rights_confirmed_at, image_width, image_height)
+values
+  ('09e45000-0000-4000-8000-000000000001', 'opens-published', '09e45000-0000-4000-8000-00000000000a',
+   'A published frame', 'A cyclist crossing an empty junction before dawn.',
+   'street', 'published', now(), now(), 1800, 1200),
+  ('09e45000-0000-4000-8000-000000000002', 'opens-draft', '09e45000-0000-4000-8000-00000000000a',
+   'A draft frame', 'The same junction an hour later, with the light gone flat.',
+   'street', 'draft', null, null, 1800, 1200)
+on conflict (id) do nothing;
+
+-- The counter's real shape, which is what the privacy promise rests on: an
+-- integer on the row that cannot go negative, and NO table of viewers.
+do $$
+declare v_type text; v_check boolean;
+begin
+  select format_type(a.atttypid, a.atttypmod) into v_type
+    from pg_attribute a join pg_class c on c.oid = a.attrelid
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public' and c.relname = 'photographs' and a.attname = 'opens';
+
+  if v_type <> 'integer' then
+    raise exception 'OPENS BUG  photographs.opens is %, not an integer', coalesce(v_type, 'absent');
+  end if;
+
+  select exists (
+    select 1 from pg_constraint
+     where conrelid = 'public.photographs'::regclass
+       and conname = 'photographs_opens_non_negative'
+  ) into v_check;
+  if not v_check then
+    raise exception 'OPENS BUG  photographs.opens has no non-negative CHECK';
+  end if;
+
+  raise notice 'opens ok      the counter is one non-negative integer on the row';
+end $$;
+
+-- The function is never told who is reading. One argument, and it is a slug.
+do $$
+declare v_args text;
+begin
+  select pg_get_function_identity_arguments(p.oid) into v_args
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname = 'public' and p.proname = 'bump_photograph_opens';
+
+  if v_args is null then
+    raise exception 'OPENS BUG  bump_photograph_opens() is not defined';
+  end if;
+  if v_args <> 'p_slug text' then
+    raise exception 'PRIVACY GAP  bump_photograph_opens takes (%), not a slug alone — a viewer id must never reach it', v_args;
+  end if;
+  raise notice 'opens ok      the bump takes a slug and nothing else';
+end $$;
+
+-- A published frame counts. A draft does not: nobody but its owner can reach
+-- it, and an unreachable page accumulating opens would be a lie.
+do $$
+declare v_published integer; v_draft integer;
+begin
+  perform public.bump_photograph_opens('opens-published');
+  perform public.bump_photograph_opens('opens-published');
+  perform public.bump_photograph_opens('opens-draft');
+
+  select opens into v_published from public.photographs where slug = 'opens-published';
+  select opens into v_draft     from public.photographs where slug = 'opens-draft';
+
+  if v_published <> 2 then
+    raise exception 'OPENS BUG  two opens of a published frame counted as %', v_published;
+  end if;
+  if v_draft <> 0 then
+    raise exception 'OPENS BUG  a draft accumulated % opens', v_draft;
+  end if;
+  raise notice 'opens ok      a published frame counts an open; a draft does not';
+end $$;
+
+-- The column is readable by no public role, and the reader answers only for the
+-- caller's own work. This is the half that makes "the owner's own view" true.
+do $$
+begin
+  if has_column_privilege('anon', 'public.photographs', 'opens', 'SELECT')
+     or has_column_privilege('authenticated', 'public.photographs', 'opens', 'SELECT') then
+    raise exception 'PRIVACY GAP  photographs.opens is readable by a public role; it is read through photograph_open_counts()';
+  end if;
+  if not has_function_privilege('authenticated', 'public.photograph_open_counts(uuid[])', 'execute') then
+    raise exception 'OPENS BUG  a member cannot read the open count of their own work';
+  end if;
+  raise notice 'opens ok      the count is withheld from every public role';
+end $$;
+
+-- What the function ANSWERS, which is the protection — not who may call it.
+-- A Supabase project grants EXECUTE on new public functions to `anon` by
+-- default, so a grant-shape assertion passes in CI and is false in production;
+-- 0042 revokes it explicitly AND the body filters, and this checks the body.
+begin;
+set local role anon;
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.photograph_open_counts(
+    array['09e45000-0000-4000-8000-000000000001'::uuid]);
+  if n <> 0 then
+    raise exception 'PRIVACY GAP  a signed-out visitor read % open count row(s)', n;
+  end if;
+  raise notice 'opens ok      a signed-out visitor is answered with nothing';
+exception
+  -- Either outcome is the protection, and which one happens depends on the
+  -- deployment: this file's own database revokes anon so the call is refused,
+  -- while a Supabase project grants EXECUTE on new public functions to anon by
+  -- default and the body's filter answers with nothing instead. Both were
+  -- verified on production. What must never happen is a row coming back.
+  when insufficient_privilege then
+    raise notice 'opens ok      a signed-out visitor may not even call it';
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '09e45000-0000-4000-8000-00000000000a';
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.photograph_open_counts(
+    array['09e45000-0000-4000-8000-000000000001'::uuid]);
+  if n <> 1 then
+    raise exception 'OPENS BUG  the owner was answered with % row(s), not 1', n;
+  end if;
+  raise notice 'opens ok      the owner is answered with their own count';
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '11111111-1111-4111-8111-111111111111';
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.photograph_open_counts(
+    array['09e45000-0000-4000-8000-000000000001'::uuid]);
+  if n <> 0 then
+    raise exception 'PRIVACY GAP  another member read % open count row(s)', n;
+  end if;
+  raise notice 'opens ok      another member is answered with nothing';
+end $$;
+commit;
+
+-- Anyone may count one — that is the point of the grant — and nobody may write
+-- the column directly, which is what keeps the number from being set by hand.
+do $$
+begin
+  if not has_function_privilege('anon', 'public.bump_photograph_opens(text)', 'execute')
+     or not has_function_privilege('authenticated', 'public.bump_photograph_opens(text)', 'execute') then
+    raise exception 'OPENS BUG  a visitor cannot count an open';
+  end if;
+  raise notice 'opens ok      anon and authenticated may count an open';
 end $$;
 
 -- ------------------------------------------------------------------ summary

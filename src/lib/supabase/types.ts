@@ -918,6 +918,16 @@ export interface Database {
         Args: { p_slug: string };
         Returns: undefined;
       };
+      /** 0042 — counts one open of a published photograph. Takes a slug alone. */
+      bump_photograph_opens: {
+        Args: { p_slug: string };
+        Returns: undefined;
+      };
+      /** 0042 — the open counts of the caller's own photographs. */
+      photograph_open_counts: {
+        Args: { p_photograph_ids: string[] };
+        Returns: Array<{ photograph_id: string; opens: number }>;
+      };
       toggle_appreciation: {
         Args: { p_photograph_id: string };
         Returns: Array<{ appreciated: boolean; count: number }>;

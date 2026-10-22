@@ -3599,6 +3599,51 @@ export async function seriesByOwner(ownerId: string): Promise<PhotoSeries[]> {
   return assembleSeries(supabase, rows, "a member's series");
 }
 
+/**
+ * Counts an open of a photograph. Fire-and-forget from the page, like the
+ * series and book counters: a failure is logged, never shown — nobody's page
+ * should break because a number did not go up.
+ */
+export async function countPhotographOpen(slug: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc('bump_photograph_opens', { p_slug: slug });
+  if (error) {
+    console.error(`FRAME photographs: counting an open of "${slug}" failed — ${error.message}`);
+  }
+}
+
+/**
+ * How often each of these photographs was opened — for their owner, or a
+ * moderator.
+ *
+ * The column is granted to no public role (0042), so this function is the only
+ * way the number is read; it answers with nothing at all for somebody else's
+ * work, which is why the result is a map rather than a list to be trusted.
+ */
+export async function photographOpenCounts(
+  photographIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (photographIds.length === 0) return new Map();
+  const supabase = await createClient();
+
+  const { data, error } = await supabase.rpc('photograph_open_counts', {
+    p_photograph_ids: [...photographIds],
+  });
+
+  if (error) {
+    console.error(`FRAME photographs: reading open counts failed — ${error.message}`);
+    return new Map();
+  }
+
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
+    const id = toText(row.photograph_id);
+    const opens = toNumber(row.opens);
+    if (id && opens !== null) counts.set(id, opens);
+  }
+  return counts;
+}
+
 /** Counts an open. Fire-and-forget from the page; a failure is logged, never shown. */
 export async function countSeriesOpen(slug: string): Promise<void> {
   const supabase = await createClient();
