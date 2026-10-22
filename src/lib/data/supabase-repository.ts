@@ -1066,6 +1066,22 @@ export async function gearFacets(): Promise<GearFacets> {
   };
 }
 
+/**
+ * One photograph by its address, as the reader is allowed to see it.
+ *
+ * NO STATUS FILTER, on purpose. The cookie-bound client answers under
+ * row-level security (0007): a visitor and every other member see only
+ * published rows, the owner sees their own in any status, a moderator sees
+ * all. That is exactly who the photograph page means to admit to an
+ * unpublished frame — the owner, to read the status note and delete or fix
+ * it; a moderator, to look — and the page checks it again before rendering.
+ * The `status = 'published'` filter this used to add made that check dead
+ * code: it hid the row from the owner before the page could ask who was
+ * reading, so a member's own draft or removed frame answered "not found".
+ *
+ * The list reads keep their own published filter; this is the one place a
+ * reader asks for a frame by name.
+ */
 export async function photographBySlug(slug: string): Promise<PhotographDetail | null> {
   const supabase = await createClient();
 
@@ -1075,7 +1091,6 @@ export async function photographBySlug(slug: string): Promise<PhotographDetail |
       .from('photographs')
       .select(photographSelect())
       .eq('slug', slug)
-      .eq('status', 'published')
       .maybeSingle(),
   );
 
