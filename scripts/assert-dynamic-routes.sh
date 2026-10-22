@@ -31,6 +31,7 @@ routes=(
   '/[locale]/books/[slug]'
   '/[locale]/series/[slug]'
   '/[locale]/discover/style/[style]'
+  '/[locale]/locations/in/[countryCode]/[city]'
 )
 
 status=0

@@ -1,8 +1,9 @@
 import { MAP_PIN_PHOTOGRAPH_SAMPLE, PAGE_SIZE } from '@/lib/config';
-import type { MapPinFrame } from '@/lib/data/repository';
+import type { CityHub, CityRef, MapPinFrame } from '@/lib/data/repository';
 import { distanceMetres } from '@/lib/geo';
 import { sortPhotographs } from '@/lib/ranking';
 import { STYLE_LANDING_SLUGS, styleFilter } from '@/lib/style-landing';
+import { slugify } from '@/lib/utils';
 import type {
   Collection,
   CollectionItem,
@@ -206,6 +207,66 @@ export function demoLocation(slug: string): LocationDetail | null {
 
 export function demoLocationSlugs(): string[] {
   return DEMO_LOCATIONS.map((location) => location.slug);
+}
+
+/* ------------------------------------------------------------------------ */
+/* Cities                                                                    */
+/* ------------------------------------------------------------------------ */
+
+/** The bundled places in one country, grouped by the slug of their city. */
+function demoCityGroups(countryCode: string): Map<string, LocationDetail[]> {
+  const code = countryCode.trim().toUpperCase();
+  const groups = new Map<string, LocationDetail[]>();
+
+  for (const location of DEMO_LOCATIONS) {
+    if (location.countryCode.toUpperCase() !== code) continue;
+    const citySlug = slugify(location.city);
+    if (!citySlug) continue;
+    groups.set(citySlug, [...(groups.get(citySlug) ?? []), location]);
+  }
+
+  return groups;
+}
+
+export function demoCityHub(countryCode: string, citySlug: string): CityHub | null {
+  const places = demoCityGroups(countryCode).get(citySlug.trim().toLowerCase());
+  const first = places?.at(0);
+  if (!places || !first) return null;
+
+  const ids = new Set(places.map((place) => place.id));
+  const photographs = DEMO_PHOTOGRAPHS.filter(
+    (photo) => photo.location !== null && ids.has(photo.location.id),
+  ).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+
+  return {
+    city: first.city,
+    citySlug,
+    country: first.country,
+    countryCode: first.countryCode,
+    locations: places.map(toSummary),
+    photographs: photographs.slice(0, PAGE_SIZE.gallery),
+    photographCount: places.reduce((total, place) => total + place.photographCount, 0),
+  };
+}
+
+export function demoCitiesWithContent(): CityRef[] {
+  const counts = new Map<string, CityRef & { photographCount: number }>();
+
+  for (const location of DEMO_LOCATIONS) {
+    const citySlug = slugify(location.city);
+    if (!citySlug) continue;
+
+    const countryCode = location.countryCode.toUpperCase();
+    const key = `${countryCode}/${citySlug}`;
+    const existing = counts.get(key);
+
+    if (existing) existing.photographCount += location.photographCount;
+    else counts.set(key, { countryCode, citySlug, photographCount: location.photographCount });
+  }
+
+  return [...counts.values()]
+    .filter((entry) => entry.photographCount > 0)
+    .map(({ countryCode, citySlug }) => ({ countryCode, citySlug }));
 }
 
 export function demoPhotographsAtLocation(locationId: string): PhotographDetail[] {
