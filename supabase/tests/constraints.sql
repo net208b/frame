@@ -304,6 +304,22 @@ select public.test_rejects('removing a photograph with no reason',
   $$update public.photographs set status = 'removed'
      where slug = 'test-published'$$, '23514');
 
+-- The two facts createDraft()'s slug derivation is written around. A title in
+-- any non-Latin script folds to the empty string under slugify(), so the
+-- address has to be built from something else; these say why there is no
+-- shortcut, and that a repeated address is refused rather than silently taken.
+select public.test_rejects('a slug in the script its title was written in',
+  $$insert into public.photographs (slug, owner_id, title, alt_text, category, status)
+    values ('บางกะปิ','11111111-1111-4111-8111-111111111111','ตลาดเช้าบางกะปิ',
+            'A morning market lit by bare bulbs, with vegetables stacked on low tables.',
+            'street','draft')$$, '23514');
+
+select public.test_rejects('a second frame at an address already taken',
+  $$insert into public.photographs (slug, owner_id, title, alt_text, category, status)
+    values ('test-published','11111111-1111-4111-8111-111111111111','Same address',
+            'A second photograph claiming an address another photograph already has.',
+            'street','draft')$$, '23505');
+
 -- --------------------------------------------- the duplicate-vote guarantee
 select public.test_accepts('a first appreciation',
   $$insert into public.photograph_appreciations (photograph_id, profile_id)

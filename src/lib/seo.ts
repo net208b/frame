@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { DEFAULT_LOCALE, LOCALES, type Locale, withLocalePrefix } from '@/i18n/locales';
 import { SITE, siteUrl } from '@/lib/config';
 import { precisionLabel } from '@/lib/geo';
+import { translatedText } from '@/lib/translation/applies';
 import { CATEGORY_LABELS, type LocationDetail, type PhotographDetail } from '@/types/domain';
 
 /**
@@ -131,11 +132,21 @@ export function photographJsonLd(
 ): Record<string, unknown> {
   const base = siteUrl();
 
+  // Structured data describes the document, and the document is in `locale`:
+  // a page whose heading reads "Bang Kapi Morning Market" must not hand a
+  // crawler the Thai title as the name of the same URL. Where no translation
+  // exists this is the author's own words, unchanged (0035).
+  const title = translatedText(photo.title, photo.translations.title, locale);
+  const altText = translatedText(photo.altText, photo.translations.altText, locale);
+  const description = photo.description
+    ? translatedText(photo.description, photo.translations.description, locale)
+    : altText;
+
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Photograph',
-    name: photo.title,
-    description: photo.description ?? photo.altText,
+    name: title,
+    description,
     url: localeUrl(base, `/photographs/${photo.slug}`, locale),
     genre: CATEGORY_LABELS[photo.category],
     datePublished: photo.publishedAt,
@@ -144,7 +155,7 @@ export function photographJsonLd(
       url: absoluteUrl(photo.image.displayUrl, base),
       width: photo.image.width,
       height: photo.image.height,
-      caption: photo.altText,
+      caption: altText,
       // Credit and copyright, which Google Images shows beside the picture.
       // Still no `license`: members grant none beyond display on FRAME.
       creditText: photo.photographer.displayName,
@@ -170,7 +181,7 @@ export function photographJsonLd(
   if (photo.location) {
     jsonLd.contentLocation = {
       '@type': 'Place',
-      name: photo.location.name,
+      name: translatedText(photo.location.name, photo.location.translations.name, locale),
       url: localeUrl(base, `/locations/${photo.location.slug}`, locale),
       address: {
         '@type': 'PostalAddress',
@@ -192,7 +203,7 @@ export function placeJsonLd(
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
     '@type': 'Place',
-    name: location.name,
+    name: translatedText(location.name, location.translations.name, locale),
     url: localeUrl(base, `/locations/${location.slug}`, locale),
     address: {
       '@type': 'PostalAddress',

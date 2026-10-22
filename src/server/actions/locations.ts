@@ -212,6 +212,7 @@ export async function searchApprovedLocations(
       country: location.country,
       countryCode: location.countryCode,
       photographCount: location.photographCount,
+      translations: location.translations,
     }));
     return ok(matches);
   } catch (error) {

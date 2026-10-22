@@ -24,6 +24,26 @@ export function translationApplies(
   return locale.startsWith(translation.language);
 }
 
+/**
+ * The text to render where a note and a toggle do not fit.
+ *
+ * `TranslationBlock` is the rule: a translated passage says it was translated
+ * and offers the words as written. It needs a line under the text to say so,
+ * which a label does not have — an alt attribute, a breadcrumb, a caption
+ * under a frame, a `<title>`. Those take the reader's language silently, and
+ * the place's own page still shows the name as written with the usual note.
+ *
+ * Only for a name or a line of label text. A description or a comment belongs
+ * in a block, where the reader can see it was translated.
+ */
+export function translatedText(
+  original: string,
+  translation: ContentTranslation | undefined,
+  locale: string,
+): string {
+  return translationApplies(translation, locale) ? translation.value : original;
+}
+
 /** True when any of these is worth showing — what `available` wants. */
 export function anyTranslation(
   locale: string,

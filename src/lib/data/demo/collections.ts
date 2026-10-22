@@ -42,6 +42,7 @@ function place(slug: string) {
     country: match.country,
     countryCode: match.countryCode,
     photographCount: match.photographCount,
+    translations: match.translations,
   };
 }
 
