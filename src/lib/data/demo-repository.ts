@@ -2,6 +2,7 @@ import { MAP_PIN_PHOTOGRAPH_SAMPLE, PAGE_SIZE } from '@/lib/config';
 import type { MapPinFrame } from '@/lib/data/repository';
 import { distanceMetres } from '@/lib/geo';
 import { sortPhotographs } from '@/lib/ranking';
+import { STYLE_LANDING_SLUGS, styleFilter } from '@/lib/style-landing';
 import type {
   Collection,
   CollectionItem,
@@ -117,6 +118,14 @@ function demoDiscoverMatches(query: DiscoverQuery): PhotographDetail[] {
 export function demoDiscover(query: DiscoverQuery): Paginated<PhotographDetail> {
   const sorted = sortPhotographs(demoDiscoverMatches(query), query.sort);
   return paginate(sorted, query.page, query.pageSize || PAGE_SIZE.gallery);
+}
+
+/** The same answer from the bundled dataset: which styles have a frame. */
+export function demoStyleLandingSlugsWithContent(): string[] {
+  return STYLE_LANDING_SLUGS.filter((slug) => {
+    const filter = styleFilter(slug);
+    return DEMO_PHOTOGRAPHS.some((photo) => photo.category === filter.category);
+  });
 }
 
 export function demoGearFacets(): GearFacets {

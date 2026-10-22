@@ -112,6 +112,7 @@
   "footer": {
     "headings": {
       "explore": "Explore",
+      "styles": "Styles",
       "community": "Community",
       "policies": "Policies"
     },
@@ -120,6 +121,9 @@
       "map": "Map",
       "locations": "Locations",
       "collections": "Collections",
+      "styleStreet": "Street",
+      "styleNight": "Night",
+      "styleDocumentary": "Documentary",
       "community": "Community",
       "join": "Join FRAME",
       "upload": "Upload",
@@ -274,6 +278,37 @@
       "mapEmptyTitle": "No place matches this view",
       "mapEmptyBody": "Nothing with a position FRAME may publish matches these filters. Clearing one of them, or switching to the gallery, may show photographs that are not on the map.",
       "mapNote": "The map draws the places these photographs were made at, so it can hold fewer of them than the gallery: a photograph with no approved place is not on it, and a place that keeps its coordinates private has no pin. Ordering is a gallery idea and is kept for when you go back to it."
+    },
+    "style": {
+      "eyebrow": "A way of shooting",
+      "framesHeading": "Frames in this style",
+      "openGallery": "Open in Discover",
+      "openMap": "See where these were made",
+      "empty": {
+        "title": "Nothing published in this style yet",
+        "body": "Nobody has published a frame in this style on FRAME so far. Every upload is read by a moderator before it appears, so this fills up as work is approved rather than the moment it is sent.",
+        "action": "Browse every photograph"
+      },
+      "pages": {
+        "street": {
+          "heading": "Street photography",
+          "lead": "Unposed life in public: people, light and the accidents of timing that only happen once. The frames below are the newest published on FRAME, each with the place it was made at and the settings behind it.",
+          "metaTitle": "Street photography",
+          "metaDescription": "Street photographs from around the world, published by the photographers who made them, each with the place it was made at and the camera settings behind it."
+        },
+        "night": {
+          "heading": "Night photography",
+          "lead": "Cities after dark, where the available light is whatever is switched on. Long exposures, open apertures and high ISO — the settings are published with every frame, so the craft is readable rather than guessed at.",
+          "metaTitle": "Night photography",
+          "metaDescription": "Street photography made after dark, published with the exposure, aperture and ISO behind each frame, and the place it was made at."
+        },
+        "documentary": {
+          "heading": "Documentary photography",
+          "lead": "Work made to record something: a place, a trade, a way of living, usually over more than one visit. Many of these frames belong to a series, where the photographer has written down what they were following.",
+          "metaTitle": "Documentary photography",
+          "metaDescription": "Documentary street photography, published by the photographers who made it, with the place behind each frame and, often, the series it belongs to."
+        }
+      }
     },
     "place": {
       "label": "Search photographs by place",

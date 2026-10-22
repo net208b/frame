@@ -2,8 +2,12 @@
 # Every route below reads the request's cookies, so none of them may be
 # prerendered. The comment at the top of each page says why.
 #
+# This list is hard-coded and nothing scans for new routes, so a dynamic route
+# added without a line here is simply unguarded. Add it in the same pull
+# request that creates it.
+#
 # `next build` prints one line per route, prefixed with its render mode:
-#   ƒ  server-rendered on demand   — the correct mode for these four
+#   ƒ  server-rendered on demand   — the correct mode for every route below
 #   ●  prerendered, from generateStaticParams
 #   ○  prerendered as static content
 #
@@ -26,6 +30,7 @@ routes=(
   '/[locale]/collections/[slug]'
   '/[locale]/books/[slug]'
   '/[locale]/series/[slug]'
+  '/[locale]/discover/style/[style]'
 )
 
 status=0
