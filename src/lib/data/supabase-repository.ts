@@ -1651,6 +1651,42 @@ export async function mapPins(): Promise<MapPin[]> {
 }
 
 /**
+ * Pins for a named set of places — the map of a collection's saved places.
+ *
+ * An `in` filter is a sane request here where it would not be for the whole
+ * map: a collection holds at most COLLECTION_ITEM_LIMIT entries, so this is a
+ * handful of ids rather than the two thousand `mapPins()` can return.
+ *
+ * The photographs embed stays an outer join, as on the place index: a saved
+ * place with nothing published at it is still an approved place and is drawn as
+ * a bare dot. And the coordinate rules are the shared ones — `mapPinRows` is
+ * the only place `publishableCoordinates` is consulted — so a place that
+ * withholds its position simply has no pin, in a collection as anywhere else.
+ */
+export async function mapPinsForLocations(
+  locationIds: readonly string[],
+): Promise<MapPin[]> {
+  if (locationIds.length === 0) return [];
+  const supabase = await createClient();
+
+  const rows = unwrapList<MapPinJoined>(
+    'reading the pins for a set of places',
+    await supabase
+      .from('locations')
+      .select(mapPinSelect())
+      .eq('status', 'approved')
+      .eq('withhold_coordinates', false)
+      .eq('photographs.status', 'published')
+      .in('id', [...locationIds])
+      .order('published_at', { ascending: false, referencedTable: 'photographs' })
+      .limit(MAP_PIN_PHOTOGRAPH_SAMPLE, { referencedTable: 'photographs' })
+      .limit(COLLECTION_ITEM_LIMIT),
+  );
+
+  return mapPinRows(supabase, rows);
+}
+
+/**
  * The places behind a Discover view — its map rendering.
  *
  * Starts from `locations` and narrows by the photographs made there, which is

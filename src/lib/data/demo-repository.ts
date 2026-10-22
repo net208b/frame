@@ -378,6 +378,12 @@ export function demoMapPins() {
 
 export type DemoMapPin = ReturnType<typeof demoMapPins>[number];
 
+/** The same answer for a named set of places, from the bundled dataset. */
+export function demoMapPinsForLocations(locationIds: readonly string[]): DemoMapPin[] {
+  const wanted = new Set(locationIds);
+  return demoMapPins().filter((pin) => wanted.has(pin.id));
+}
+
 /**
  * The places behind a Discover view.
  *

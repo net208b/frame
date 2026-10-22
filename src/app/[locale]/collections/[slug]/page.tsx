@@ -6,10 +6,11 @@ import { cache } from 'react';
 import { readLocaleParams, type LocaleParams } from '@/i18n/params';
 import { CollectionHeader } from '@/components/collections/CollectionHeader';
 import { CollectionItemGrid } from '@/components/collections/CollectionItemGrid';
+import { SavedPlaces } from '@/components/collections/SavedPlaces';
 import { ReportDialog } from '@/components/system/ReportDialog';
 import { SectionHead } from '@/components/ui/SectionHead';
 import { getViewer } from '@/lib/auth';
-import { getCollection } from '@/lib/data/repository';
+import { getCollection, getMapPinsForLocations } from '@/lib/data/repository';
 import { buildMetadata } from '@/lib/seo';
 import { truncate } from '@/lib/utils';
 import type { Collection, CollectionItem } from '@/types/domain';
@@ -155,6 +156,13 @@ export default async function CollectionPage({
   const { collection, isOwner } = loaded;
   const counts = countItems(collection.items);
 
+  // The saved places, as pins. Read only when the collection holds a place, so
+  // a collection of photographs costs nothing extra.
+  const savedPlaceIds = collection.items
+    .map((item) => item.location?.id)
+    .filter((id): id is string => typeof id === 'string');
+  const placePins = await getMapPinsForLocations(savedPlaceIds);
+
   return (
     <div className="site-container py-12 md:py-16">
       <CollectionHeader
@@ -172,6 +180,19 @@ export default async function CollectionPage({
           )
         }
       />
+
+      {/* Above the entries, because a reader who saved places came to see where
+          they are; the entries themselves — with their notes, their saved dates
+          and the remove control — stay in the grid below rather than being
+          rendered twice. */}
+      {savedPlaceIds.length > 0 ? (
+        <SavedPlaces
+          pins={placePins}
+          savedCount={savedPlaceIds.length}
+          locale={locale}
+          className="mt-12 md:mt-14"
+        />
+      ) : null}
 
       <section aria-label={t('detail.entriesLabel')} className="mt-12 md:mt-14">
         <SectionHead
