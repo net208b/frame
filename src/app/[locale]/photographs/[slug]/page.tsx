@@ -13,6 +13,7 @@ import { LocationPanel } from '@/components/photo-detail/LocationPanel';
 import { PhotoHeadline } from '@/components/photo-detail/PhotoHeadline';
 import { PhotographerPanel } from '@/components/photo-detail/PhotographerPanel';
 import { PhotoStage } from '@/components/photo-detail/PhotoStage';
+import { RemovedStage } from '@/components/photo-detail/RemovedStage';
 import { translatedText } from '@/lib/translation/applies';
 import { RelatedStrip } from '@/components/photo-detail/RelatedStrip';
 import { ReportDialog } from '@/components/system/ReportDialog';
@@ -242,16 +243,22 @@ export default async function PhotographPage({ params }: PageProps) {
       ) : null}
 
       <article className="grid min-w-0 gap-10 lg:grid-cols-[minmax(0,62fr)_minmax(0,38fr)] lg:gap-14">
-        {/* The frame first in the source, so it is also first on a phone. */}
-        <PhotoStage
-          image={photo.image}
-          // Alt text is an attribute, so there is no room beside it for a note
-          // and a toggle: a screen reader simply gets the description in the
-          // reader's own language when one exists (0035).
-          altText={altText}
-          title={title}
-          caption={place}
-        />
+        {/* The frame first in the source, so it is also first on a phone. A
+            removed frame has no files behind it — removal deletes them — so its
+            owner and the moderation team see what happened, not a broken image. */}
+        {photo.status === 'removed' ? (
+          <RemovedStage image={photo.image} caption={place} />
+        ) : (
+          <PhotoStage
+            image={photo.image}
+            // Alt text is an attribute, so there is no room beside it for a note
+            // and a toggle: a screen reader simply gets the description in the
+            // reader's own language when one exists (0035).
+            altText={altText}
+            title={title}
+            caption={place}
+          />
+        )}
 
         <div className="min-w-0 space-y-11">
           <PhotoHeadline photo={photo} />
