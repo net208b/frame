@@ -461,6 +461,10 @@
     "capture": {
       "eyebrow": "In the camera",
       "title": "Capture settings",
+      "provenance": {
+        "camera": "Every setting here is what the file itself recorded.",
+        "edited": "Some of these were entered or corrected by the photographer, not read from the file."
+      },
       "none": "The photographer did not record the settings for this frame, so there is nothing to show here. Settings are optional on upload and are never inferred from the file.",
       "aperture": "Aperture",
       "shutter": "Shutter",

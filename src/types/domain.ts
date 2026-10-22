@@ -307,6 +307,18 @@ export interface PhotographCard {
   editorsPick: boolean;
 }
 
+/**
+ * Where a published photograph's capture values came from.
+ *
+ * `camera` means the file's own EXIF readout carries every value shown;
+ * `edited` means at least one was typed or corrected; `unknown` means there is
+ * no readout to compare against — a scan from film, or a row from before the
+ * readout was kept. It is a statement about these fields, never about whether
+ * the photograph is genuine: EXIF is editable with a free tool, which is why
+ * the schema calls `exif_source` evidence for review and not proof.
+ */
+export type CaptureProvenance = 'camera' | 'edited' | 'unknown';
+
 export interface CaptureSettings {
   cameraBrand: string | null;
   cameraModel: string | null;
@@ -327,6 +339,16 @@ export interface CaptureSettings {
   filmStock: string | null;
   filmCamera: string | null;
   filmScanner: string | null;
+  /**
+   * Whether the values above are the ones the file carried.
+   *
+   * One marker for the whole block rather than a flag per field: the page is
+   * craft information, not a properties panel, and a reader needs to know how
+   * to read the numbers, not which individual cell was retyped. Computed by
+   * `lib/images/provenance.ts` from `photograph_metadata.exif_source`, which
+   * 0015 grants to anon and authenticated.
+   */
+  provenance: CaptureProvenance;
 }
 
 export interface EditingDetails {
