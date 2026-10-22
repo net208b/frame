@@ -1293,18 +1293,42 @@ export async function nearbyLocations(
 ): Promise<Array<LocationSummary & { distanceMetres: number }>> {
   const origin = location.coordinates;
   if (!origin) return [];
+  return approvedLocationsAround(origin, {
+    excludeId: location.id,
+    radiusMetres: NEARBY_RADIUS_METRES,
+    limit: NEARBY_LIMIT,
+  });
+}
 
+/**
+ * The approved places within a radius of a point the member is about to
+ * propose, for the upload wizard: "is it one of these?" before a duplicate
+ * is created. The duplicate scan the moderator sees (`submitLocation`) looks
+ * at the same radius; this shows the member the same places first.
+ */
+export async function locationsNear(
+  point: { latitude: number; longitude: number },
+  radiusMetres: number,
+  limit: number,
+): Promise<Array<LocationSummary & { distanceMetres: number }>> {
+  return approvedLocationsAround(point, { excludeId: null, radiusMetres, limit });
+}
+
+async function approvedLocationsAround(
+  origin: { latitude: number; longitude: number },
+  options: { excludeId: string | null; radiusMetres: number; limit: number },
+): Promise<Array<LocationSummary & { distanceMetres: number }>> {
   const supabase = await createClient();
-  const box = boundingBoxAround(origin.latitude, origin.longitude, NEARBY_RADIUS_METRES);
+  const box = boundingBoxAround(origin.latitude, origin.longitude, options.radiusMetres);
 
   let query = supabase
     .from('locations')
     .select(`${LOCATION_SUMMARY_FIELDS}, latitude, longitude, is_sensitive, withhold_coordinates, pin_precision`)
     .eq('status', 'approved')
     .eq('withhold_coordinates', false)
-    .neq('id', location.id)
     .gte('latitude', box.south)
     .lte('latitude', box.north);
+  if (options.excludeId) query = query.neq('id', options.excludeId);
 
   // Near the antimeridian the box wraps past ±180, where a simple between
   // filter would exclude everything. The latitude band plus the distance check
@@ -1333,11 +1357,11 @@ export async function nearbyLocations(
     if (!point) continue;
 
     const metres = Math.round(distanceMetres(origin, point));
-    if (metres > NEARBY_RADIUS_METRES) continue;
+    if (metres > options.radiusMetres) continue;
     nearby.push({ ...summary, distanceMetres: metres });
   }
 
-  const closest = nearby.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, NEARBY_LIMIT);
+  const closest = nearby.sort((a, b) => a.distanceMetres - b.distanceMetres).slice(0, options.limit);
   // After the slice, so the query is about the places actually listed.
   await attachLocationNames(supabase, closest);
   return closest;

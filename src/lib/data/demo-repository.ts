@@ -199,9 +199,25 @@ export function demoNearbyLocations(
   limit = 6,
 ): Array<LocationSummary & { distanceMetres: number }> {
   if (!location.coordinates) return [];
-  const origin = location.coordinates;
+  return demoLocationsAround(location.coordinates, location.id, radiusMetres, limit);
+}
 
-  return DEMO_LOCATIONS.filter((item) => item.id !== location.id && item.coordinates)
+/** The wizard's "is it one of these?" over the bundled places. */
+export function demoLocationsNear(
+  point: { latitude: number; longitude: number },
+  radiusMetres: number,
+  limit: number,
+): Array<LocationSummary & { distanceMetres: number }> {
+  return demoLocationsAround(point, null, radiusMetres, limit);
+}
+
+function demoLocationsAround(
+  origin: { latitude: number; longitude: number },
+  excludeId: string | null,
+  radiusMetres: number,
+  limit: number,
+): Array<LocationSummary & { distanceMetres: number }> {
+  return DEMO_LOCATIONS.filter((item) => item.id !== excludeId && item.coordinates)
     .map((item) => ({
       ...toSummary(item),
       distanceMetres: Math.round(distanceMetres(origin, item.coordinates!)),
