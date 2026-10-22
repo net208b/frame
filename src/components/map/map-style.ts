@@ -85,8 +85,22 @@ export function isAttributionMissing(): boolean {
  * It lives here rather than in MapExplorer because the page reads it on the
  * server to render a shared link already selected, and a `'use client'` module's
  * exports are client references on the server, not values.
+ *
+ * `place` is the /map page's key and is published in shared links, so it stays.
+ * It is NOT usable on every page: Discover already spends `place` on its own
+ * text filter, and a pin writing a slug into it would be read back as a search
+ * term. A page in that position passes `selectionParam` to MapExplorer instead
+ * — see {@link DISCOVER_SELECTED_PARAM}.
  */
 export const SELECTED_PARAM = 'place';
+
+/**
+ * The same thing on Discover, whose `place` means "narrow to places matching
+ * this text". Deliberately a different word rather than a clever reuse: the two
+ * values are a search term and a slug, and nothing can tell them apart once
+ * they are in the same key.
+ */
+export const DISCOVER_SELECTED_PARAM = 'selected';
 
 /* ------------------------------------------------------------------------ */
 /* Camera defaults                                                           */
