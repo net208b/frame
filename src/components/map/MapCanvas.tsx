@@ -14,6 +14,7 @@ import { useResolvedTheme } from '@/components/system/use-theme';
 import { isMapConfigured } from '@/lib/config';
 import type { MapPin } from '@/lib/data/repository';
 import { basemapVariant, type BasemapLanguage } from '@/lib/map/basemap';
+import { spreadOffsets } from '@/lib/map/spread';
 import { translatedText } from '@/lib/translation/applies';
 import { cn } from '@/lib/utils';
 
@@ -308,6 +309,21 @@ export function MapCanvas({
 
         markers.set(id, { marker, setSelected });
       }
+
+      // Two markers on one point of the screen are pushed a few pixels apart
+      // so both can be seen and clicked (lib/map/spread.ts). Screen-space, so
+      // it is redone every time the view settles; at a zoom where the two
+      // coordinates are far enough apart, both offsets go back to zero.
+      const entries = [...markers.values()];
+      const offsets = spreadOffsets(
+        entries.map((entry) => {
+          const { x, y } = instance.project(entry.marker.getLngLat());
+          return { x, y };
+        }),
+      );
+      entries.forEach((entry, index) => {
+        entry.marker.setOffset(offsets[index] ?? [0, 0]);
+      });
     },
     [],
   );
