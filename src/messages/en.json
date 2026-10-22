@@ -492,7 +492,9 @@
       "noneTitle": "No place attached",
       "noneBody": "The photographer did not attach a place to this frame. Pinning a location is optional, and a photograph is never assigned one automatically from its file.",
       "approximate": "This point is deliberately approximate, accurate to about {distance}. The precision was reduced on purpose because publishing the exact spot could cause harm.",
-      "withheld": "No coordinate is published for this place, so there is no point to put on a map. That is either a privacy decision taken by a moderator or a location that has not been given one."
+      "withheld": "No coordinate is published for this place, so there is no point to put on a map. That is either a privacy decision taken by a moderator or a location that has not been given one.",
+      "openInMaps": "Open in Google Maps",
+      "openInMapsLabel": "Open {name} in Google Maps. This leaves FRAME and opens in a new tab."
     },
     "photographer": {
       "basedIn": "Based in <place>{city}</place>",
@@ -633,7 +635,9 @@
       "copyFailed": "The clipboard is not available here. Select the coordinates above and copy them by hand.",
       "approximateBody": "This point is deliberately coarse. It is published to {decimals, number} decimal places, which places you within about {distance} of the spot rather than at a doorway.",
       "approximateNote": "FRAME reduces precision for places where an exact position could expose the people who live, work or shelter there. The finer point is never published, here or anywhere else on the site.",
-      "exactBody": "Published to {decimals, number} decimal places, which is accurate to about {distance}. Copied as decimal degrees, latitude first."
+      "exactBody": "Published to {decimals, number} decimal places, which is accurate to about {distance}. Copied as decimal degrees, latitude first.",
+      "openInMaps": "Open in Google Maps",
+      "openInMapsLabel": "Open the published position of {name} in Google Maps. This leaves FRAME and opens in a new tab."
     },
     "card": {
       "photographCount": "{count, plural, =0 {No photographs} one {{value} photograph} other {{value} photographs}}",

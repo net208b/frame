@@ -6,6 +6,7 @@ import { Eyebrow } from '@/components/ui/SectionHead';
 import { DEFAULT_LOCALE, INTL_LOCALES, isLocale } from '@/i18n/locales';
 import { Link } from '@/i18n/navigation';
 import { precisionLabel } from '@/lib/geo';
+import { googleMapsPlaceUrl } from '@/lib/map/external-maps';
 import { translatedText } from '@/lib/translation/applies';
 import { cn, formatCoordinates } from '@/lib/utils';
 import type { LocationDetail, LocationSummary } from '@/types/domain';
@@ -139,6 +140,23 @@ export async function LocationPanel({
                 coordinates.precisionDecimals,
               )}
             </span>
+          </p>
+
+          {/* This is the panel a reader is looking at when they decide they
+              want to go and shoot there, so the hand-off to their map app
+              belongs here rather than only on the place's own page. The point
+              is the published one, rounded to the precision printed above. */}
+          <p className="mt-2">
+            <a
+              href={googleMapsPlaceUrl(coordinates)}
+              target="_blank"
+              rel="nofollow noopener noreferrer"
+              aria-label={t('place.openInMapsLabel', { name })}
+              className="inline-flex items-center gap-1 text-meta font-semibold text-ink-soft underline decoration-line underline-offset-4 transition-colors duration-150 hover:text-ink hover:decoration-line-strong"
+            >
+              <ArrowUpRight aria-hidden className="size-3.5" />
+              {t('place.openInMaps')}
+            </a>
           </p>
 
           {coordinates.isApproximate ? (
