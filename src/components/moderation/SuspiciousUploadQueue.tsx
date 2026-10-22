@@ -253,6 +253,9 @@ async function UploadDetails({ locale, details }: { locale: Locale; details: Upl
     },
     { key: 'camera', value: details.camera ?? none },
     { key: 'lens', value: details.lens ?? none },
+    // Only when the member said film: what they said about it, to read beside
+    // the film-declared signal and the scanner the file itself names.
+    ...(details.film ? [{ key: 'film', value: details.film }] : []),
     { key: 'settings', value: settings.length > 0 ? settings.join(' · ') : none },
     {
       key: 'capturedAt',

@@ -178,6 +178,14 @@ signal carries a severity, and the one case that reaches `high` is the camera's
 own position sitting more than 2 km from the credited place — but the control is
 ultimately the person reading it.
 
+**What `0038` adds, and does not.** A film scan now carries three things a
+phone picture with its record stripped does not: the scanner the file itself
+names (`device_class = 'scanner'` — Epson, Noritsu, Plustek, a Coolscan),
+the member's own statement of stock, camera and scanner, shown publicly, and a
+report reason for the other film photographers who can tell. None of it is
+proof; a scanner's make is as forgeable as a camera's. It changes what a
+reviewer has to read and what a disguise has to invent.
+
 **The fix.** There is no technical fix, because the limitation is in the format.
 What *does* help is what the schema already does: `photographs.rights_confirmed_at`
 records the moment a human confirmed in their own words that the work is theirs,

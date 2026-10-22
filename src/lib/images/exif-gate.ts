@@ -36,7 +36,13 @@ export type RequiredExifField =
   | 'focalLengthMm'
   | 'capturedAt';
 
-export type DeviceClass = 'camera' | 'phone' | 'unknown';
+/**
+ * `scanner`: a film scanner or a lab minilab wrote the record — the make a
+ * genuine scan from film carries, and the one thing a phone picture with its
+ * metadata stripped does not. Not proof; a scanner's make is as forgeable as a
+ * camera's. It is what a declared film scan is expected to look like.
+ */
+export type DeviceClass = 'camera' | 'phone' | 'scanner' | 'unknown';
 
 export interface ExifVerdict {
   /**
@@ -110,6 +116,16 @@ export const EXIF_GATE = {
 
   /** Software fields a phone OS writes. */
   phoneSoftware: /^(ios|iphone os|android|one ui|hyperos|miui|coloros|oxygenos|emui|harmonyos)\b/i,
+
+  /**
+   * Makes that are scanners or minilabs, as they spell themselves. Nikon,
+   * Canon and Kodak are deliberately absent — all three made cameras — and
+   * their scanners are caught by model below (Coolscan, CanoScan, Pakon).
+   */
+  scannerMakes: ['epson', 'noritsu', 'plustek', 'pacific', 'reflecta', 'microtek', 'imacon', 'hasselblad'],
+
+  scannerModels:
+    /\b(coolscan|ls-\d{3,4}|super coolscan|canoscan|perfection|gt-x\d{3}|v\d{3}\b|frontier|sp-?\d{3,4}|opticfilm|flextight|pakon|f-?\d{3}\b|imagemate|primefilm|scanmaker|qss-?\d{2,3})\b/i,
 } as const;
 
 const firstWord = (value: string | null): string =>
@@ -126,6 +142,11 @@ export function classifyDevice(readout: ExifReadout): DeviceClass {
   if (EXIF_GATE.phoneModels.test(model)) return 'phone';
   if (EXIF_GATE.phoneLenses.test(lens)) return 'phone';
   if (EXIF_GATE.phoneSoftware.test(software)) return 'phone';
+
+  // A scanner before a camera: an Epson with a model of "Perfection V850" is
+  // what a scan from film carries, and it will never have a shutter or an ISO.
+  if ((EXIF_GATE.scannerMakes as readonly string[]).includes(make)) return 'scanner';
+  if (EXIF_GATE.scannerModels.test(model)) return 'scanner';
 
   // A make and a model, and none of the phone tells: a camera, as far as the
   // file can say.

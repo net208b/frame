@@ -979,20 +979,39 @@ async function recordExifCheck(
  * High severity, so `publishIfCleared` never publishes it on its own — the
  * claim and the absent camera record are for a person to look at together.
  */
-async function filmSignals(photographId: string): Promise<UploadSignal[]> {
+async function filmSignals(
+  photographId: string,
+  film: { stock: string | null; camera: string | null; scanner: string | null },
+): Promise<UploadSignal[]> {
   try {
     const { data } = await createAdminClient()
       .from('photograph_exif_checks')
-      .select('verdict, film_declared')
+      .select('verdict, film_declared, device_class, make, model')
       .eq('photograph_id', photographId)
       .maybeSingle();
-    const row = data as { verdict?: string; film_declared?: boolean } | null;
+    const row = data as {
+      verdict?: string;
+      film_declared?: boolean;
+      device_class?: string;
+      make?: string | null;
+      model?: string | null;
+    } | null;
     if (row?.verdict === 'film') {
+      // What the file itself says, and what the member said (0038). A scan
+      // from a scanner names the scanner; a phone picture with its record
+      // stripped names nothing. Neither proves anything — the message gives
+      // the reviewer both to put beside the frame.
+      const said = [film.stock, film.camera, film.scanner].filter(Boolean).join(' · ');
+      const scannerNamed = row.device_class === 'scanner'
+        ? `The file names a scanner: ${[row.make, row.model].filter(Boolean).join(' ')}.`
+        : 'The file names no scanner and no camera.';
       return [
         {
           kind: 'film-declared',
           severity: 'high',
-          message: 'The member declared a film scan: the file carries no camera record. Check the frame and the gear by eye.',
+          message: `The member declared a film scan. ${scannerNamed} ${
+            said ? `They say: ${said}.` : 'They gave no film, camera or scanner.'
+          } Check the frame and the gear by eye.`,
         },
       ];
     }
@@ -1010,6 +1029,9 @@ async function filmSignals(photographId: string): Promise<UploadSignal[]> {
 async function describeExifRefusal(verdict: ExifVerdict): Promise<string> {
   const t = await messages();
   if (verdict.deviceClass === 'phone') return t('actions.exifRejectedPhone');
+  // A scanner's record with the film box unticked: the one refusal that has
+  // a two-second fix, so the sentence says what it is.
+  if (verdict.deviceClass === 'scanner') return t('actions.exifRejectedScanner');
   const fields = verdict.missing.map((field) => t(`exifGate.fields.${field}`)).join(', ');
   return `${t('actions.exifRejectedMissing', { fields })} ${t('actions.exifRejectedHelp')}`;
 }
@@ -1306,7 +1328,7 @@ export async function publishPhotograph(
   const width = displaySize?.width ?? photograph.imageWidth;
   const height = displaySize?.height ?? photograph.imageHeight;
 
-  const signals = await filmSignals(photograph.id);
+  const signals = await filmSignals(photograph.id, payload.film);
   signals.push(...reviewSignals({
     exif: payload.exif,
     capture: payload.capture,
@@ -1341,6 +1363,11 @@ export async function publishPhotograph(
       iso: payload.capture.iso,
       editing_software: payload.editing.software,
       editing_notes: payload.editing.notes,
+      // The member's film statements (0038). The wizard sends them empty for
+      // a digital frame, and optionalText turns empty into null.
+      film_stock: payload.film.stock,
+      film_camera: payload.film.camera,
+      film_scanner: payload.film.scanner,
       exif_source: exifSourceRecord(payload.exif, publishCapturedAt),
       // Stored only on an explicit choice. Consent still does not publish the
       // point: a place reaches the map when a moderator approves a submission,

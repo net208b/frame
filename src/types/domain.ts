@@ -319,6 +319,14 @@ export interface CaptureSettings {
   /** Human-readable, e.g. "1/250" or "4s". */
   shutterSpeed: string | null;
   iso: number | null;
+  /**
+   * For a frame scanned from film (0038): the stock, the film camera and the
+   * scanner, in the member's words. All null for a digital frame. Shown on
+   * the page the way aperture and ISO are shown for a digital one.
+   */
+  filmStock: string | null;
+  filmCamera: string | null;
+  filmScanner: string | null;
 }
 
 export interface EditingDetails {
@@ -659,6 +667,8 @@ export const REPORT_REASONS = [
   'inappropriate',
   'spam',
   'duplicate',
+  /** For other film photographers: a declared scan that is not one (0038). */
+  'not-film-or-camera',
   'other',
 ] as const;
 
@@ -672,6 +682,7 @@ export const REPORT_REASON_LABELS: Record<ReportReason, string> = {
   inappropriate: 'Inappropriate or unsafe content',
   spam: 'Spam or misleading upload',
   duplicate: 'Duplicate of an existing entry',
+  'not-film-or-camera': 'Declared as film, but not from film or a camera',
   other: 'Something else',
 };
 
@@ -789,6 +800,8 @@ export interface UploadReviewDetails {
   capturedAt: string | null;
   editingSoftware: string | null;
   editingNotes: string | null;
+  /** The member's film statements joined for reading, or null for a digital frame. */
+  film: string | null;
   width: number | null;
   height: number | null;
 }

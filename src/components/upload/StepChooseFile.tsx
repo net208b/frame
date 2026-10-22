@@ -214,14 +214,20 @@ export function StepChooseFile({ draft }: { draft: UploadDraft }) {
               </Notice>
             ) : gate.verdict === 'film' ? (
               <Notice tone="info" title={t('exifGate.filmTitle')} className="mt-4">
-                <p>{t('exifGate.filmBody')}</p>
+                <p>
+                  {gate.deviceClass === 'scanner'
+                    ? t('exifGate.filmScannerBody')
+                    : t('exifGate.filmBody')}
+                </p>
               </Notice>
             ) : (
               <Notice tone="warning" title={t('exifGate.failTitle')} className="mt-4">
                 <p>
                   {gate.deviceClass === 'phone'
                     ? t('exifGate.failPhone')
-                    : t('exifGate.failMissing', { fields: gateMissing })}{' '}
+                    : gate.deviceClass === 'scanner'
+                      ? t('exifGate.failScanner')
+                      : t('exifGate.failMissing', { fields: gateMissing })}{' '}
                   {t('exifGate.rule')}
                 </p>
               </Notice>
