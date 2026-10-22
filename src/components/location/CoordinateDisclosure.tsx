@@ -1,10 +1,11 @@
 'use client';
 
-import { Check, Copy, MapPinOff } from 'lucide-react';
+import { ArrowUpRight, Check, Copy, MapPinOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 
 import { INTL_LOCALES, type Locale } from '@/i18n/locales';
+import { googleMapsPlaceUrl } from '@/lib/map/external-maps';
 import { cn, formatCoordinates } from '@/lib/utils';
 import type { Coordinates } from '@/types/domain';
 
@@ -132,6 +133,25 @@ export function CoordinateDisclosure({
           )}
           {status === 'copied' ? t('coordinates.copied') : t('coordinates.copy')}
         </button>
+
+        {/* Leaves FRAME, on purpose: the one thing this platform will not do is
+            route somebody somewhere, and the reader already has an app that
+            does. The point handed over is the published one, rounded by
+            `googleMapsPlaceUrl` to the precision printed above it. */}
+        <a
+          href={googleMapsPlaceUrl(coordinates)}
+          target="_blank"
+          rel="nofollow noopener noreferrer"
+          aria-label={t('coordinates.openInMapsLabel', { name: locationName })}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-pill border border-line px-3 py-1.5',
+            'text-meta font-semibold text-ink-soft',
+            'transition-colors duration-150 hover:border-line-strong hover:text-ink',
+          )}
+        >
+          <ArrowUpRight aria-hidden className="size-3.5" />
+          {t('coordinates.openInMaps')}
+        </a>
       </div>
 
       <p aria-live="polite" className="mt-1.5 min-h-4 text-meta text-muted">
