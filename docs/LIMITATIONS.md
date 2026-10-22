@@ -96,40 +96,29 @@ approval is a human decision.
 *Touches:* `src/types/domain.ts` (a new signal kind),
 `src/components/moderation/SignalBadge.tsx`, `src/server/actions/locations.ts`.
 
-### A duplicate place cannot be merged, only flagged
+### A merge keeps the losing row, and follows one step
 
-**What.** The moderation dashboard shows pairs of approved places within
-`LOCATION_POLICY.duplicateRadiusMetres` (120 m) of each other, and
-`recordDuplicateReview()` in
-[`src/server/actions/moderation.ts`](../src/server/actions/moderation.ts) writes
-**one audit row and nothing else**. Its own comment says so: "FRAME cannot merge
-locations: there is no merge function, and no table that stores a merge
-request." The success message is written to match — "Flagged for merging.
-Nothing has been merged — the note is in the audit trail for a person to pick
-up."
+**What.** Since migration `0039` a moderator can merge two approved places from
+the duplicate queue: `merge_location(keep, merge, reason)` moves every
+photograph (drafts included), the collection items that can move (one that
+would double up a collection already holding the survivor is removed), the
+restrictions and the proposal, recounts the survivor through the existing
+trigger, writes one `merge` audit row naming both, and sets the loser to
+`status = 'merged'` with `merged_into_id` pointing at the survivor. The loser's
+slug is kept so `/locations/<old-slug>` redirects.
 
-**Why.** A merge is not one statement. It has to move every photograph from one
-place to the other, reassign collection items, recount both rows, decide which
-name, description, restrictions and privacy flags survive, keep the losing slug
-redirecting so existing links do not break, and leave an audit trail. Shipping a
-button that did some of that would be worse than shipping one that is honest
-about doing none of it.
+**Why it is not undoable.** Nothing is deleted, but nothing records which
+photographs *came from* the loser once they are at the survivor, so a button
+that unmerged would have to guess. The audit row carries the count; a person
+with the row could do it by hand.
 
-**What could go wrong.** Duplicates accumulate. Two entries for the same
-staircase split its photograph count, so neither ranks where the place deserves
-to, and a reader browsing `/locations` sees the same place twice. The dashboard
-will keep re-surfacing a pair that a moderator has already reviewed and
-dismissed, because the only record of that review is an audit row nothing reads
-back.
+**What could go wrong.** A survivor that is itself merged later: the redirect
+follows one step and the page redirects again, which is fine for two and
+unpleasant for ten. A moderator merging the wrong way round keeps the wrong
+name; the reason is required so the choice is written down.
 
-**The fix.** A `merge_locations(p_keep uuid, p_merge uuid, p_moderator uuid)`
-function, `SECURITY DEFINER`, doing all of the above in one transaction, plus a
-`locations.merged_into_id` column so the losing slug can 301 instead of 404.
-Reading the existing audit rows to suppress already-reviewed pairs is a smaller,
-independent improvement worth doing first.
-*Touches:* a new migration, `src/server/actions/moderation.ts`,
-`src/lib/data/supabase-repository.ts` (the duplicate scan),
-`src/app/locations/[slug]/page.tsx` (the redirect).
+*Touches:* `supabase/migrations/0039_merge_a_place.sql`,
+`src/server/actions/moderation.ts`, `src/app/[locale]/locations/[slug]/page.tsx`.
 
 ### The duplicate scan is bounded and approximate
 

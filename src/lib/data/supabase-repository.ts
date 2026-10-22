@@ -278,6 +278,7 @@ const MODERATION_DECISIONS: readonly ModerationDecision[] = [
   'dismiss',
   'change_role',
   'delete',
+  'merge',
 ];
 
 const RESTRICTION_KINDS: readonly LocationRestriction['kind'][] = [
@@ -1258,6 +1259,29 @@ export async function locations(
     totalCount,
     hasMore: totalCount === null ? rows.length === pageSize : offset + rows.length < totalCount,
   };
+}
+
+/**
+ * The surviving place's slug for a slug that was merged away (0039). Read
+ * with the public client: a merged row is not a place and its slug is public
+ * by design — it is what the old links carry.
+ */
+export async function mergedLocationTarget(slug: string): Promise<string | null> {
+  const { data, error } = await publicClient()
+    .from('locations')
+    .select('merged_into_id, survivor:locations!merged_into_id(slug, status)')
+    .eq('slug', slug)
+    .eq('status', 'merged')
+    .maybeSingle();
+  if (error || !data) return null;
+  const survivor = firstOf<{ slug: string | null; status: string | null }>(
+    (data as { survivor?: unknown }).survivor as never,
+  );
+  // A survivor that was itself merged later is followed one step; the page
+  // redirects again. One that is no longer approved is not a destination.
+  if (!survivor || !survivor.slug) return null;
+  if (survivor.status !== 'approved' && survivor.status !== 'merged') return null;
+  return survivor.slug;
 }
 
 export async function locationBySlug(slug: string): Promise<LocationDetail | null> {

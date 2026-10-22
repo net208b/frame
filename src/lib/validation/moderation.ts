@@ -67,6 +67,7 @@ export const MODERATION_DECISION_MESSAGE_KEYS: Record<ModerationDecision, string
   dismiss: 'decision.dismiss',
   change_role: 'decision.change_role',
   delete: 'decision.delete',
+  merge: 'decision.merge',
 };
 
 const decisions = Object.keys(MODERATION_DECISION_MESSAGE_KEYS) as [
@@ -83,6 +84,7 @@ const decisions = Object.keys(MODERATION_DECISION_MESSAGE_KEYS) as [
  * verdict.
  */
 const NEGATIVE_DECISIONS: ReadonlySet<string> = new Set<ModerationDecision>([
+  'merge',
   'reject',
   'request_changes',
   'remove_content',

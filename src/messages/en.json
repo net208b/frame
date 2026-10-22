@@ -2196,7 +2196,8 @@
       "suspend_account": "Suspend the account",
       "dismiss": "Dismiss the report",
       "change_role": "Change the role",
-      "delete": "Delete the place"
+      "delete": "Delete the place",
+      "merge": "Merge into another place"
     },
     "reportReason": {
       "copyright": "Copyright infringement",
@@ -2433,15 +2434,19 @@
       "metresApart": "{metres, number} m apart",
       "kilometresApart": "{kilometres} km apart",
       "subject": "“{target}”, against “{other}”",
-      "reasonHint": "Say which entry should survive and why. This is read by whoever does the merge, and it is kept in the audit trail.",
+      "reasonHint": "Say why the two are one place and why this one survives. It is kept in the audit trail with both names.",
       "options": {
         "keepBoth": {
           "label": "Keep both",
           "effect": "Records that this pair was looked at and both places are real. Nothing about either place changes."
         },
-        "flagForMerging": {
-          "label": "Flag for merging",
-          "effect": "Writes a note to the audit trail against “{target}”, naming “{other}”. Nothing is merged — FRAME has no merge, so say in the reason which entry should survive and a person will do it."
+        "mergeIntoTarget": {
+          "label": "Merge into “{target}”",
+          "effect": "Folds “{other}” into “{target}”: its photographs, collection items, restrictions and proposal move across, the survivor is recounted, and the old address redirects. “{other}” keeps its name and coordinate on its own row as the record of what was merged. Not undoable by a button."
+        },
+        "mergeIntoOther": {
+          "label": "Merge into “{other}”",
+          "effect": "Folds “{target}” into “{other}”: its photographs, collection items, restrictions and proposal move across, the survivor is recounted, and the old address redirects. “{target}” keeps its name and coordinate on its own row as the record of what was merged. Not undoable by a button."
         }
       }
     },

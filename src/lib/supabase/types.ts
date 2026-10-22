@@ -174,7 +174,9 @@ export interface LocationRow extends Timestamps {
   withhold_coordinates: boolean;
   /** exact | approximate | area | none (0033); the two flags above are derived from it. */
   pin_precision: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: 'pending' | 'approved' | 'rejected' | 'merged';
+  /** Set when status is 'merged' (0039): the place this one became part of. */
+  merged_into_id: string | null;
   submitted_by: string | null;
   approved_at: string | null;
   approved_by: string | null;
@@ -927,6 +929,10 @@ export interface Database {
       toggle_follow: {
         Args: { p_profile_id: string };
         Returns: Array<{ following: boolean; follower_count: number }>;
+      };
+      merge_location: {
+        Args: { p_keep: string; p_merge: string; p_reason: string };
+        Returns: undefined;
       };
       is_service_role: {
         Args: Record<string, never>;

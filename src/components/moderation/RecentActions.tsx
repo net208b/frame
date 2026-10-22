@@ -33,6 +33,8 @@ const DECISION_TONES: Record<ModerationAction['decision'], string> = {
   suspend_account: 'text-danger',
   change_role: 'text-ink',
   delete: 'text-danger',
+  // A merge destroys nothing; the loser's row and slug stay as the record.
+  merge: 'text-ink',
 };
 
 export async function RecentActions({

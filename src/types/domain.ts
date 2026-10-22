@@ -710,7 +710,9 @@ export type ModerationDecision =
   | 'dismiss'
   | 'change_role'
   /** An admin removing a place outright (0036), not taking it down. */
-  | 'delete';
+  | 'delete'
+  /** A moderator folding one place into another (0039). */
+  | 'merge';
 
 /** A member of staff, as the team panel lists them. */
 export interface StaffMember {

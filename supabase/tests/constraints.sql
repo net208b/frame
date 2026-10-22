@@ -3270,6 +3270,167 @@ select public.test_rejects('a reason the dialog does not offer',
   $$insert into public.reports (reported_by, subject_type, subject_id, reason)
     values ('22222222-2222-4222-8222-222222222222', 'photograph',
             'f11a0000-0000-4000-8000-000000000001', 'ugly')$$, '23514');
+-- ------------------------------------------------- 0039: merging a place
+-- Fixtures of this section's own: a member, two approved places 60 m apart,
+-- a published frame and a draft at the loser, a frame at the survivor, a
+-- collection holding both (one item each) and another holding only the loser,
+-- a sourced restriction on the loser, and the proposal that produced it.
+reset "app.current_user_id";
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('3e49e000-0000-4000-8000-00000000000a', 'merge.member@example.test', '{"username":"merge_member"}')
+on conflict (id) do nothing;
+insert into public.locations
+  (id, slug, name, city, country, country_code, latitude, longitude, status, approved_at)
+values
+  ('3e49e000-0000-4000-8000-000000000001', 'merge-keep', 'The staircase',
+   'Bangkok', 'Thailand', 'TH', 13.7400, 100.5200, 'approved', now()),
+  ('3e49e000-0000-4000-8000-000000000002', 'merge-away', 'Stairs by the canal',
+   'Bangkok', 'Thailand', 'TH', 13.7405, 100.5203, 'approved', now()),
+  ('3e49e000-0000-4000-8000-000000000003', 'merge-pending', 'Not yet a place',
+   'Bangkok', 'Thailand', 'TH', 13.7500, 100.5300, 'pending', null)
+on conflict (id) do nothing;
+insert into public.photographs
+  (id, slug, owner_id, title, alt_text, category, location_id, status,
+   published_at, rights_confirmed_at, image_width, image_height)
+values
+  ('3e49e000-0000-4000-8000-000000000011', 'merge-frame-keep', '3e49e000-0000-4000-8000-00000000000a',
+   'At the staircase', 'A woman in red descending a wide outdoor staircase at noon.',
+   'street', '3e49e000-0000-4000-8000-000000000001', 'published', now(), now(), 1800, 1200),
+  ('3e49e000-0000-4000-8000-000000000012', 'merge-frame-away', '3e49e000-0000-4000-8000-00000000000a',
+   'By the canal stairs', 'The same staircase from the canal side, a man carrying a bicycle up.',
+   'night', '3e49e000-0000-4000-8000-000000000002', 'published', now(), now(), 1800, 1200),
+  ('3e49e000-0000-4000-8000-000000000013', 'merge-draft-away', '3e49e000-0000-4000-8000-00000000000a',
+   'A draft by the canal', 'An unfinished upload of the staircase, still a draft.',
+   'street', '3e49e000-0000-4000-8000-000000000002', 'draft', null, null, null, null)
+on conflict (id) do nothing;
+insert into public.collections (id, slug, owner_id, title, visibility) values
+  ('3e49e000-0000-4000-8000-000000000021', 'merge-both', '3e49e000-0000-4000-8000-00000000000a', 'Both stairs', 'private'),
+  ('3e49e000-0000-4000-8000-000000000022', 'merge-only-away', '3e49e000-0000-4000-8000-00000000000a', 'Only the canal', 'private')
+on conflict (id) do nothing;
+insert into public.collection_items (collection_id, location_id) values
+  ('3e49e000-0000-4000-8000-000000000021', '3e49e000-0000-4000-8000-000000000001'),
+  ('3e49e000-0000-4000-8000-000000000021', '3e49e000-0000-4000-8000-000000000002'),
+  ('3e49e000-0000-4000-8000-000000000022', '3e49e000-0000-4000-8000-000000000002')
+on conflict do nothing;
+insert into public.location_restrictions (location_id, kind, note, source) values
+  ('3e49e000-0000-4000-8000-000000000002', 'no-tripod', 'The steps are narrow.', 'FRAME moderator note, test fixture.');
+insert into public.location_submissions
+  (id, proposed_name, city, country, country_code, latitude, longitude, submitted_by, status, approved_location_id)
+values
+  ('3e49e000-0000-4000-8000-000000000031', 'Stairs by the canal', 'Bangkok', 'Thailand', 'TH',
+   13.7405, 100.5203, '3e49e000-0000-4000-8000-00000000000a', 'approved', '3e49e000-0000-4000-8000-000000000002')
+on conflict (id) do nothing;
+
+-- The fixture as inserted, before anything is merged: the diagnostic that
+-- separates "the merge dropped an item" from "the item was never there".
+do $$
+declare n integer;
+begin
+  select count(*) into n from public.collection_items
+   where collection_id = '3e49e000-0000-4000-8000-000000000021';
+  if n <> 2 then
+    raise exception 'FIXTURE GAP  the both-stairs collection holds % item(s) before the merge, not 2', n;
+  end if;
+end $$;
+
+-- Who may not, and what must be said.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '3e49e000-0000-4000-8000-00000000000a';
+select public.test_rejects('a member merging two places',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000001',
+                                 '3e49e000-0000-4000-8000-000000000002', 'same stairs')$$, '42501');
+commit;
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('a merge with no reason',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000001',
+                                 '3e49e000-0000-4000-8000-000000000002', '  ')$$, '22023');
+select public.test_rejects('a place merged into itself',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000001',
+                                 '3e49e000-0000-4000-8000-000000000001', 'same')$$, '22023');
+select public.test_rejects('merging a place that is not yet approved',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000001',
+                                 '3e49e000-0000-4000-8000-000000000003', 'same')$$, '22023');
+select public.test_rejects('merging into a place that is not approved',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000003',
+                                 '3e49e000-0000-4000-8000-000000000002', 'same')$$, '22023');
+
+-- The merge itself.
+select public.test_accepts('a moderator merging the canal stairs into the staircase',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000001',
+                                 '3e49e000-0000-4000-8000-000000000002',
+                                 'One staircase, photographed from both sides.')$$);
+commit;
+
+-- Everything it has to leave behind — read as the superuser, because the
+-- member's collections are private and row-level security would hide them
+-- from the moderator who did the merge, which says nothing about the merge.
+do $$
+declare n integer; v_status text; v_into uuid; v_count integer; v_cats text[];
+begin
+  -- every photograph moved, the draft included
+  select count(*) into n from public.photographs where location_id = '3e49e000-0000-4000-8000-000000000002';
+  if n <> 0 then raise exception 'MERGE GAP  % photograph(s) still at the merged place', n; end if;
+  select count(*) into n from public.photographs where location_id = '3e49e000-0000-4000-8000-000000000001';
+  if n <> 3 then raise exception 'MERGE GAP  expected 3 photographs at the survivor, found %', n; end if;
+  -- the survivor recounted from its published frames, categories included
+  select photograph_count, categories into v_count, v_cats from public.locations
+   where id = '3e49e000-0000-4000-8000-000000000001';
+  if v_count <> 2 then raise exception 'MERGE GAP  survivor photograph_count is %, not 2', v_count; end if;
+  if not (v_cats @> array['street','night'] and array_length(v_cats, 1) = 2) then
+    raise exception 'MERGE GAP  survivor categories are %, not {night,street}', v_cats;
+  end if;
+  -- the loser is a pointer, not a place
+  select status, merged_into_id, photograph_count into v_status, v_into, v_count from public.locations
+   where id = '3e49e000-0000-4000-8000-000000000002';
+  if v_status <> 'merged' or v_into <> '3e49e000-0000-4000-8000-000000000001' or v_count <> 0 then
+    raise exception 'MERGE GAP  loser is status=% into=% count=%', v_status, v_into, v_count;
+  end if;
+  -- collections: the one holding both now holds the survivor once; the other moved
+  select count(*) into n from public.collection_items
+   where collection_id = '3e49e000-0000-4000-8000-000000000021' and location_id is not null;
+  if n <> 1 then raise exception 'MERGE GAP  the both-stairs collection has % place items, not 1', n; end if;
+  select count(*) into n from public.collection_items
+   where collection_id = '3e49e000-0000-4000-8000-000000000022'
+     and location_id = '3e49e000-0000-4000-8000-000000000001';
+  if n <> 1 then raise exception 'MERGE GAP  the canal-only collection did not move to the survivor'; end if;
+  -- the restriction and the proposal followed
+  if not exists (select 1 from public.location_restrictions where location_id = '3e49e000-0000-4000-8000-000000000001') then
+    raise exception 'MERGE GAP  the restriction did not move';
+  end if;
+  if not exists (select 1 from public.location_submissions
+                  where id = '3e49e000-0000-4000-8000-000000000031'
+                    and approved_location_id = '3e49e000-0000-4000-8000-000000000001') then
+    raise exception 'MERGE GAP  the proposal does not point at the survivor';
+  end if;
+  -- the audit row names both
+  if not exists (select 1 from public.moderation_actions
+                  where decision = 'merge' and subject_id = '3e49e000-0000-4000-8000-000000000002'
+                    and reason like '%merge-away%' and reason like '%merge-keep%' and reason like '%2 photograph%') then
+    raise exception 'MERGE GAP  no audit row naming both places and the count';
+  end if;
+  raise notice 'merge ok      photographs, items, restriction and proposal moved; the loser points at the survivor; the trail names both';
+end $$;
+
+-- Twice is refused: the loser is no longer approved.
+begin;
+set local role authenticated;
+set local "app.current_user_id" = '33333333-3333-4333-8333-333333333333';
+select public.test_rejects('merging the same place a second time',
+  $$select public.merge_location('3e49e000-0000-4000-8000-000000000001',
+                                 '3e49e000-0000-4000-8000-000000000002', 'again')$$, '22023');
+commit;
+
+-- The row rule holds on its own: a live place cannot point anywhere, and a
+-- merged one cannot point nowhere.
+select public.test_rejects('an approved place pointing at another',
+  $$update public.locations set merged_into_id = '3e49e000-0000-4000-8000-000000000002'
+     where id = '3e49e000-0000-4000-8000-000000000001'$$, '23514');
+select public.test_rejects('a merged place pointing at nothing',
+  $$update public.locations set merged_into_id = null
+     where id = '3e49e000-0000-4000-8000-000000000002'$$, '23514');
 
 -- ------------------------------------------------------------------ summary
 do $$
