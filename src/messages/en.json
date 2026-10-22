@@ -407,7 +407,9 @@
       "failed": "Your appreciation could not be saved. Check your connection and try again."
     },
     "stage": {
-      "fullView": "Full view"
+      "fullView": "Full view",
+      "removedTitle": "This photograph has been removed.",
+      "removedBody": "Its files were deleted when it was removed, so there is nothing to show here. The record of what was uploaded, and the reason, stay on this page for you and the moderation team."
     },
     "capture": {
       "eyebrow": "In the camera",
