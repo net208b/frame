@@ -2001,6 +2001,14 @@
       "entriesTitle": "In this collection",
       "entriesDescription": "{photographs, plural, one {# photograph} other {# photographs}} and {places, plural, one {# place} other {# places}}, most recently added first."
     },
+    "places": {
+      "label": "The places saved in this collection",
+      "eyebrow": "Saved places",
+      "title": "Where these places are",
+      "description": "The places saved here, drawn together. There is no route and no order — a photographer planning a morning out wants to see how the places sit relative to each other, which is what a map shows.",
+      "summary": "{count, plural, =0 {No saved place has a position that may be shown} one {{formatted} place on the map} other {{formatted} places on the map}}.",
+      "withheld": "{count, plural, one {One more place keeps its coordinates private, so it is not drawn.} other {# more places keep their coordinates private, so they are not drawn.}}"
+    },
     "notFound": {
       "heading": "There is no collection <accent>here</accent>.",
       "body": "Nothing at this address is open to you. A collection is private until its owner chooses otherwise, and an address can also change when a collection is renamed or disappear when it is deleted. If somebody shared this link with you, ask them to check it.",

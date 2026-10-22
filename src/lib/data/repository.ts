@@ -251,6 +251,21 @@ export async function getDiscoverMapPins(query: DiscoverQuery): Promise<MapPin[]
 }
 
 /**
+ * Pins for a named set of places — the map of a collection's saved places.
+ *
+ * Coordinates come through the same pin path as every other map, so a place
+ * that withholds its position has no pin here either. A collection can
+ * therefore hold more saved places than its map draws, which the page says.
+ */
+export async function getMapPinsForLocations(
+  locationIds: readonly string[],
+): Promise<MapPin[]> {
+  if (locationIds.length === 0) return [];
+  if (useLive()) return live.mapPinsForLocations(locationIds);
+  return demo.demoMapPinsForLocations(locationIds);
+}
+
+/**
  * One photographer's footprints: every place they have published a frame from.
  *
  * Separate from {@link getMapPins} because the number on each pin is their own
